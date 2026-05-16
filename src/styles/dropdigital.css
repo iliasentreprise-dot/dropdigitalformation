@@ -984,7 +984,6 @@
 
   .dd-root .main { width: 100% !important; max-width: 100% !important; margin-left: 0 !important; padding: 12px !important; }
   .dd-root .tab-content { padding: 16px; }
-  .dd-root .modules-grid { grid-template-columns: 1fr !important; gap: 14px; }
   .dd-root .module-card { max-width: 100%; }
   .dd-root .section-header h1 { font-size: 18px; }
 
@@ -994,4 +993,10 @@
   .dd-root a.sidebar-item {
     min-height: 44px;
   }
+}
+
+@media (max-width: 640px) {
+  .dd-root .modules-grid { grid-template-columns: 1fr !important; gap: 14px; }
+  .dd-root .bonus-ultime-grid { grid-template-columns: 1fr; }
+  .dd-root .bonus-ultime-wrapper { padding: 20px 14px; }
 }
