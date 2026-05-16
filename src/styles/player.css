@@ -650,6 +650,7 @@
     justify-content: center;
     text-align: center;
   }
+  .player-next-chapter { grid-column: 1 / -1; }
 
   /* Bottom sheet sidebar */
   .player-sidebar {
