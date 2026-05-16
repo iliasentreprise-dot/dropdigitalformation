@@ -526,6 +526,12 @@ function ModulePage() {
         </div>
 
         {/* ── Sidebar ── */}
+        {hasChapters && sidebarOpen && (
+          <div
+            className="player-sidebar-backdrop"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         {hasChapters && (
           <div
             className={`player-sidebar${sidebarOpen ? " open" : " closed"}`}
