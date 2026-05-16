@@ -1,12 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  Outlet,
-  Link,
-  createRootRouteWithContext,
-  useRouter,
-  HeadContent,
-  Scripts,
-} from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { AuthProvider } from "@/lib/auth-context";
 
 import appCss from "../styles.css?url";
 
@@ -32,54 +25,23 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
-  const router = useRouter();
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Try again
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Go home
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "DropDigital — Système Pirate" },
+      { name: "description", content: "Formation DropDigital — Vendre des produits digitaux sur TikTok en automatique, sans visage, sans audience, sans montage." },
+      { name: "author", content: "DropDigital" },
+      { property: "og:title", content: "DropDigital — Système Pirate" },
+      { property: "og:description", content: "Formation DropDigital — Vendre des produits digitaux sur TikTok en automatique, sans visage, sans audience, sans montage." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@DropDigital" },
+      { name: "twitter:title", content: "DropDigital — Système Pirate" },
+      { name: "twitter:description", content: "Formation DropDigital — Vendre des produits digitaux sur TikTok en automatique, sans visage, sans audience, sans montage." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e93ff7d4-5342-4ae2-8c46-f037a07ff1b9/id-preview-f439a8b5--3d165468-7237-4d94-b2cd-a3c57d11aee2.lovable.app-1776480600180.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e93ff7d4-5342-4ae2-8c46-f037a07ff1b9/id-preview-f439a8b5--3d165468-7237-4d94-b2cd-a3c57d11aee2.lovable.app-1776480600180.png" },
     ],
     links: [
       {
@@ -91,7 +53,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
-  errorComponent: ErrorComponent,
 });
 
 function RootShell({ children }: { children: React.ReactNode }) {
@@ -109,11 +70,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
-
   return (
-    <QueryClientProvider client={queryClient}>
+    <AuthProvider>
       <Outlet />
-    </QueryClientProvider>
+    </AuthProvider>
   );
 }
