@@ -175,6 +175,11 @@ type ChapterForm = {
   position: number;
 };
 
+type ChapterResource = {
+  id: string;
+  file_url: string;
+};
+
 const SECTIONS = [
   { value: "mindset", label: "🧠 Mindset" },
   { value: "jour1", label: "Jour 1" },
@@ -284,6 +289,34 @@ function AdminPage() {
       setMsg(null);
       setErr(null);
     }, 3500);
+  };
+
+  const getStoragePath = (url: string, bucket: string) => {
+    const marker = `/storage/v1/object/public/${bucket}/`;
+    const markerIndex = url.indexOf(marker);
+    if (markerIndex >= 0) {
+      return decodeURIComponent(url.slice(markerIndex + marker.length).split("?")[0]);
+    }
+    return null;
+  };
+
+  const deleteChapterResources = async (chapterIds: string[]) => {
+    if (!chapterIds.length) return;
+
+    const { data: resources } = await supabase
+      .from("chapter_resources")
+      .select("id, file_url")
+      .in("chapter_id", chapterIds);
+
+    const storagePaths = ((resources as ChapterResource[] | null) ?? [])
+      .map((resource) => getStoragePath(resource.file_url, "chapter-resources"))
+      .filter((path): path is string => Boolean(path));
+
+    if (storagePaths.length > 0) {
+      await supabase.storage.from("chapter-resources").remove(storagePaths);
+    }
+
+    await supabase.from("chapter_resources").delete().in("chapter_id", chapterIds);
   };
 
   // ── MODULE CRUD ──
