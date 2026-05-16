@@ -61,14 +61,19 @@ function HomePage() {
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [activeSection, setActiveSection] = useState("mindset");
   const [tab, setTab] = useState<TabKey>("modules");
-  const [sidebarOpen, setSidebarOpen] = useState(() =>
-    typeof window === "undefined" ? true : window.innerWidth > 768,
-  );
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    const syncSidebar = () => setSidebarOpen(window.innerWidth > 768);
+    syncSidebar();
+    window.addEventListener("resize", syncSidebar);
+    return () => window.removeEventListener("resize", syncSidebar);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
