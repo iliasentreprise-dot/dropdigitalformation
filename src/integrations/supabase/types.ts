@@ -14,6 +14,76 @@ export type Database = {
   }
   public: {
     Tables: {
+      chapter_reactions: {
+        Row: {
+          chapter_id: string
+          created_at: string
+          id: string
+          reaction: string
+          user_id: string
+        }
+        Insert: {
+          chapter_id: string
+          created_at?: string
+          id?: string
+          reaction: string
+          user_id: string
+        }
+        Update: {
+          chapter_id?: string
+          created_at?: string
+          id?: string
+          reaction?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_reactions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chapter_resources: {
+        Row: {
+          chapter_id: string
+          created_at: string
+          file_type: string
+          file_url: string
+          id: string
+          position: number
+          title: string
+        }
+        Insert: {
+          chapter_id: string
+          created_at?: string
+          file_type?: string
+          file_url: string
+          id?: string
+          position?: number
+          title: string
+        }
+        Update: {
+          chapter_id?: string
+          created_at?: string
+          file_type?: string
+          file_url?: string
+          id?: string
+          position?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_resources_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chapters: {
         Row: {
           created_at: string
@@ -89,6 +159,35 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      module_completions: {
+        Row: {
+          completed_at: string
+          id: string
+          module_id: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          id?: string
+          module_id: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          id?: string
+          module_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "module_completions_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
             referencedColumns: ["id"]
           },
         ]
