@@ -183,6 +183,24 @@ function ModulePage() {
     }
   };
 
+  const flashMsg = (msg: string) => {
+    setFlash(msg);
+    window.setTimeout(() => setFlash(null), 2000);
+  };
+
+  const saveChapterField = async (field: "title" | "description", value: string) => {
+    if (!selectedId) return;
+    const v = value.trim();
+    if (field === "title" && !v) return;
+    await supabase.from("chapters").update({ [field]: v }).eq("id", selectedId);
+    setChapters((prev) =>
+      prev.map((c) => (c.id === selectedId ? { ...c, [field]: v } : c)),
+    );
+    if (field === "title") setEditingTitle(false);
+    else setEditingDesc(false);
+    flashMsg("✓ Sauvegardé");
+  };
+
   const prepareFile = (file: File) => {
     if (!file.type.startsWith("video/")) return;
     setPendingFile(file);
