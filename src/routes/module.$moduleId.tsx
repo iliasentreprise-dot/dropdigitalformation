@@ -60,9 +60,7 @@ function ModulePage() {
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [validating, setValidating] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(() =>
-    typeof window === "undefined" ? true : window.innerWidth >= 768,
-  );
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
   const [countdownActive, setCountdownActive] = useState(false);
   const [showCertificate, setShowCertificate] = useState(false);
@@ -84,6 +82,13 @@ function ModulePage() {
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    const syncSidebar = () => setSidebarOpen(window.innerWidth >= 768);
+    syncSidebar();
+    window.addEventListener("resize", syncSidebar);
+    return () => window.removeEventListener("resize", syncSidebar);
+  }, []);
 
   useEffect(() => {
     if (!user || !moduleId) return;
