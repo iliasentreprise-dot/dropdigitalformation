@@ -175,6 +175,11 @@ type ChapterForm = {
   position: number;
 };
 
+type ChapterResource = {
+  id: string;
+  file_url: string;
+};
+
 const SECTIONS = [
   { value: "mindset", label: "🧠 Mindset" },
   { value: "jour1", label: "Jour 1" },
@@ -286,6 +291,42 @@ function AdminPage() {
     }, 3500);
   };
 
+  const getStoragePath = (url: string, bucket: string) => {
+    const marker = `/storage/v1/object/public/${bucket}/`;
+    const markerIndex = url.indexOf(marker);
+    if (markerIndex >= 0) {
+      return decodeURIComponent(url.slice(markerIndex + marker.length).split("?")[0]);
+    }
+    return null;
+  };
+
+  const fetchChapterResources = async (chapterIds: string[]) => {
+    if (!chapterIds.length) return;
+
+    const { data: resources } = await supabase
+      .from("chapter_resources")
+      .select("id, file_url")
+      .in("chapter_id", chapterIds);
+
+    return ((resources as ChapterResource[] | null) ?? []);
+  };
+
+  const purgeChapterResources = async (chapterIds: string[], knownResources?: ChapterResource[]) => {
+    if (!chapterIds.length) return;
+
+    const resources = knownResources ?? (await fetchChapterResources(chapterIds)) ?? [];
+
+    const storagePaths = resources
+      .map((resource) => getStoragePath(resource.file_url, "chapter-resources"))
+      .filter((path): path is string => Boolean(path));
+
+    if (storagePaths.length > 0) {
+      await supabase.storage.from("chapter-resources").remove(storagePaths);
+    }
+
+    await supabase.from("chapter_resources").delete().in("chapter_id", chapterIds);
+  };
+
   // ── MODULE CRUD ──
 
   const openModuleCreate = () => {
@@ -336,12 +377,28 @@ function AdminPage() {
   };
 
   const deleteModule = async (id: string) => {
-    if (!confirm("Supprimer ce module et tous ses chapitres ?")) return;
+    if (!confirm("Supprimer ce module et tous ses chapitres ? Cette action est irréversible.")) return;
+
+    const moduleChapters = chapters[id] ?? [];
+    const { data: fetchedChapters } = moduleChapters.length
+      ? { data: moduleChapters }
+      : await supabase.from("chapters").select("id, module_id, title, description, video_url, duration_seconds, position").eq("module_id", id);
+    const chapterIds = ((fetchedChapters as Chapter[] | null) ?? []).map((chapter) => chapter.id);
+
     const { error } = await supabase.from("modules").delete().eq("id", id);
-    if (error) flash(error.message, true);
-    else {
-      flash("Module supprimé");
-      void loadModules();
+    if (error) {
+      flash(error.message, true);
+    } else {
+      await supabase.from("chapters").delete().eq("module_id", id);
+      await purgeChapterResources(chapterIds);
+      setModules((prev) => prev.filter((moduleItem) => moduleItem.id !== id));
+      setChapters((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setExpandedModule((current) => (current === id ? null : current));
+      flash("Module supprimé ✓");
     }
   };
 
@@ -396,11 +453,17 @@ function AdminPage() {
 
   const deleteChapter = async (c: Chapter) => {
     if (!confirm("Supprimer ce chapitre ?")) return;
+    const resources = await fetchChapterResources([c.id]);
     const { error } = await supabase.from("chapters").delete().eq("id", c.id);
-    if (error) flash(error.message, true);
-    else {
-      flash("Chapitre supprimé");
-      void loadChapters(c.module_id);
+    if (error) {
+      flash(error.message, true);
+    } else {
+      await purgeChapterResources([c.id], resources);
+      setChapters((prev) => ({
+        ...prev,
+        [c.module_id]: (prev[c.module_id] ?? []).filter((chapter) => chapter.id !== c.id),
+      }));
+      flash("Chapitre supprimé ✓");
     }
   };
 

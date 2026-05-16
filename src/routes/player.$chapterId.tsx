@@ -52,6 +52,13 @@ function PlayerPage() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
+    const syncSidebar = () => setSidebarOpen(window.innerWidth > 768);
+    syncSidebar();
+    window.addEventListener("resize", syncSidebar);
+    return () => window.removeEventListener("resize", syncSidebar);
+  }, []);
+
+  useEffect(() => {
     if (!user || !chapterId) return;
     setDataLoading(true);
 
@@ -217,6 +224,12 @@ function PlayerPage() {
           </div>
         </div>
 
+        {sidebarOpen && (
+          <div
+            className="player-sidebar-backdrop"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         <div className={`player-sidebar${sidebarOpen ? " open" : " closed"}`}>
           <div className="player-sidebar-title">Chapitres du module</div>
           <div className="player-chapters-list">
@@ -230,12 +243,15 @@ function PlayerPage() {
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                onClick={() =>
+                onClick={() => {
                   navigate({
                     to: "/player/$chapterId",
                     params: { chapterId: c.id },
-                  })
-                }
+                  });
+                  if (typeof window !== "undefined" && window.innerWidth <= 768) {
+                    setSidebarOpen(false);
+                  }
+                }}
               >
                 <span className="chapter-num">{idx + 1}</span>
                 <span className="chapter-title">{c.title}</span>

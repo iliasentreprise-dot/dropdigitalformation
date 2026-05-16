@@ -472,3 +472,40 @@
 [data-theme="light"] .chapter-url { color: var(--text-muted, #8b6ab0); }
 [data-theme="light"] .admin-dropzone { background: #faf9ff; border-color: #d6c9ee; }
 [data-theme="light"] .admin-btn-ghost { color: var(--accent, #7c3aed); border-color: #d6c9ee; background: #fff; }
+
+@media (max-width: 640px) {
+  .admin-body {
+    padding: 16px 12px 60px;
+  }
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-module-header,
+  .admin-module-actions,
+  .admin-form-actions,
+  .admin-chapter-row,
+  .admin-chapter-row .chapter-actions {
+    flex-wrap: wrap;
+  }
+  .admin-module-actions {
+    gap: 6px;
+  }
+  .admin-topbar {
+    padding: 10px 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .admin-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .admin-btn-primary,
+  .admin-btn-secondary,
+  .admin-btn-ghost,
+  .admin-btn-danger,
+  .dz-browse,
+  .dz-url-toggle {
+    min-height: 44px;
+  }
+}

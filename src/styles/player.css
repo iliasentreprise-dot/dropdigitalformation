@@ -619,8 +619,11 @@
 }
 
 @media (max-width: 768px) {
-  .player-main { padding: 14px; gap: 16px; }
+  .player-layout { flex-direction: column; }
+  .player-main { width: 100%; max-width: 100%; padding: 12px; gap: 16px; }
   .player-title { font-size: 18px; }
+  .player-topbar { padding: 10px 14px; gap: 8px; }
+  .player-module-name { font-size: 12px; }
 
   .player-actions {
     flex-direction: column;
@@ -634,7 +637,8 @@
   }
   .player-nav {
     margin-left: 0;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
     width: 100%;
   }
@@ -646,34 +650,42 @@
     justify-content: center;
     text-align: center;
   }
+  .player-next-chapter { grid-column: 1 / -1; }
 
   /* Bottom sheet sidebar */
   .player-sidebar {
-    position: fixed;
-    left: 0; right: 0; bottom: 0;
-    top: auto;
-    width: 100%; min-width: 100%;
-    height: 70vh;
+    position: fixed !important;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    top: auto !important;
+    width: 100% !important;
+    min-width: 100% !important;
     max-height: 70vh;
-    border-left: none;
-    border-top: 1px solid rgba(168, 85, 247, 0.25);
-    border-radius: 18px 18px 0 0;
+    border-left: none !important;
+    border-top: 1px solid rgba(168, 85, 247, 0.2);
+    border-radius: 20px 20px 0 0;
     transform: translateY(100%);
-    transition: transform 0.28s ease;
-    z-index: 250;
+    transition: transform 0.3s ease;
+    z-index: 300;
     background: rgba(15, 5, 30, 0.98);
+    overflow-y: auto;
   }
   .player-sidebar.open { transform: translateY(0); }
-  .player-sidebar.closed { transform: translateY(100%); }
+  .player-sidebar.closed {
+    transform: translateY(100%);
+    width: 100% !important;
+    min-width: 100% !important;
+  }
   .player-sidebar-backdrop {
     display: block;
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.55);
-    z-index: 240;
+    z-index: 290;
     animation: fade-in 0.2s ease-out;
   }
 
-  .player-chapter-item { min-height: 52px; padding: 10px 14px; }
-  .chapter-num { min-width: 28px; height: 28px; font-size: 12px; }
+  .player-chapter-item { min-height: 52px; padding: 12px 14px; font-size: 14px; }
+  .chapter-num { min-width: 30px; height: 30px; font-size: 13px; }
 }

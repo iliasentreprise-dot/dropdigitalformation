@@ -69,6 +69,13 @@ function HomePage() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
+    const syncSidebar = () => setSidebarOpen(window.innerWidth > 768);
+    syncSidebar();
+    window.addEventListener("resize", syncSidebar);
+    return () => window.removeEventListener("resize", syncSidebar);
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
     (async () => {
       const { data: mods } = await supabase
@@ -129,7 +136,7 @@ function HomePage() {
 
   const handleTabClick = (k: TabKey) => {
     setTab(k);
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
+    if (typeof window !== "undefined" && window.innerWidth <= 768) {
       setSidebarOpen(false);
     }
   };
