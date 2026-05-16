@@ -480,3 +480,25 @@
   .player-main { padding: 16px; }
   .player-title { font-size: 18px; }
 }
+
+/* ─── Light theme overrides ─── */
+[data-theme="light"] .player-root { background: var(--bg-main, #f5f3ff); color: var(--text-primary, #1a0d2e); }
+[data-theme="light"] .player-topbar { background: var(--topbar-bg, rgba(255,255,255,0.95)); border-bottom-color: #d6c9ee; }
+[data-theme="light"] .player-back { color: var(--accent, #7c3aed); }
+[data-theme="light"] .player-module-name { color: var(--text-primary, #1a0d2e); }
+[data-theme="light"] .player-sidebar-toggle { color: var(--accent, #7c3aed); border-color: #d6c9ee; background: #fff; }
+[data-theme="light"] .player-sidebar { background: #faf9ff; border-left-color: #d6c9ee; }
+[data-theme="light"] .player-sidebar-title { color: var(--text-muted, #8b6ab0); }
+[data-theme="light"] .player-chapter-item { color: var(--text-secondary, #5b3e8a); background: #fff; border-color: #d6c9ee; }
+[data-theme="light"] .player-chapter-item:hover { background: #ede9fe; }
+[data-theme="light"] .player-chapter-item.active { background: #ede9fe; color: var(--text-primary, #1a0d2e); border-color: var(--accent, #7c3aed); }
+[data-theme="light"] .player-title { color: var(--text-primary, #1a0d2e); }
+[data-theme="light"] .player-desc { color: var(--text-secondary, #5b3e8a); }
+[data-theme="light"] .player-info { background: #fff; border-color: #d6c9ee; }
+[data-theme="light"] .player-no-video { background: #ede9fe; color: var(--text-secondary, #5b3e8a); }
+[data-theme="light"] .player-validate { background: var(--accent-strong, #7c3aed); }
+[data-theme="light"] .player-validate.done { background: #10b981; }
+[data-theme="light"] .player-nav-btn { background: #fff; color: var(--text-primary, #1a0d2e); border-color: #d6c9ee; }
+[data-theme="light"] .player-nav-btn.primary { background: var(--accent-strong, #7c3aed); color: #fff; border-color: var(--accent-strong, #7c3aed); }
+[data-theme="light"] .pg-label { color: var(--text-secondary, #5b3e8a); }
+[data-theme="light"] .pg-bar-wrap { background: #e5dcfa; }
