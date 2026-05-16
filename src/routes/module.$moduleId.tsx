@@ -279,16 +279,11 @@ function ModulePage() {
         <div className="player-main">
           {hasChapters ? (
             <>
-              {/* Video */}
-              <div className="player-video-wrap">
+              <h1 className="player-title" style={{ marginBottom: 12 }}>{selected?.title}</h1>
+              <div className="player-video-wrap" style={{ position: "relative" }}>
                 {videoUrl ? (
                   direct ? (
-                    <video
-                      key={videoUrl}
-                      src={videoUrl}
-                      controls
-                      className="player-iframe"
-                    />
+                    <video key={videoUrl} src={videoUrl} controls className="player-iframe" />
                   ) : (
                     <iframe
                       src={videoUrl}
@@ -305,14 +300,19 @@ function ModulePage() {
                     <p>Vidéo bientôt disponible</p>
                   </div>
                 )}
+                <NextChapterCountdown
+                  active={countdownActive}
+                  onGo={goToNextChapter}
+                  onCancel={() => setCountdownActive(false)}
+                />
               </div>
 
-              {/* Info + actions */}
               <div className="player-info">
-                <h1 className="player-title">{selected?.title}</h1>
                 {selected?.description && (
                   <p className="player-desc">{selected.description}</p>
                 )}
+                {selectedId && <ResourcesSection chapterId={selectedId} />}
+                {selectedId && <ReactionsRow chapterId={selectedId} />}
                 <div className="player-actions">
                   <button
                     className={`player-validate${isDone ? " done" : ""}`}
