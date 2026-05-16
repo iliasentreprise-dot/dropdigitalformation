@@ -488,6 +488,12 @@ function ModulePage() {
           </div>
         )}
       </div>
+      <CertificateModal
+        open={showCertificate}
+        moduleTitle={module?.title || ""}
+        userName={userName}
+        onClose={() => setShowCertificate(false)}
+      />
     </div>
   );
 }
