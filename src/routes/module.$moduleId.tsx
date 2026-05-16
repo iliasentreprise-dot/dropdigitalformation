@@ -79,7 +79,32 @@ function ModulePage() {
   const [showTitleForm, setShowTitleForm] = useState(false);
   const [showAddChapter, setShowAddChapter] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState("");
+  const [newChapterVideoUrl, setNewChapterVideoUrl] = useState("");
   const [addingChapter, setAddingChapter] = useState(false);
+  const [addingChapterUploading, setAddingChapterUploading] = useState(false);
+  const [addChapterDragging, setAddChapterDragging] = useState(false);
+  const addChapterFileRef = useRef<HTMLInputElement>(null);
+
+  const resetAddChapter = () => {
+    setShowAddChapter(false);
+    setNewChapterTitle("");
+    setNewChapterVideoUrl("");
+  };
+
+  const uploadChapterVideo = async (file: File) => {
+    if (!file || addingChapterUploading) return;
+    setAddingChapterUploading(true);
+    const ext = file.name.split(".").pop() || "mp4";
+    const path = `${moduleId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
+      .from("course-videos")
+      .upload(path, file, { upsert: false, contentType: file.type });
+    if (!error) {
+      const { data } = supabase.storage.from("course-videos").getPublicUrl(path);
+      setNewChapterVideoUrl(data.publicUrl);
+    }
+    setAddingChapterUploading(false);
+  };
 
   const createChapter = async () => {
     if (!newChapterTitle.trim() || addingChapter) return;
@@ -88,16 +113,26 @@ function ModulePage() {
       module_id: moduleId,
       title: newChapterTitle.trim(),
       description: "",
-      video_url: "",
+      video_url: newChapterVideoUrl,
       position: chapters.length,
       duration_seconds: 0,
     });
     if (!error) {
       await reloadChapters();
-      setNewChapterTitle("");
-      setShowAddChapter(false);
+      resetAddChapter();
     }
     setAddingChapter(false);
+  };
+
+  const deleteChapter = async (id: string) => {
+    if (!confirm("Supprimer ce chapitre ? Cette action est irréversible.")) return;
+    const { error } = await supabase.from("chapters").delete().eq("id", id);
+    if (error) return;
+    const remaining = chapters.filter((c) => c.id !== id);
+    setChapters(remaining);
+    if (selectedId === id) {
+      setSelectedId(remaining[0]?.id ?? null);
+    }
   };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
