@@ -935,8 +935,9 @@
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 199;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 499;
+  backdrop-filter: blur(2px);
 }
 
 /* ============ MOBILE RESPONSIVE ============ */
@@ -945,31 +946,52 @@
 }
 
 @media (max-width: 768px) {
-  .dd-root .topbar { height: 52px; padding: 0 12px; }
+  .dd-root .topbar { height: 52px; padding: 10px 14px; flex-wrap: nowrap; gap: 8px; }
   .dd-root .price-pill { display: none; }
-  .dd-root .logo-text { font-size: 16px; }
+  .dd-root .logo-text { font-size: 15px; }
+  .dd-root .topbar > div:last-child { display: none; }
 
   .dd-root .sidebar {
-    position: fixed;
-    left: 0; top: 52px; bottom: 0;
-    z-index: 200;
-    width: 260px;
-    min-width: 260px;
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    height: calc(100vh - 52px);
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px !important;
+    min-width: 260px !important;
+    z-index: 500;
+    transform: translateX(0);
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    opacity: 1;
+    pointer-events: auto;
+    border-right: 1px solid rgba(168, 85, 247, 0.2);
+    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.5);
+    height: 100vh;
   }
   .dd-root .sidebar.open {
     transform: translateX(0);
-    box-shadow: 4px 0 24px rgba(0,0,0,0.4);
   }
-  .dd-root .sidebar.closed { transform: translateX(-100%); width: 260px; min-width: 260px; }
+  .dd-root .sidebar.closed {
+    transform: translateX(-100%) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    width: 260px !important;
+    min-width: 260px !important;
+    border-right: none;
+  }
   .dd-root .sidebar.open > * { opacity: 1; pointer-events: auto; }
 
-  .dd-root .sidebar-backdrop.visible { display: block; top: 52px; }
+  .dd-root .sidebar-backdrop.visible { display: block; }
 
-  .dd-root .main { width: 100%; }
+  .dd-root .main { width: 100% !important; max-width: 100% !important; margin-left: 0 !important; padding: 12px !important; }
   .dd-root .tab-content { padding: 16px; }
-  .dd-root .modules-grid { grid-template-columns: 1fr; gap: 14px; }
+  .dd-root .modules-grid { grid-template-columns: 1fr !important; gap: 14px; }
+  .dd-root .module-card { max-width: 100%; }
   .dd-root .section-header h1 { font-size: 18px; }
+
+  .dd-root button,
+  .dd-root .sidebar-item,
+  .dd-root .tab-btn,
+  .dd-root a.sidebar-item {
+    min-height: 44px;
+  }
 }
