@@ -2,6 +2,11 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import { ResourcesSection } from "@/components/dd/ResourcesSection";
+import { ReactionsRow } from "@/components/dd/ReactionsRow";
+import { NextChapterCountdown } from "@/components/dd/NextChapterCountdown";
+import { CertificateModal } from "@/components/dd/CertificateModal";
+import { notifyProgressChanged } from "@/components/dd/GlobalProgressBar";
 import "../styles/player.css";
 
 export const Route = createFileRoute("/module/$moduleId")({
