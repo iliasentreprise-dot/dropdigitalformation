@@ -44,14 +44,19 @@ function PlayerPage() {
   const [allChapters, setAllChapters] = useState<Chapter[]>([]);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [validating, setValidating] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(() =>
-    typeof window === "undefined" ? true : window.innerWidth > 768,
-  );
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    const syncSidebar = () => setSidebarOpen(window.innerWidth > 768);
+    syncSidebar();
+    window.addEventListener("resize", syncSidebar);
+    return () => window.removeEventListener("resize", syncSidebar);
+  }, []);
 
   useEffect(() => {
     if (!user || !chapterId) return;
