@@ -548,7 +548,12 @@ function ModulePage() {
                   ]
                     .filter(Boolean)
                     .join(" ")}
-                  onClick={() => setSelectedId(c.id)}
+                  onClick={() => {
+                    setSelectedId(c.id);
+                    if (typeof window !== "undefined" && window.innerWidth < 768) {
+                      setSidebarOpen(false);
+                    }
+                  }}
                 >
                   <span className="chapter-num">{idx + 1}</span>
                   <span className="chapter-title">{c.title}</span>
