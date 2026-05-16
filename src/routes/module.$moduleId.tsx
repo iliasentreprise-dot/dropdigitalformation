@@ -192,7 +192,8 @@ function ModulePage() {
     if (!selectedId) return;
     const v = value.trim();
     if (field === "title" && !v) return;
-    await supabase.from("chapters").update({ [field]: v }).eq("id", selectedId);
+    const patch = field === "title" ? { title: v } : { description: v };
+    await supabase.from("chapters").update(patch).eq("id", selectedId);
     setChapters((prev) =>
       prev.map((c) => (c.id === selectedId ? { ...c, [field]: v } : c)),
     );
