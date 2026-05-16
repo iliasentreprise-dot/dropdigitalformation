@@ -389,6 +389,7 @@ function AdminPage() {
     if (error) {
       flash(error.message, true);
     } else {
+      await supabase.from("chapters").delete().eq("module_id", id);
       await purgeChapterResources(chapterIds);
       setModules((prev) => prev.filter((moduleItem) => moduleItem.id !== id));
       setChapters((prev) => {
