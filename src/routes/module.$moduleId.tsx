@@ -79,7 +79,32 @@ function ModulePage() {
   const [showTitleForm, setShowTitleForm] = useState(false);
   const [showAddChapter, setShowAddChapter] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState("");
+  const [newChapterVideoUrl, setNewChapterVideoUrl] = useState("");
   const [addingChapter, setAddingChapter] = useState(false);
+  const [addingChapterUploading, setAddingChapterUploading] = useState(false);
+  const [addChapterDragging, setAddChapterDragging] = useState(false);
+  const addChapterFileRef = useRef<HTMLInputElement>(null);
+
+  const resetAddChapter = () => {
+    setShowAddChapter(false);
+    setNewChapterTitle("");
+    setNewChapterVideoUrl("");
+  };
+
+  const uploadChapterVideo = async (file: File) => {
+    if (!file || addingChapterUploading) return;
+    setAddingChapterUploading(true);
+    const ext = file.name.split(".").pop() || "mp4";
+    const path = `${moduleId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
+      .from("course-videos")
+      .upload(path, file, { upsert: false, contentType: file.type });
+    if (!error) {
+      const { data } = supabase.storage.from("course-videos").getPublicUrl(path);
+      setNewChapterVideoUrl(data.publicUrl);
+    }
+    setAddingChapterUploading(false);
+  };
 
   const createChapter = async () => {
     if (!newChapterTitle.trim() || addingChapter) return;
@@ -88,16 +113,26 @@ function ModulePage() {
       module_id: moduleId,
       title: newChapterTitle.trim(),
       description: "",
-      video_url: "",
+      video_url: newChapterVideoUrl,
       position: chapters.length,
       duration_seconds: 0,
     });
     if (!error) {
       await reloadChapters();
-      setNewChapterTitle("");
-      setShowAddChapter(false);
+      resetAddChapter();
     }
     setAddingChapter(false);
+  };
+
+  const deleteChapter = async (id: string) => {
+    if (!confirm("Supprimer ce chapitre ? Cette action est irréversible.")) return;
+    const { error } = await supabase.from("chapters").delete().eq("id", id);
+    if (error) return;
+    const remaining = chapters.filter((c) => c.id !== id);
+    setChapters(remaining);
+    if (selectedId === id) {
+      setSelectedId(remaining[0]?.id ?? null);
+    }
   };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -608,7 +643,7 @@ function ModulePage() {
                   padding: 14,
                   display: "flex",
                   flexDirection: "column",
-                  gap: 8,
+                  gap: 10,
                 }}
               >
                 <input
@@ -616,8 +651,7 @@ function ModulePage() {
                   value={newChapterTitle}
                   onChange={(e) => setNewChapterTitle(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") void createChapter();
-                    if (e.key === "Escape") setShowAddChapter(false);
+                    if (e.key === "Escape") resetAddChapter();
                   }}
                   autoFocus
                   style={{
@@ -631,13 +665,103 @@ function ModulePage() {
                     outline: "none",
                   }}
                 />
+                <input
+                  ref={addChapterFileRef}
+                  type="file"
+                  accept="video/*"
+                  hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void uploadChapterVideo(f);
+                    e.target.value = "";
+                  }}
+                />
+                {newChapterVideoUrl ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      padding: "8px 10px",
+                      borderRadius: 7,
+                      background: "rgba(34,197,94,0.12)",
+                      border: "1px solid rgba(34,197,94,0.3)",
+                      color: "#b9f3cf",
+                      fontSize: 12,
+                    }}
+                  >
+                    <span>✅ Vidéo prête</span>
+                    <button
+                      onClick={() => {
+                        setNewChapterVideoUrl("");
+                        addChapterFileRef.current?.click();
+                      }}
+                      style={{
+                        background: "none",
+                        border: "1px solid rgba(168,85,247,0.3)",
+                        borderRadius: 6,
+                        color: "#c4a3f0",
+                        fontSize: 11,
+                        padding: "4px 8px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Changer
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => !addingChapterUploading && addChapterFileRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setAddChapterDragging(true);
+                    }}
+                    onDragLeave={() => setAddChapterDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setAddChapterDragging(false);
+                      const f = e.dataTransfer.files?.[0];
+                      if (f) void uploadChapterVideo(f);
+                    }}
+                    style={{
+                      padding: "14px 10px",
+                      borderRadius: 7,
+                      border: `1px dashed ${addChapterDragging ? "#a855f7" : "rgba(168,85,247,0.3)"}`,
+                      background: addChapterDragging ? "rgba(168,85,247,0.12)" : "rgba(10,3,20,0.4)",
+                      color: "#9a7dbd",
+                      fontSize: 12,
+                      textAlign: "center",
+                      cursor: addingChapterUploading ? "wait" : "pointer",
+                    }}
+                  >
+                    {addingChapterUploading ? (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span
+                          style={{
+                            width: 12,
+                            height: 12,
+                            border: "2px solid rgba(168,85,247,0.3)",
+                            borderTopColor: "#a855f7",
+                            borderRadius: "50%",
+                            display: "inline-block",
+                            animation: "spin 0.8s linear infinite",
+                          }}
+                        />
+                        Envoi en cours…
+                      </span>
+                    ) : (
+                      <>Glisser une vidéo ici ou cliquer</>
+                    )}
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 6 }}>
                   <button
                     onClick={() => void createChapter()}
-                    disabled={!newChapterTitle.trim() || addingChapter}
+                    disabled={!newChapterTitle.trim() || addingChapter || addingChapterUploading}
                     style={{
                       flex: 1,
-                      padding: "6px 0",
+                      padding: "8px 0",
                       background: "linear-gradient(135deg,#7c3aed,#a855f7)",
                       border: "none",
                       borderRadius: 7,
@@ -645,18 +769,15 @@ function ModulePage() {
                       fontSize: 12,
                       fontWeight: 700,
                       cursor: "pointer",
-                      opacity: !newChapterTitle.trim() ? 0.5 : 1,
+                      opacity: !newChapterTitle.trim() || addingChapterUploading ? 0.5 : 1,
                     }}
                   >
-                    {addingChapter ? "…" : "Créer"}
+                    {addingChapter ? "…" : "Créer le chapitre"}
                   </button>
                   <button
-                    onClick={() => {
-                      setShowAddChapter(false);
-                      setNewChapterTitle("");
-                    }}
+                    onClick={resetAddChapter}
                     style={{
-                      padding: "6px 10px",
+                      padding: "8px 12px",
                       background: "none",
                       border: "1px solid rgba(168,85,247,0.2)",
                       borderRadius: 7,
@@ -672,28 +793,60 @@ function ModulePage() {
             )}
             <div className="player-chapters-list">
               {chapters.map((c, idx) => (
-                <button
-                  key={c.id}
-                  className={[
-                    "player-chapter-item",
-                    c.id === selectedId ? "active" : "",
-                    completed.has(c.id) ? "done" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={() => {
-                    setSelectedId(c.id);
-                    if (typeof window !== "undefined" && window.innerWidth < 768) {
-                      setSidebarOpen(false);
-                    }
-                  }}
-                >
-                  <span className="chapter-num">{idx + 1}</span>
-                  <span className="chapter-title">{c.title}</span>
-                  {completed.has(c.id) && (
-                    <span className="chapter-check">✓</span>
+                <div key={c.id} style={{ position: "relative" }}>
+                  <button
+                    className={[
+                      "player-chapter-item",
+                      c.id === selectedId ? "active" : "",
+                      completed.has(c.id) ? "done" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    style={isAdmin ? { paddingRight: 36, width: "100%" } : undefined}
+                    onClick={() => {
+                      setSelectedId(c.id);
+                      if (typeof window !== "undefined" && window.innerWidth < 768) {
+                        setSidebarOpen(false);
+                      }
+                    }}
+                  >
+                    <span className="chapter-num">{idx + 1}</span>
+                    <span className="chapter-title">{c.title}</span>
+                    {completed.has(c.id) && (
+                      <span className="chapter-check">✓</span>
+                    )}
+                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void deleteChapter(c.id);
+                      }}
+                      title="Supprimer le chapitre"
+                      style={{
+                        position: "absolute",
+                        right: 8,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: 22,
+                        height: 22,
+                        background: "rgba(239,68,68,0.15)",
+                        border: "1px solid rgba(239,68,68,0.3)",
+                        borderRadius: 6,
+                        color: "#fca5a5",
+                        fontSize: 12,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        lineHeight: 1,
+                        padding: 0,
+                      }}
+                    >
+                      ✕
+                    </button>
                   )}
-                </button>
+                </div>
               ))}
             </div>
             <div className="player-sidebar-progress">
