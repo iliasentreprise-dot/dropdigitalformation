@@ -51,7 +51,13 @@
 .dd-root .new-price { font-weight: 800; font-size: 15px; color: #a855f7; }
 .dd-root .badge-red { background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
 
-.dd-root .layout { display: flex; flex: 1; align-items: flex-start; }
+.dd-root .layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  align-items: stretch;
+}
 
 .dd-root .menu-toggle { background: transparent; border: 1px solid #2a1a4a; color: #c4a0e8; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-right: 8px; transition: all 0.15s; padding: 0; }
 .dd-root .menu-toggle:hover { background: #1a0d30; border-color: #7c3aed; color: #fff; }
@@ -60,14 +66,15 @@
 .dd-root .sidebar {
   width: 240px;
   min-width: 240px;
-  background: #0d0918;
-  border-right: 1px solid #1e1035;
+  flex-shrink: 0;
+  background: rgba(14, 6, 28, 0.97);
+  border-right: 1px solid rgba(168, 85, 247, 0.12);
   padding: 20px 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
   overflow: hidden;
-  transition: width 0.3s ease, min-width 0.3s ease, border-color 0.3s ease;
+  transition: width 0.25s ease, min-width 0.25s ease, opacity 0.2s, border-color 0.25s ease;
   position: sticky;
   top: 60px;
   height: calc(100vh - 60px);
@@ -77,7 +84,9 @@
 .dd-root .sidebar.closed {
   width: 0;
   min-width: 0;
-  border-right-color: transparent;
+  border-right: none;
+  opacity: 0;
+  pointer-events: none;
   position: sticky;
   top: 60px;
   height: calc(100vh - 60px);
@@ -91,7 +100,7 @@
 .dd-root .sidebar-item .si-prog { margin-left: auto; font-size: 11px; color: #7c5c9a; font-weight: 600; }
 .dd-root .sidebar-divider { height: 1px; background: #1e1035; margin: 8px 20px; }
 
-.dd-root .main { flex: 1; background: #0a0612; display: flex; flex-direction: column; }
+.dd-root .main { flex: 1; min-width: 0; overflow-x: hidden; background: #0a0612; display: flex; flex-direction: column; transition: all 0.25s ease; }
 
 .dd-root .tabs-bar { background: #0d0918; border-bottom: 1px solid #1e1035; padding: 0 32px; display: flex; gap: 0; }
 .dd-root .tab-btn { padding: 16px 22px; font-size: 14px; font-weight: 600; color: #7c5c9a; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s; white-space: nowrap; }
