@@ -300,7 +300,7 @@ function AdminPage() {
     return null;
   };
 
-  const deleteChapterResources = async (chapterIds: string[]) => {
+  const fetchChapterResources = async (chapterIds: string[]) => {
     if (!chapterIds.length) return;
 
     const { data: resources } = await supabase
@@ -308,7 +308,15 @@ function AdminPage() {
       .select("id, file_url")
       .in("chapter_id", chapterIds);
 
-    const storagePaths = ((resources as ChapterResource[] | null) ?? [])
+    return ((resources as ChapterResource[] | null) ?? []);
+  };
+
+  const purgeChapterResources = async (chapterIds: string[], knownResources?: ChapterResource[]) => {
+    if (!chapterIds.length) return;
+
+    const resources = knownResources ?? (await fetchChapterResources(chapterIds)) ?? [];
+
+    const storagePaths = resources
       .map((resource) => getStoragePath(resource.file_url, "chapter-resources"))
       .filter((path): path is string => Boolean(path));
 
