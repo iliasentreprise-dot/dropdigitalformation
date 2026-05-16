@@ -62,6 +62,9 @@ function ModulePage() {
   const [validating, setValidating] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
+  const [countdownActive, setCountdownActive] = useState(false);
+  const [showCertificate, setShowCertificate] = useState(false);
+  const [userName, setUserName] = useState("");
 
   // Upload state (admin only)
   const [dragging, setDragging] = useState(false);
