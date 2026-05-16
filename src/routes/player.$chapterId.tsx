@@ -44,7 +44,9 @@ function PlayerPage() {
   const [allChapters, setAllChapters] = useState<Chapter[]>([]);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [validating, setValidating] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window === "undefined" ? true : window.innerWidth > 768,
+  );
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
@@ -217,6 +219,12 @@ function PlayerPage() {
           </div>
         </div>
 
+        {sidebarOpen && (
+          <div
+            className="player-sidebar-backdrop"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         <div className={`player-sidebar${sidebarOpen ? " open" : " closed"}`}>
           <div className="player-sidebar-title">Chapitres du module</div>
           <div className="player-chapters-list">
@@ -230,12 +238,15 @@ function PlayerPage() {
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                onClick={() =>
+                onClick={() => {
                   navigate({
                     to: "/player/$chapterId",
                     params: { chapterId: c.id },
-                  })
-                }
+                  });
+                  if (typeof window !== "undefined" && window.innerWidth <= 768) {
+                    setSidebarOpen(false);
+                  }
+                }}
               >
                 <span className="chapter-num">{idx + 1}</span>
                 <span className="chapter-title">{c.title}</span>
