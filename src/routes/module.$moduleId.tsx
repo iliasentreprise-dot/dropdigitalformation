@@ -77,6 +77,28 @@ function ModulePage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [showTitleForm, setShowTitleForm] = useState(false);
+  const [showAddChapter, setShowAddChapter] = useState(false);
+  const [newChapterTitle, setNewChapterTitle] = useState("");
+  const [addingChapter, setAddingChapter] = useState(false);
+
+  const createChapter = async () => {
+    if (!newChapterTitle.trim() || addingChapter) return;
+    setAddingChapter(true);
+    const { error } = await supabase.from("chapters").insert({
+      module_id: moduleId,
+      title: newChapterTitle.trim(),
+      description: "",
+      video_url: "",
+      position: chapters.length,
+      duration_seconds: 0,
+    });
+    if (!error) {
+      await reloadChapters();
+      setNewChapterTitle("");
+      setShowAddChapter(false);
+    }
+    setAddingChapter(false);
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -543,7 +565,111 @@ function ModulePage() {
           <div
             className={`player-sidebar${sidebarOpen ? " open" : " closed"}`}
           >
-            <div className="player-sidebar-title">Chapitres</div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "20px 20px 10px",
+              }}
+            >
+              <div className="player-sidebar-title" style={{ padding: 0 }}>Chapitres</div>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowAddChapter(true)}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    background: "rgba(168,85,247,0.15)",
+                    border: "1px solid rgba(168,85,247,0.3)",
+                    borderRadius: 8,
+                    color: "#c4a3f0",
+                    fontSize: 18,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    lineHeight: 1,
+                    flexShrink: 0,
+                  }}
+                  title="Ajouter un chapitre"
+                >
+                  +
+                </button>
+              )}
+            </div>
+            {isAdmin && showAddChapter && (
+              <div
+                style={{
+                  margin: "0 8px 12px",
+                  background: "rgba(15,5,30,0.8)",
+                  border: "1px solid rgba(168,85,247,0.25)",
+                  padding: 14,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                <input
+                  placeholder="Titre du chapitre"
+                  value={newChapterTitle}
+                  onChange={(e) => setNewChapterTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void createChapter();
+                    if (e.key === "Escape") setShowAddChapter(false);
+                  }}
+                  autoFocus
+                  style={{
+                    background: "rgba(10,3,20,0.8)",
+                    border: "1px solid rgba(168,85,247,0.2)",
+                    borderRadius: 7,
+                    padding: "7px 10px",
+                    color: "#e2d4f8",
+                    fontSize: 13,
+                    fontFamily: "inherit",
+                    outline: "none",
+                  }}
+                />
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => void createChapter()}
+                    disabled={!newChapterTitle.trim() || addingChapter}
+                    style={{
+                      flex: 1,
+                      padding: "6px 0",
+                      background: "linear-gradient(135deg,#7c3aed,#a855f7)",
+                      border: "none",
+                      borderRadius: 7,
+                      color: "#fff",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      opacity: !newChapterTitle.trim() ? 0.5 : 1,
+                    }}
+                  >
+                    {addingChapter ? "…" : "Créer"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAddChapter(false);
+                      setNewChapterTitle("");
+                    }}
+                    style={{
+                      padding: "6px 10px",
+                      background: "none",
+                      border: "1px solid rgba(168,85,247,0.2)",
+                      borderRadius: 7,
+                      color: "#9a7dbd",
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="player-chapters-list">
               {chapters.map((c, idx) => (
                 <button
