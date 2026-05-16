@@ -805,3 +805,35 @@
   background: linear-gradient(160deg, #fffbeb, #fff) !important;
   border-color: rgba(251,191,36,0.5) !important;
 }
+
+/* ─── Light theme overrides ─── */
+[data-theme="light"] .dd-root { background: var(--bg-main); color: var(--text-primary); }
+[data-theme="light"] .dd-root .topbar { background: var(--topbar-bg); border-bottom-color: var(--border-strong); }
+[data-theme="light"] .dd-root .logo-text { color: var(--text-primary); }
+[data-theme="light"] .dd-root .price-pill { background: var(--bg-card-solid); border-color: var(--accent); color: var(--text-primary); }
+[data-theme="light"] .dd-root .menu-toggle { border-color: var(--border-strong); color: var(--accent); }
+[data-theme="light"] .dd-root .menu-toggle:hover { background: #ede9fe; color: var(--accent-strong); }
+[data-theme="light"] .dd-root .sidebar { background: var(--bg-sidebar); border-right-color: var(--border-strong); }
+[data-theme="light"] .dd-root .sidebar-title { color: var(--text-muted); }
+[data-theme="light"] .dd-root .sidebar-item { color: var(--text-secondary); }
+[data-theme="light"] .dd-root .sidebar-item:hover { background: #ede9fe; color: var(--text-primary); }
+[data-theme="light"] .dd-root .sidebar-item.active { background: #ede9fe; color: var(--text-primary); border-left-color: var(--accent); }
+[data-theme="light"] .dd-root .sidebar-item .si-prog { color: var(--text-muted); }
+[data-theme="light"] .dd-root .main { background: var(--bg-main); }
+[data-theme="light"] .dd-root .tabs-bar { background: var(--bg-sidebar); border-bottom-color: var(--border-strong); }
+[data-theme="light"] .dd-root .tab-btn { color: var(--text-muted); }
+[data-theme="light"] .dd-root .tab-btn:hover { color: var(--accent); }
+[data-theme="light"] .dd-root .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+[data-theme="light"] .dd-root .section-header h1 { color: var(--text-primary); }
+[data-theme="light"] .dd-root .section-header p { color: var(--text-secondary); }
+[data-theme="light"] .dd-root .progress-global { background: var(--bg-card-solid); border-color: var(--border-strong); }
+[data-theme="light"] .dd-root .pg-label { color: var(--text-secondary); }
+[data-theme="light"] .dd-root .pg-bar-wrap { background: #e5dcfa; }
+[data-theme="light"] .dd-root .module-card { background: var(--bg-card-solid); border-color: var(--border-strong); }
+[data-theme="light"] .dd-root .module-card:hover { border-color: var(--accent); }
+[data-theme="light"] .dd-root .module-thumb { background: #f0eafe; }
+[data-theme="light"] .dd-root .module-num { color: var(--text-muted); }
+[data-theme="light"] .dd-root .module-title { color: var(--text-primary); }
+[data-theme="light"] .dd-root .prog-bar-bg { background: #e5dcfa; }
+[data-theme="light"] .dd-root .cta-btn { background: var(--accent-strong); }
+[data-theme="light"] .dd-root .cta-btn:hover { background: var(--accent); }
