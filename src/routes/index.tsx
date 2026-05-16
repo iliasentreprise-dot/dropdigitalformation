@@ -61,7 +61,9 @@ function HomePage() {
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [activeSection, setActiveSection] = useState("mindset");
   const [tab, setTab] = useState<TabKey>("modules");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window === "undefined" ? true : window.innerWidth > 768,
+  );
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -129,7 +131,7 @@ function HomePage() {
 
   const handleTabClick = (k: TabKey) => {
     setTab(k);
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
+    if (typeof window !== "undefined" && window.innerWidth <= 768) {
       setSidebarOpen(false);
     }
   };
