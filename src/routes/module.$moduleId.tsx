@@ -356,9 +356,36 @@ function ModulePage() {
               </div>
 
               <div className="player-info">
-                {selected?.description && (
-                  <p className="player-desc">{selected.description}</p>
+                {editingDesc ? (
+                  <div className="player-edit-inline">
+                    <textarea
+                      className="player-edit-textarea"
+                      value={draftDesc}
+                      onChange={(e) => setDraftDesc(e.target.value)}
+                      rows={4}
+                      autoFocus
+                    />
+                    <div className="player-edit-actions">
+                      <button className="player-edit-save" onClick={() => void saveChapterField("description", draftDesc)}>Sauvegarder</button>
+                      <button className="player-edit-cancel" onClick={() => setEditingDesc(false)}>Annuler</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="player-desc-row">
+                    {selected?.description ? (
+                      <p className="player-desc">{selected.description}</p>
+                    ) : (
+                      isAdmin && <p className="player-desc" style={{ opacity: 0.5 }}>Aucune description</p>
+                    )}
+                    {isAdmin && (
+                      <button
+                        className="player-edit-ghost small"
+                        onClick={() => { setDraftDesc(selected?.description || ""); setEditingDesc(true); }}
+                      >✏️ Modifier la description</button>
+                    )}
+                  </div>
                 )}
+                {flash && <div className="player-flash">{flash}</div>}
                 {selectedId && <ResourcesSection chapterId={selectedId} />}
                 {selectedId && <ReactionsRow chapterId={selectedId} />}
                 <div className="player-actions">
@@ -384,10 +411,10 @@ function ModulePage() {
                     )}
                     {nextChapter && (
                       <button
-                        className="player-nav-btn primary"
+                        className={`player-next-chapter${isDone ? " pulse" : ""}`}
                         onClick={() => setSelectedId(nextChapter.id)}
                       >
-                        Suivant →
+                        Prochain chapitre <span className="arrow">→</span>
                       </button>
                     )}
                   </div>
