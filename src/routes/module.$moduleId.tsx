@@ -140,8 +140,42 @@ function ModulePage() {
     await supabase
       .from("user_chapter_progress")
       .insert({ user_id: user.id, chapter_id: selectedId });
-    setCompleted((prev) => new Set([...prev, selectedId]));
+    const newCompleted = new Set([...completed, selectedId]);
+    setCompleted(newCompleted);
+    notifyProgressChanged();
+
+    // Check if module is fully completed
+    if (chapters.length > 0 && newCompleted.size >= chapters.length) {
+      // fetch username for certificate
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name, username")
+        .eq("id", user.id)
+        .maybeSingle();
+      setUserName(prof?.full_name || prof?.username || user.email || "Pirate");
+      await supabase
+        .from("module_completions")
+        .upsert(
+          { user_id: user.id, module_id: moduleId },
+          { onConflict: "user_id,module_id" },
+        );
+      setShowCertificate(true);
+    } else {
+      // Start countdown to next chapter if available
+      const idx = chapters.findIndex((c) => c.id === selectedId);
+      if (idx >= 0 && idx < chapters.length - 1) {
+        setCountdownActive(true);
+      }
+    }
     setValidating(false);
+  };
+
+  const goToNextChapter = () => {
+    setCountdownActive(false);
+    const idx = chapters.findIndex((c) => c.id === selectedId);
+    if (idx >= 0 && idx < chapters.length - 1) {
+      setSelectedId(chapters[idx + 1].id);
+    }
   };
 
   const prepareFile = (file: File) => {
