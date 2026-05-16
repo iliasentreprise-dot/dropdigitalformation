@@ -65,6 +65,11 @@ function ModulePage() {
   const [countdownActive, setCountdownActive] = useState(false);
   const [showCertificate, setShowCertificate] = useState(false);
   const [userName, setUserName] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftDesc, setDraftDesc] = useState("");
+  const [flash, setFlash] = useState<string | null>(null);
 
   // Upload state (admin only)
   const [dragging, setDragging] = useState(false);
