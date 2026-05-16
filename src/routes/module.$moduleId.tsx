@@ -77,6 +77,28 @@ function ModulePage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [showTitleForm, setShowTitleForm] = useState(false);
+  const [showAddChapter, setShowAddChapter] = useState(false);
+  const [newChapterTitle, setNewChapterTitle] = useState("");
+  const [addingChapter, setAddingChapter] = useState(false);
+
+  const createChapter = async () => {
+    if (!newChapterTitle.trim() || addingChapter) return;
+    setAddingChapter(true);
+    const { error } = await supabase.from("chapters").insert({
+      module_id: moduleId,
+      title: newChapterTitle.trim(),
+      description: "",
+      video_url: "",
+      position: chapters.length,
+      duration_seconds: 0,
+    });
+    if (!error) {
+      await reloadChapters();
+      setNewChapterTitle("");
+      setShowAddChapter(false);
+    }
+    setAddingChapter(false);
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
