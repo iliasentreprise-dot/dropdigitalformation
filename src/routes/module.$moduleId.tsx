@@ -60,7 +60,9 @@ function ModulePage() {
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [validating, setValidating] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window === "undefined" ? true : window.innerWidth >= 768,
+  );
   const [dataLoading, setDataLoading] = useState(true);
   const [countdownActive, setCountdownActive] = useState(false);
   const [showCertificate, setShowCertificate] = useState(false);
