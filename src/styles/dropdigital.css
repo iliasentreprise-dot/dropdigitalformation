@@ -837,3 +837,130 @@
 [data-theme="light"] .dd-root .prog-bar-bg { background: #e5dcfa; }
 [data-theme="light"] .dd-root .cta-btn { background: var(--accent-strong); }
 [data-theme="light"] .dd-root .cta-btn:hover { background: var(--accent); }
+
+/* ============ NAVIGATION REDESIGN ============ */
+.dd-root .topbar-right { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+
+.dd-root .sidebar-section-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #4a3570;
+  padding: 16px 20px 6px;
+  cursor: default;
+  user-select: none;
+}
+[data-theme="light"] .dd-root .sidebar-section-label { color: #8b6ab0; }
+
+.dd-root .sidebar-item {
+  margin: 0 8px;
+  padding: 10px 12px;
+  border-left: none !important;
+  border-radius: 8px;
+}
+.dd-root .sidebar-item.active {
+  background: rgba(168, 85, 247, 0.15) !important;
+  color: #f0e8ff;
+  border-left: none !important;
+}
+.dd-root .si-icon { font-size: 16px; width: 22px; display: inline-flex; justify-content: center; }
+
+/* Section pills (inside Modules tab) */
+.dd-root .section-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.dd-root .section-pill {
+  padding: 8px 16px;
+  background: rgba(168, 85, 247, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  color: #c4a3f0;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.dd-root .section-pill:hover { background: rgba(168, 85, 247, 0.18); }
+.dd-root .section-pill.active {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* Placeholder tabs */
+.dd-root .tab-placeholder {
+  text-align: center;
+  padding: 60px 24px;
+  color: #c4a3f0;
+}
+.dd-root .tab-placeholder .tab-ph-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+.dd-root .tab-placeholder h1 {
+  font-size: 28px;
+  font-weight: 800;
+  color: #f0e8ff;
+  margin: 0 0 12px;
+}
+.dd-root .tab-placeholder p { font-size: 14px; color: #9a7dbd; }
+
+/* CTA button helper used in topbar/parametres */
+.dd-root .cta-btn {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.dd-root .cta-btn:hover { opacity: 0.9; }
+
+/* Sidebar backdrop (mobile only) */
+.dd-root .sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 199;
+}
+
+/* ============ MOBILE RESPONSIVE ============ */
+@media (max-width: 1024px) {
+  .dd-root .modules-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .dd-root .topbar { height: 52px; padding: 0 12px; }
+  .dd-root .price-pill { display: none; }
+  .dd-root .logo-text { font-size: 16px; }
+
+  .dd-root .sidebar {
+    position: fixed;
+    left: 0; top: 52px; bottom: 0;
+    z-index: 200;
+    width: 260px;
+    min-width: 260px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    height: calc(100vh - 52px);
+  }
+  .dd-root .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+  }
+  .dd-root .sidebar.closed { transform: translateX(-100%); width: 260px; min-width: 260px; }
+  .dd-root .sidebar.open > * { opacity: 1; pointer-events: auto; }
+
+  .dd-root .sidebar-backdrop.visible { display: block; top: 52px; }
+
+  .dd-root .main { width: 100%; }
+  .dd-root .tab-content { padding: 16px; }
+  .dd-root .modules-grid { grid-template-columns: 1fr; gap: 14px; }
+  .dd-root .section-header h1 { font-size: 18px; }
+}

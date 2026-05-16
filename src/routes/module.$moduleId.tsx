@@ -60,11 +60,18 @@ function ModulePage() {
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [validating, setValidating] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window === "undefined" ? true : window.innerWidth >= 768,
+  );
   const [dataLoading, setDataLoading] = useState(true);
   const [countdownActive, setCountdownActive] = useState(false);
   const [showCertificate, setShowCertificate] = useState(false);
   const [userName, setUserName] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftDesc, setDraftDesc] = useState("");
+  const [flash, setFlash] = useState<string | null>(null);
 
   // Upload state (admin only)
   const [dragging, setDragging] = useState(false);
@@ -178,6 +185,25 @@ function ModulePage() {
     }
   };
 
+  const flashMsg = (msg: string) => {
+    setFlash(msg);
+    window.setTimeout(() => setFlash(null), 2000);
+  };
+
+  const saveChapterField = async (field: "title" | "description", value: string) => {
+    if (!selectedId) return;
+    const v = value.trim();
+    if (field === "title" && !v) return;
+    const patch = field === "title" ? { title: v } : { description: v };
+    await supabase.from("chapters").update(patch).eq("id", selectedId);
+    setChapters((prev) =>
+      prev.map((c) => (c.id === selectedId ? { ...c, [field]: v } : c)),
+    );
+    if (field === "title") setEditingTitle(false);
+    else setEditingDesc(false);
+    flashMsg("✓ Sauvegardé");
+  };
+
   const prepareFile = (file: File) => {
     if (!file.type.startsWith("video/")) return;
     setPendingFile(file);
@@ -279,7 +305,31 @@ function ModulePage() {
         <div className="player-main">
           {hasChapters ? (
             <>
-              <h1 className="player-title" style={{ marginBottom: 12 }}>{selected?.title}</h1>
+              {editingTitle ? (
+                <div className="player-edit-inline" style={{ marginBottom: 12 }}>
+                  <input
+                    className="player-edit-input"
+                    value={draftTitle}
+                    onChange={(e) => setDraftTitle(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="player-edit-actions">
+                    <button className="player-edit-save" onClick={() => void saveChapterField("title", draftTitle)}>Sauvegarder</button>
+                    <button className="player-edit-cancel" onClick={() => setEditingTitle(false)}>Annuler</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="player-title-row" style={{ marginBottom: 12 }}>
+                  <h1 className="player-title" style={{ margin: 0 }}>{selected?.title}</h1>
+                  {isAdmin && (
+                    <button
+                      className="player-edit-ghost"
+                      onClick={() => { setDraftTitle(selected?.title || ""); setEditingTitle(true); }}
+                      title="Modifier le titre"
+                    >✏️</button>
+                  )}
+                </div>
+              )}
               <div className="player-video-wrap" style={{ position: "relative" }}>
                 {videoUrl ? (
                   direct ? (
@@ -308,9 +358,36 @@ function ModulePage() {
               </div>
 
               <div className="player-info">
-                {selected?.description && (
-                  <p className="player-desc">{selected.description}</p>
+                {editingDesc ? (
+                  <div className="player-edit-inline">
+                    <textarea
+                      className="player-edit-textarea"
+                      value={draftDesc}
+                      onChange={(e) => setDraftDesc(e.target.value)}
+                      rows={4}
+                      autoFocus
+                    />
+                    <div className="player-edit-actions">
+                      <button className="player-edit-save" onClick={() => void saveChapterField("description", draftDesc)}>Sauvegarder</button>
+                      <button className="player-edit-cancel" onClick={() => setEditingDesc(false)}>Annuler</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="player-desc-row">
+                    {selected?.description ? (
+                      <p className="player-desc">{selected.description}</p>
+                    ) : (
+                      isAdmin && <p className="player-desc" style={{ opacity: 0.5 }}>Aucune description</p>
+                    )}
+                    {isAdmin && (
+                      <button
+                        className="player-edit-ghost small"
+                        onClick={() => { setDraftDesc(selected?.description || ""); setEditingDesc(true); }}
+                      >✏️ Modifier la description</button>
+                    )}
+                  </div>
                 )}
+                {flash && <div className="player-flash">{flash}</div>}
                 {selectedId && <ResourcesSection chapterId={selectedId} />}
                 {selectedId && <ReactionsRow chapterId={selectedId} />}
                 <div className="player-actions">
@@ -336,10 +413,10 @@ function ModulePage() {
                     )}
                     {nextChapter && (
                       <button
-                        className="player-nav-btn primary"
+                        className={`player-next-chapter${isDone ? " pulse" : ""}`}
                         onClick={() => setSelectedId(nextChapter.id)}
                       >
-                        Suivant →
+                        Prochain chapitre <span className="arrow">→</span>
                       </button>
                     )}
                   </div>
@@ -451,6 +528,12 @@ function ModulePage() {
         </div>
 
         {/* ── Sidebar ── */}
+        {hasChapters && sidebarOpen && (
+          <div
+            className="player-sidebar-backdrop"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         {hasChapters && (
           <div
             className={`player-sidebar${sidebarOpen ? " open" : " closed"}`}
@@ -467,7 +550,12 @@ function ModulePage() {
                   ]
                     .filter(Boolean)
                     .join(" ")}
-                  onClick={() => setSelectedId(c.id)}
+                  onClick={() => {
+                    setSelectedId(c.id);
+                    if (typeof window !== "undefined" && window.innerWidth < 768) {
+                      setSidebarOpen(false);
+                    }
+                  }}
                 >
                   <span className="chapter-num">{idx + 1}</span>
                   <span className="chapter-title">{c.title}</span>
