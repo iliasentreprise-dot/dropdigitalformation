@@ -303,7 +303,31 @@ function ModulePage() {
         <div className="player-main">
           {hasChapters ? (
             <>
-              <h1 className="player-title" style={{ marginBottom: 12 }}>{selected?.title}</h1>
+              {editingTitle ? (
+                <div className="player-edit-inline" style={{ marginBottom: 12 }}>
+                  <input
+                    className="player-edit-input"
+                    value={draftTitle}
+                    onChange={(e) => setDraftTitle(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="player-edit-actions">
+                    <button className="player-edit-save" onClick={() => void saveChapterField("title", draftTitle)}>Sauvegarder</button>
+                    <button className="player-edit-cancel" onClick={() => setEditingTitle(false)}>Annuler</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="player-title-row" style={{ marginBottom: 12 }}>
+                  <h1 className="player-title" style={{ margin: 0 }}>{selected?.title}</h1>
+                  {isAdmin && (
+                    <button
+                      className="player-edit-ghost"
+                      onClick={() => { setDraftTitle(selected?.title || ""); setEditingTitle(true); }}
+                      title="Modifier le titre"
+                    >✏️</button>
+                  )}
+                </div>
+              )}
               <div className="player-video-wrap" style={{ position: "relative" }}>
                 {videoUrl ? (
                   direct ? (
