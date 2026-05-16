@@ -2,6 +2,9 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import { ThumbnailUploader } from "@/components/dd/ThumbnailUploader";
+import { ChapterResourcesAdmin } from "@/components/dd/ChapterResourcesAdmin";
+import { AdminDashboard } from "@/components/dd/AdminDashboard";
 import "../styles/admin.css";
 
 function VideoInput({
@@ -227,6 +230,7 @@ function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"content" | "dashboard">("content");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -477,12 +481,32 @@ function AdminPage() {
         <Link to="/" className="admin-back">
           ← Formation
         </Link>
-        <h1 className="admin-title">⚙️ Admin — Contenu</h1>
+        <h1 className="admin-title">⚙️ Admin</h1>
+        <div style={{ display: "flex", gap: 8, marginLeft: 16 }}>
+          <button
+            className={activeTab === "content" ? "admin-btn-primary sm" : "admin-btn-ghost sm"}
+            onClick={() => setActiveTab("content")}
+          >
+            📚 Contenu
+          </button>
+          <button
+            className={activeTab === "dashboard" ? "admin-btn-primary sm" : "admin-btn-ghost sm"}
+            onClick={() => setActiveTab("dashboard")}
+          >
+            📊 Dashboard
+          </button>
+        </div>
         {msg && <span className="admin-msg">{msg}</span>}
         {err && <span className="admin-err">{err}</span>}
       </div>
 
-      <div className="admin-body">
+      {activeTab === "dashboard" && (
+        <div className="admin-body">
+          <AdminDashboard />
+        </div>
+      )}
+
+      {activeTab === "content" && <div className="admin-body">
         <div className="admin-section-header">
           <h2>Modules</h2>
           <button className="admin-btn-primary" onClick={openModuleCreate}>
@@ -559,16 +583,10 @@ function AdminPage() {
                 />
               </label>
               <label>
-                URL miniature
-                <input
+                Miniature
+                <ThumbnailUploader
                   value={moduleForm.thumbnail_url}
-                  onChange={(e) =>
-                    setModuleForm((f) => ({
-                      ...f,
-                      thumbnail_url: e.target.value,
-                    }))
-                  }
-                  placeholder="https://..."
+                  onChange={(url) => setModuleForm((f) => ({ ...f, thumbnail_url: url }))}
                 />
               </label>
             </div>
@@ -753,6 +771,7 @@ function AdminPage() {
                         placeholder="Description du chapitre (optionnel)"
                       />
                     </label>
+                    <ChapterResourcesAdmin chapterId={editingChapter?.id ?? null} />
                     <div className="admin-form-actions">
                       <button
                         type="submit"
@@ -815,7 +834,7 @@ function AdminPage() {
             )}
           </div>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }
