@@ -1,5 +1,7 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth-context";
+import { ThemeProvider, THEME_PRE_PAINT_SCRIPT } from "@/lib/theme-context";
+import { GlobalProgressBar } from "@/components/dd/GlobalProgressBar";
 
 import appCss from "../styles.css?url";
 
@@ -49,6 +51,9 @@ export const Route = createRootRoute({
         href: appCss,
       },
     ],
+    scripts: [
+      { children: THEME_PRE_PAINT_SCRIPT },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -71,8 +76,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   return (
-    <AuthProvider>
-      <Outlet />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <GlobalProgressBar />
+        <Outlet />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
