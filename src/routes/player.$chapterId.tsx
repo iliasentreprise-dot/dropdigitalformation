@@ -148,6 +148,7 @@ function PlayerPage() {
 
       <div className="player-layout">
         <div className="player-main">
+          <h1 className="player-title" style={{ marginBottom: 12 }}>{chapter?.title}</h1>
           <div className="player-video-wrap">
             {embedUrl ? (
               <iframe
@@ -167,7 +168,6 @@ function PlayerPage() {
           </div>
 
           <div className="player-info">
-            <h1 className="player-title">{chapter?.title}</h1>
             {chapter?.description && (
               <p className="player-desc">{chapter.description}</p>
             )}

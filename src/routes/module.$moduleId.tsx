@@ -2,6 +2,11 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import { ResourcesSection } from "@/components/dd/ResourcesSection";
+import { ReactionsRow } from "@/components/dd/ReactionsRow";
+import { NextChapterCountdown } from "@/components/dd/NextChapterCountdown";
+import { CertificateModal } from "@/components/dd/CertificateModal";
+import { notifyProgressChanged } from "@/components/dd/GlobalProgressBar";
 import "../styles/player.css";
 
 export const Route = createFileRoute("/module/$moduleId")({
@@ -57,6 +62,9 @@ function ModulePage() {
   const [validating, setValidating] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
+  const [countdownActive, setCountdownActive] = useState(false);
+  const [showCertificate, setShowCertificate] = useState(false);
+  const [userName, setUserName] = useState("");
 
   // Upload state (admin only)
   const [dragging, setDragging] = useState(false);
@@ -132,8 +140,42 @@ function ModulePage() {
     await supabase
       .from("user_chapter_progress")
       .insert({ user_id: user.id, chapter_id: selectedId });
-    setCompleted((prev) => new Set([...prev, selectedId]));
+    const newCompleted = new Set([...completed, selectedId]);
+    setCompleted(newCompleted);
+    notifyProgressChanged();
+
+    // Check if module is fully completed
+    if (chapters.length > 0 && newCompleted.size >= chapters.length) {
+      // fetch username for certificate
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name, username")
+        .eq("id", user.id)
+        .maybeSingle();
+      setUserName(prof?.full_name || prof?.username || user.email || "Pirate");
+      await supabase
+        .from("module_completions")
+        .upsert(
+          { user_id: user.id, module_id: moduleId },
+          { onConflict: "user_id,module_id" },
+        );
+      setShowCertificate(true);
+    } else {
+      // Start countdown to next chapter if available
+      const idx = chapters.findIndex((c) => c.id === selectedId);
+      if (idx >= 0 && idx < chapters.length - 1) {
+        setCountdownActive(true);
+      }
+    }
     setValidating(false);
+  };
+
+  const goToNextChapter = () => {
+    setCountdownActive(false);
+    const idx = chapters.findIndex((c) => c.id === selectedId);
+    if (idx >= 0 && idx < chapters.length - 1) {
+      setSelectedId(chapters[idx + 1].id);
+    }
   };
 
   const prepareFile = (file: File) => {
@@ -237,16 +279,11 @@ function ModulePage() {
         <div className="player-main">
           {hasChapters ? (
             <>
-              {/* Video */}
-              <div className="player-video-wrap">
+              <h1 className="player-title" style={{ marginBottom: 12 }}>{selected?.title}</h1>
+              <div className="player-video-wrap" style={{ position: "relative" }}>
                 {videoUrl ? (
                   direct ? (
-                    <video
-                      key={videoUrl}
-                      src={videoUrl}
-                      controls
-                      className="player-iframe"
-                    />
+                    <video key={videoUrl} src={videoUrl} controls className="player-iframe" />
                   ) : (
                     <iframe
                       src={videoUrl}
@@ -263,14 +300,19 @@ function ModulePage() {
                     <p>Vidéo bientôt disponible</p>
                   </div>
                 )}
+                <NextChapterCountdown
+                  active={countdownActive}
+                  onGo={goToNextChapter}
+                  onCancel={() => setCountdownActive(false)}
+                />
               </div>
 
-              {/* Info + actions */}
               <div className="player-info">
-                <h1 className="player-title">{selected?.title}</h1>
                 {selected?.description && (
                   <p className="player-desc">{selected.description}</p>
                 )}
+                {selectedId && <ResourcesSection chapterId={selectedId} />}
+                {selectedId && <ReactionsRow chapterId={selectedId} />}
                 <div className="player-actions">
                   <button
                     className={`player-validate${isDone ? " done" : ""}`}
@@ -446,6 +488,12 @@ function ModulePage() {
           </div>
         )}
       </div>
+      <CertificateModal
+        open={showCertificate}
+        moduleTitle={module?.title || ""}
+        userName={userName}
+        onClose={() => setShowCertificate(false)}
+      />
     </div>
   );
 }
