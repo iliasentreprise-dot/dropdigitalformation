@@ -138,12 +138,167 @@ function VideoInput({
 
 const inviteStudentFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
-    const { email, origin } = data as { email: string; origin: string };
+    const { email, origin } = (data as unknown) as { email: string; origin: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       redirectTo: `${origin}/reset-password`,
     });
     if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
+const listStudentsFn = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const listResult = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    if (listResult.error) throw new Error(listResult.error.message);
+    const authUsers = listResult.data.users;
+
+    const [
+      { data: profiles },
+      { data: roles },
+      { data: progress },
+      { count: totalChapters },
+    ] = await Promise.all([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabaseAdmin as any).from("profiles").select("id, username, full_name, avatar_url, bio, has_software_access"),
+      supabaseAdmin.from("user_roles").select("user_id, role"),
+      supabaseAdmin.from("user_chapter_progress").select("user_id"),
+      supabaseAdmin.from("chapters").select("id", { count: "exact", head: true }),
+    ]);
+
+    const profileMap = Object.fromEntries(((profiles ?? []) as { id: string }[]).map((p) => [p.id, p]));
+
+    const rolePriority: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
+    const roleMap: Record<string, string> = {};
+    for (const r of roles ?? []) {
+      const p = rolePriority[r.role] ?? 0;
+      const ep = rolePriority[roleMap[r.user_id]] ?? 0;
+      if (p > ep) roleMap[r.user_id] = r.role;
+    }
+
+    const completionMap: Record<string, number> = {};
+    for (const row of progress ?? []) {
+      completionMap[row.user_id] = (completionMap[row.user_id] ?? 0) + 1;
+    }
+
+    return {
+      users: authUsers.map((u) => ({
+        id: u.id,
+        email: u.email ?? "",
+        created_at: u.created_at,
+        profile: (profileMap[u.id] as unknown as { username: string | null; full_name: string | null; avatar_url: string | null; bio: string | null } | undefined) ?? null,
+        role: roleMap[u.id] ?? "user",
+        completedChapters: completionMap[u.id] ?? 0,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        has_software_access: ((profileMap[u.id] as any)?.has_software_access) ?? false,
+      })),
+      totalChapters: totalChapters ?? 0,
+    };
+  });
+
+const updateRoleFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { userId, role } = (data as unknown) as { userId: string; role: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("user_roles")
+      .update({ role: role as "admin" | "user" })
+      .eq("user_id", userId)
+      .neq("role", "admin");
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
+const updateSoftwareAccessFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { userId, access } = (data as unknown) as { userId: string; access: boolean };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any)
+      .from("profiles")
+      .update({ has_software_access: access })
+      .eq("id", userId);
+    if (error) throw new Error((error as { message: string }).message);
+    return { success: true };
+  });
+
+const listGroupMessagesFn = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sa = supabaseAdmin as any;
+    const { data: messages } = await sa
+      .from("group_messages")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    const msgList = (messages ?? []) as { user_id: string; [k: string]: unknown }[];
+    const userIds = [...new Set(msgList.map((m) => m.user_id))];
+    const { data: profiles } = userIds.length
+      ? await supabaseAdmin.from("profiles").select("id, username, full_name, avatar_url").in("id", userIds)
+      : { data: [] };
+
+    const profileMap = Object.fromEntries(((profiles ?? []) as { id: string; username: string | null; full_name: string | null; avatar_url: string | null }[]).map((p) => [p.id, p]));
+    return {
+      messages: msgList.map((m) => ({
+        ...m,
+        profile: (profileMap[m.user_id] as { username: string | null; full_name: string | null; avatar_url: string | null } | undefined) ?? null,
+      })),
+    };
+  });
+
+const approveMessageFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { messageId } = (data as unknown) as { messageId: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any)
+      .from("group_messages")
+      .update({ visible: true })
+      .eq("id", messageId);
+    if (error) throw new Error((error as { message: string }).message);
+    return { success: true };
+  });
+
+const listResultsFn = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sa = supabaseAdmin as any;
+    const { data: results } = await sa
+      .from("results")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    const resList = (results ?? []) as { user_id: string; [k: string]: unknown }[];
+    const userIds = [...new Set(resList.map((r) => r.user_id))];
+    const { data: profiles } = userIds.length
+      ? await supabaseAdmin.from("profiles").select("id, username, full_name, avatar_url").in("id", userIds)
+      : { data: [] };
+
+    const profileMap = Object.fromEntries(((profiles ?? []) as { id: string; username: string | null; full_name: string | null; avatar_url: string | null }[]).map((p) => [p.id, p]));
+    return {
+      results: resList.map((r) => ({
+        ...r,
+        profile: (profileMap[r.user_id] as { username: string | null; full_name: string | null; avatar_url: string | null } | undefined) ?? null,
+      })),
+    };
+  });
+
+const approveResultFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { resultId } = (data as unknown) as { resultId: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any)
+      .from("results")
+      .update({ visible: true })
+      .eq("id", resultId);
+    if (error) throw new Error((error as { message: string }).message);
     return { success: true };
   });
 
@@ -195,6 +350,41 @@ type ChapterResource = {
   file_url: string;
 };
 
+type StudentUser = {
+  id: string;
+  email: string;
+  created_at: string;
+  profile: {
+    username: string | null;
+    full_name: string | null;
+    avatar_url: string | null;
+    bio: string | null;
+  } | null;
+  role: string;
+  completedChapters: number;
+  has_software_access: boolean;
+};
+
+type GroupMsgWithProfile = {
+  id: string;
+  user_id: string;
+  content: string;
+  visible: boolean;
+  created_at: string;
+  profile: { username: string | null; full_name: string | null; avatar_url: string | null } | null;
+};
+
+type ResultWithProfile = {
+  id: string;
+  user_id: string;
+  content: string;
+  amount: number | null;
+  photo_url: string | null;
+  visible: boolean;
+  created_at: string;
+  profile: { username: string | null; full_name: string | null; avatar_url: string | null } | null;
+};
+
 const SECTIONS = [
   { value: "mindset", label: "🧠 Mindset" },
   { value: "jour1", label: "Jour 1" },
@@ -223,6 +413,137 @@ const EMPTY_CHAPTER_FORM: ChapterForm = {
   position: 0,
 };
 
+function RoleBadge({ role }: { role: string }) {
+  if (role === "admin") {
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        background: "linear-gradient(135deg, #b45309, #f59e0b, #fbbf24)",
+        color: "#1a0800", fontWeight: 800, fontSize: 11,
+        padding: "3px 10px", borderRadius: 6,
+        animation: "adminGlow 2s ease-in-out infinite",
+        letterSpacing: 0.5,
+      }}>✨ Admin</span>
+    );
+  }
+  if (role === "moderator") {
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        background: "#7f1d1d", color: "#fca5a5",
+        fontWeight: 800, fontSize: 11,
+        padding: "3px 10px", borderRadius: 6,
+        border: "1px solid #ef4444",
+        animation: "modGlow 2s ease-in-out infinite",
+        letterSpacing: 0.5,
+      }}>🔴 Modérateur</span>
+    );
+  }
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center",
+      background: "rgba(55, 65, 81, 0.6)", color: "#9ca3af",
+      fontWeight: 600, fontSize: 11,
+      padding: "3px 10px", borderRadius: 6,
+      letterSpacing: 0.5,
+    }}>Élève</span>
+  );
+}
+
+function StudentModal({
+  student,
+  totalChapters,
+  onClose,
+  onRoleChange,
+  onSoftwareAccessChange,
+}: {
+  student: StudentUser;
+  totalChapters: number;
+  onClose: () => void;
+  onRoleChange: (userId: string, role: string) => Promise<void>;
+  onSoftwareAccessChange: (userId: string, access: boolean) => Promise<void>;
+}) {
+  const [changing, setChanging] = useState(false);
+  const [togglingAccess, setTogglingAccess] = useState(false);
+  const name = student.profile?.full_name || student.profile?.username || student.email.split("@")[0];
+  const isAdminUser = student.role === "admin";
+  const isMod = student.role === "moderator";
+  const pct = isAdminUser ? 100 : totalChapters > 0
+    ? Math.round((student.completedChapters / totalChapters) * 100)
+    : 0;
+
+  const handleRoleChange = async () => {
+    const newRole = isMod ? "user" : "moderator";
+    setChanging(true);
+    await onRoleChange(student.id, newRole);
+    setChanging(false);
+  };
+
+  const handleAccessToggle = async () => {
+    setTogglingAccess(true);
+    await onSoftwareAccessChange(student.id, !student.has_software_access);
+    setTogglingAccess(false);
+  };
+
+  const nameStyle = isAdminUser
+    ? { backgroundImage: "linear-gradient(135deg, #f59e0b, #fbbf24)", backgroundClip: "text" as const, WebkitBackgroundClip: "text", color: "transparent" }
+    : isMod
+    ? { color: "#fca5a5", textShadow: "0 0 10px rgba(239, 68, 68, 0.4)" }
+    : { color: "#f0e8ff" };
+
+  return (
+    <div className="s-modal-backdrop" onClick={onClose}>
+      <div className="s-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="s-modal-close" onClick={onClose}>✕</button>
+
+        <div className="s-modal-avatar">
+          {student.profile?.avatar_url
+            ? <img src={student.profile.avatar_url} alt={name} />
+            : <span>{name[0]?.toUpperCase() ?? "?"}</span>
+          }
+        </div>
+
+        <div className="s-modal-name" style={nameStyle}>{name}</div>
+        <div className="s-modal-email">{student.email}</div>
+
+        <div className="s-modal-badge-row">
+          <RoleBadge role={student.role} />
+        </div>
+
+        {student.profile?.bio && (
+          <div className="s-modal-bio">{student.profile.bio}</div>
+        )}
+
+        <div>
+          <div className="s-modal-prog-label">Progression — {pct}%</div>
+          <div className="s-modal-prog-bg">
+            {isAdminUser
+              ? <div className="fire-progress" style={{ borderRadius: 6 }} />
+              : <div className="s-modal-prog-fill" style={{ width: `${pct}%` }} />
+            }
+          </div>
+        </div>
+
+        <div className="s-modal-actions" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <button
+            className={student.has_software_access ? "admin-btn-danger" : "admin-btn-primary"}
+            onClick={handleAccessToggle}
+            disabled={togglingAccess}
+            style={{ width: "100%" }}
+          >
+            {togglingAccess ? "…" : student.has_software_access ? "🔒 Révoquer logiciel" : "⚡ Donner accès logiciel"}
+          </button>
+          {!isAdminUser && (
+            <button className="admin-btn-ghost" onClick={handleRoleChange} disabled={changing} style={{ width: "100%" }}>
+              {changing ? "…" : isMod ? "↩ Repasser élève" : "⬆ Passer modérateur"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
@@ -242,11 +563,21 @@ function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"content" | "dashboard">("content");
+  const [activeTab, setActiveTab] = useState<"content" | "dashboard" | "students" | "groupe">("content");
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteResult, setInviteResult] = useState<{ text: string; isErr: boolean } | null>(null);
+
+  const [students, setStudents] = useState<StudentUser[]>([]);
+  const [totalChapters, setTotalChapters] = useState(0);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<StudentUser | null>(null);
+
+  const [groupeMessages, setGroupeMessages] = useState<GroupMsgWithProfile[]>([]);
+  const [groupeResults, setGroupeResults] = useState<ResultWithProfile[]>([]);
+  const [groupeLoading, setGroupeLoading] = useState(false);
+  const [groupeSubTab, setGroupeSubTab] = useState<"messages" | "resultats">("messages");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -309,6 +640,30 @@ function AdminPage() {
       setMsg(null);
       setErr(null);
     }, 3500);
+  };
+
+  const loadStudents = async () => {
+    setStudentsLoading(true);
+    try {
+      const result = await listStudentsFn();
+      setStudents(result.users as StudentUser[]);
+      setTotalChapters(result.totalChapters);
+    } catch (e) {
+      flash((e as Error).message, true);
+    }
+    setStudentsLoading(false);
+  };
+
+  const loadGroupe = async () => {
+    setGroupeLoading(true);
+    try {
+      const [msgs, res] = await Promise.all([listGroupMessagesFn(), listResultsFn()]);
+      setGroupeMessages(msgs.messages as GroupMsgWithProfile[]);
+      setGroupeResults(res.results as ResultWithProfile[]);
+    } catch (e) {
+      flash((e as Error).message, true);
+    }
+    setGroupeLoading(false);
   };
 
   const getStoragePath = (url: string, bucket: string) => {
@@ -511,6 +866,24 @@ function AdminPage() {
           >
             📊 Dashboard
           </button>
+          <button
+            className={activeTab === "students" ? "admin-btn-primary sm" : "admin-btn-ghost sm"}
+            onClick={() => {
+              setActiveTab("students");
+              void loadStudents();
+            }}
+          >
+            👥 Élèves
+          </button>
+          <button
+            className={activeTab === "groupe" ? "admin-btn-primary sm" : "admin-btn-ghost sm"}
+            onClick={() => {
+              setActiveTab("groupe");
+              void loadGroupe();
+            }}
+          >
+            💬 Groupe
+          </button>
         </div>
         {msg && <span className="admin-msg">{msg}</span>}
         {err && <span className="admin-err">{err}</span>}
@@ -519,6 +892,227 @@ function AdminPage() {
       {activeTab === "dashboard" && (
         <div className="admin-body">
           <AdminDashboard />
+        </div>
+      )}
+
+      {activeTab === "students" && (
+        <div className="admin-body">
+          <div className="admin-section-header">
+            <h2>👥 Élèves ({students.length})</h2>
+            <button
+              className="admin-btn-ghost"
+              onClick={() => void loadStudents()}
+              disabled={studentsLoading}
+            >
+              {studentsLoading ? "Chargement…" : "↻ Actualiser"}
+            </button>
+          </div>
+
+          {studentsLoading && students.length === 0 ? (
+            <div className="admin-empty">Chargement des élèves…</div>
+          ) : (
+            <div className="student-grid">
+              {students.map((s) => {
+                const name = s.profile?.full_name || s.profile?.username || s.email.split("@")[0];
+                const isAdminUser = s.role === "admin";
+                const pct = isAdminUser ? 100 : totalChapters > 0
+                  ? Math.round((s.completedChapters / totalChapters) * 100)
+                  : 0;
+                return (
+                  <div key={s.id} className="student-card">
+                    <div className="s-card-top">
+                      <div className="s-avatar">
+                        {s.profile?.avatar_url
+                          ? <img src={s.profile.avatar_url} alt={name} />
+                          : <span>{name[0]?.toUpperCase() ?? "?"}</span>
+                        }
+                      </div>
+                      <div className="s-info">
+                        <div className="s-name">{name}</div>
+                        <div className="s-email">{s.email}</div>
+                      </div>
+                      <RoleBadge role={s.role} />
+                    </div>
+                    <div className="s-prog-row">
+                      <div className="s-prog-bg">
+                        {isAdminUser
+                          ? <div className="fire-progress" />
+                          : <div className="s-prog-fill" style={{ width: `${pct}%` }} />
+                        }
+                      </div>
+                      <span className="s-prog-pct">{pct}%</span>
+                    </div>
+                    <button
+                      className="admin-btn-ghost sm"
+                      onClick={() => setSelectedStudent(s)}
+                    >
+                      Voir le profil
+                    </button>
+                  </div>
+                );
+              })}
+              {!students.length && !studentsLoading && (
+                <div className="admin-empty" style={{ gridColumn: "1/-1" }}>
+                  Aucun élève trouvé.
+                </div>
+              )}
+            </div>
+          )}
+
+          {selectedStudent && (
+            <StudentModal
+              student={selectedStudent}
+              totalChapters={totalChapters}
+              onClose={() => setSelectedStudent(null)}
+              onRoleChange={async (userId, role) => {
+                try {
+                  await (updateRoleFn as unknown as (args: { data: { userId: string; role: string } }) => Promise<void>)({ data: { userId, role } });
+                  setStudents((prev) =>
+                    prev.map((s) => s.id === userId ? { ...s, role } : s)
+                  );
+                  setSelectedStudent((prev) => prev ? { ...prev, role } : null);
+                } catch (e) {
+                  flash((e as Error).message, true);
+                }
+              }}
+              onSoftwareAccessChange={async (userId, access) => {
+                try {
+                  await (updateSoftwareAccessFn as unknown as (args: { data: { userId: string; access: boolean } }) => Promise<void>)({ data: { userId, access } });
+                  setStudents((prev) =>
+                    prev.map((s) => s.id === userId ? { ...s, has_software_access: access } : s)
+                  );
+                  setSelectedStudent((prev) => prev ? { ...prev, has_software_access: access } : null);
+                } catch (e) {
+                  flash((e as Error).message, true);
+                }
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {activeTab === "groupe" && (
+        <div className="admin-body">
+          <div className="admin-section-header">
+            <h2>💬 Modération groupe</h2>
+            <button className="admin-btn-ghost" onClick={() => void loadGroupe()} disabled={groupeLoading}>
+              {groupeLoading ? "Chargement…" : "↻ Actualiser"}
+            </button>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            <button
+              className={groupeSubTab === "messages" ? "admin-btn-primary sm" : "admin-btn-ghost sm"}
+              onClick={() => setGroupeSubTab("messages")}
+            >
+              Messages ({groupeMessages.filter((m) => !m.visible).length} en attente)
+            </button>
+            <button
+              className={groupeSubTab === "resultats" ? "admin-btn-primary sm" : "admin-btn-ghost sm"}
+              onClick={() => setGroupeSubTab("resultats")}
+            >
+              Résultats ({groupeResults.filter((r) => !r.visible).length} en attente)
+            </button>
+          </div>
+
+          {groupeSubTab === "messages" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {groupeMessages.length === 0 && !groupeLoading && (
+                <div className="admin-empty">Aucun message.</div>
+              )}
+              {groupeMessages.map((msg) => {
+                const name = msg.profile?.full_name || msg.profile?.username || "Élève";
+                return (
+                  <div key={msg.id} style={{
+                    background: "rgba(25,10,48,0.7)", borderRadius: 10, padding: "12px 16px",
+                    border: msg.visible ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(168,85,247,0.2)",
+                    display: "flex", alignItems: "flex-start", gap: 12,
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#f0e8ff", marginBottom: 4 }}>
+                        {name}
+                        <span style={{ color: "#7c5c9a", fontWeight: 400, fontSize: 11, marginLeft: 8 }}>
+                          {new Date(msg.created_at).toLocaleString("fr-FR")}
+                        </span>
+                      </div>
+                      <div style={{ color: "#c4a3f0", fontSize: 14, lineHeight: 1.5 }}>{msg.content}</div>
+                    </div>
+                    {msg.visible
+                      ? <span style={{ color: "#10b981", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>✅ Visible</span>
+                      : (
+                        <button
+                          className="admin-btn-primary sm"
+                          onClick={async () => {
+                            try {
+                              await (approveMessageFn as unknown as (args: { data: { messageId: string } }) => Promise<void>)({ data: { messageId: msg.id } });
+                              setGroupeMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, visible: true } : m));
+                            } catch (e) {
+                              flash((e as Error).message, true);
+                            }
+                          }}
+                        >
+                          ✅ Approuver
+                        </button>
+                      )
+                    }
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {groupeSubTab === "resultats" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {groupeResults.length === 0 && !groupeLoading && (
+                <div className="admin-empty">Aucun résultat.</div>
+              )}
+              {groupeResults.map((res) => {
+                const name = res.profile?.full_name || res.profile?.username || "Élève";
+                return (
+                  <div key={res.id} style={{
+                    background: "rgba(25,10,48,0.7)", borderRadius: 10, padding: "12px 16px",
+                    border: res.visible ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(168,85,247,0.2)",
+                    display: "flex", alignItems: "flex-start", gap: 12,
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#f0e8ff", marginBottom: 4 }}>
+                        {name}
+                        {res.amount != null && (
+                          <span style={{ background: "linear-gradient(135deg,#059669,#10b981)", color: "#fff", fontWeight: 800, fontSize: 11, padding: "2px 10px", borderRadius: 20, marginLeft: 8 }}>
+                            +{res.amount.toLocaleString("fr-FR")}€
+                          </span>
+                        )}
+                        <span style={{ color: "#7c5c9a", fontWeight: 400, fontSize: 11, marginLeft: 8 }}>
+                          {new Date(res.created_at).toLocaleString("fr-FR")}
+                        </span>
+                      </div>
+                      <div style={{ color: "#c4a3f0", fontSize: 14, lineHeight: 1.5 }}>{res.content}</div>
+                      {res.photo_url && (
+                        <img src={res.photo_url} alt="résultat" style={{ marginTop: 8, maxHeight: 120, borderRadius: 8, objectFit: "cover" }} />
+                      )}
+                    </div>
+                    {res.visible
+                      ? <span style={{ color: "#10b981", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>✅ Visible</span>
+                      : (
+                        <button
+                          className="admin-btn-primary sm"
+                          onClick={async () => {
+                            try {
+                              await (approveResultFn as unknown as (args: { data: { resultId: string } }) => Promise<void>)({ data: { resultId: res.id } });
+                              setGroupeResults((prev) => prev.map((r) => r.id === res.id ? { ...r, visible: true } : r));
+                            } catch (e) {
+                              flash((e as Error).message, true);
+                            }
+                          }}
+                        >
+                          ✅ Approuver
+                        </button>
+                      )
+                    }
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -536,7 +1130,7 @@ function AdminPage() {
             setInviteLoading(true);
             setInviteResult(null);
             try {
-              await inviteStudentFn({ data: { email, origin: window.location.origin } });
+              await (inviteStudentFn as unknown as (args: { data: { email: string; origin: string } }) => Promise<void>)({ data: { email, origin: window.location.origin } });
               setInviteResult({ text: `Accès créé et email envoyé à ${email} ✓`, isErr: false });
               setInviteEmail("");
             } catch (error) {
