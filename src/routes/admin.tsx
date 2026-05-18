@@ -523,7 +523,55 @@ function AdminPage() {
       )}
 
       {activeTab === "content" && <div className="admin-body">
+        {/* ── ACCÈS ÉLÈVES ── */}
         <div className="admin-section-header">
+          <h2>👤 Accès élèves</h2>
+        </div>
+        <form
+          className="admin-form"
+          onSubmit={async (e: FormEvent) => {
+            e.preventDefault();
+            const email = inviteEmail.trim();
+            if (!email) return;
+            setInviteLoading(true);
+            setInviteResult(null);
+            try {
+              await inviteStudentFn({ data: { email, origin: window.location.origin } });
+              setInviteResult({ text: `Accès créé et email envoyé à ${email} ✓`, isErr: false });
+              setInviteEmail("");
+            } catch (error) {
+              setInviteResult({ text: (error as Error).message, isErr: true });
+            }
+            setInviteLoading(false);
+          }}
+        >
+          <h3>Créer un accès élève</h3>
+          <p style={{ fontSize: 13, color: "#888", marginBottom: 16, lineHeight: 1.5 }}>
+            Un email d'invitation sera envoyé à l'élève avec un lien pour créer son mot de passe et accéder à la formation DropDigital.
+          </p>
+          <label>
+            Email de l'élève *
+            <input
+              type="email"
+              required
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="eleve@example.com"
+            />
+          </label>
+          {inviteResult && (
+            <div className={inviteResult.isErr ? "admin-err" : "admin-msg"} style={{ marginTop: 8 }}>
+              {inviteResult.text}
+            </div>
+          )}
+          <div className="admin-form-actions">
+            <button type="submit" className="admin-btn-primary" disabled={inviteLoading}>
+              {inviteLoading ? "Envoi en cours…" : "Créer l'accès"}
+            </button>
+          </div>
+        </form>
+
+        <div className="admin-section-header" style={{ marginTop: 48 }}>
           <h2>Modules</h2>
           <button className="admin-btn-primary" onClick={openModuleCreate}>
             + Nouveau module
@@ -851,53 +899,6 @@ function AdminPage() {
           </div>
         ))}
 
-        {/* ── ACCÈS ÉLÈVES ── */}
-        <div className="admin-section-header" style={{ marginTop: 48 }}>
-          <h2>👤 Accès élèves</h2>
-        </div>
-        <form
-          className="admin-form"
-          onSubmit={async (e: FormEvent) => {
-            e.preventDefault();
-            const email = inviteEmail.trim();
-            if (!email) return;
-            setInviteLoading(true);
-            setInviteResult(null);
-            try {
-              await inviteStudentFn({ data: { email, origin: window.location.origin } });
-              setInviteResult({ text: `Accès créé et email envoyé à ${email} ✓`, isErr: false });
-              setInviteEmail("");
-            } catch (error) {
-              setInviteResult({ text: (error as Error).message, isErr: true });
-            }
-            setInviteLoading(false);
-          }}
-        >
-          <h3>Créer un accès élève</h3>
-          <p style={{ fontSize: 13, color: "#888", marginBottom: 16, lineHeight: 1.5 }}>
-            Un email d'invitation sera envoyé à l'élève avec un lien pour créer son mot de passe et accéder à la formation DropDigital.
-          </p>
-          <label>
-            Email de l'élève *
-            <input
-              type="email"
-              required
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="eleve@example.com"
-            />
-          </label>
-          {inviteResult && (
-            <div className={inviteResult.isErr ? "admin-err" : "admin-msg"} style={{ marginTop: 8 }}>
-              {inviteResult.text}
-            </div>
-          )}
-          <div className="admin-form-actions">
-            <button type="submit" className="admin-btn-primary" disabled={inviteLoading}>
-              {inviteLoading ? "Envoi en cours…" : "Créer l'accès"}
-            </button>
-          </div>
-        </form>
       </div>}
     </div>
   );
