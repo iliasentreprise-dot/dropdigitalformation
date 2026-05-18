@@ -137,11 +137,11 @@ function VideoInput({
 }
 
 const inviteStudentFn = createServerFn({ method: "POST" })
-  .validator((data: { email: string; origin: string }) => data)
   .handler(async ({ data }) => {
+    const { email, origin } = data as { email: string; origin: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
-      redirectTo: `${data.origin}/reset-password`,
+    const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: `${origin}/reset-password`,
     });
     if (error) throw new Error(error.message);
     return { success: true };
