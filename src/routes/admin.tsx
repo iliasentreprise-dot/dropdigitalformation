@@ -3,7 +3,6 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { createServerFn } from "@tanstack/react-start";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ThumbnailUploader } from "@/components/dd/ThumbnailUploader";
 import { ChapterResourcesAdmin } from "@/components/dd/ChapterResourcesAdmin";
 import { AdminDashboard } from "@/components/dd/AdminDashboard";
@@ -140,6 +139,7 @@ function VideoInput({
 const inviteStudentFn = createServerFn({ method: "POST" })
   .validator((data: { email: string; origin: string }) => data)
   .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
       redirectTo: `${data.origin}/reset-password`,
     });
