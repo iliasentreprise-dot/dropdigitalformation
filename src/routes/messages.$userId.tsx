@@ -309,7 +309,19 @@ function MessagesPage() {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+        @keyframes goldBadgePulse {
+          0%,100% { box-shadow: 0 0 10px rgba(255,215,0,0.55), 0 0 0 2px #ffd700; filter: brightness(1); }
+          50%     { box-shadow: 0 0 22px rgba(255,215,0,0.95), 0 0 0 2px #fff4a3; filter: brightness(1.15); }
+        }
+        @keyframes modBadgeFlash {
+          0%,100% { box-shadow: 0 0 10px rgba(239,68,68,0.6), 0 0 0 2px #ef4444; filter: brightness(1); }
+          40%     { box-shadow: 0 0 24px rgba(255,80,80,1), 0 0 0 2px #fff; filter: brightness(1.3); }
+          70%     { box-shadow: 0 0 18px rgba(239,68,68,0.85), 0 0 0 2px #ef4444; filter: brightness(1.1); }
+        }
       `}</style>
+    </div>
+  );
+}
     </div>
   );
 }
