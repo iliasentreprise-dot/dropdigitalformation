@@ -133,31 +133,61 @@ function ProfilPage() {
           </div>
 
           {profile.bio && (
-            <p style={{ color: "#c4a3f0", fontSize: 14, lineHeight: 1.6, margin: "0 0 24px", maxWidth: 440, marginInline: "auto" }}>{profile.bio}</p>
+            <p style={{ color: "#c4a3f0", fontSize: 14, lineHeight: 1.6, margin: "0 0 20px", maxWidth: 440, marginInline: "auto" }}>{profile.bio}</p>
           )}
 
-          {!isMe && (
-            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-              <button
-                onClick={() => void toggleFollow()}
-                disabled={busy}
-                style={{
-                  background: isFollowing ? "rgba(124,58,237,0.2)" : "linear-gradient(135deg, #7c3aed, #a855f7)",
-                  color: "#fff", border: isFollowing ? "1px solid rgba(168,85,247,0.5)" : "none",
-                  padding: "10px 22px", borderRadius: 22, fontWeight: 700, fontSize: 14, cursor: "pointer",
-                }}
-              >
-                {busy ? "…" : isFollowing ? "✓ Abonné" : "+ S'abonner"}
-              </button>
-              <Link
-                to="/messages/$userId"
-                params={{ userId }}
-                style={{ background: "linear-gradient(135deg, #ec4899, #f43f5e)", color: "#fff", padding: "10px 22px", borderRadius: 22, fontWeight: 700, fontSize: 14, textDecoration: "none" }}
-              >
-                💬 Message privé
-              </Link>
+          {profile.show_progression !== false && (
+            <div style={{ margin: "0 0 22px", maxWidth: 440, marginInline: "auto", textAlign: "left" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 12, color: "#9a7dbd", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <span>Progression formation</span>
+                <span style={{ color: role === "admin" ? "#ff6a00" : role === "moderator" ? "#ff6a00" : "#c4a3f0", fontWeight: 800 }}>
+                  {role === "admin" ? "⚡ 1000%" : role === "moderator" ? "🔥 100%" : `${progress.total ? Math.round((progress.done / progress.total) * 100) : 0}%`}
+                </span>
+              </div>
+              <div style={{ height: 10, background: "rgba(168,85,247,0.12)", borderRadius: 6, overflow: "hidden" }}>
+                {role === "admin"
+                  ? <div className="nitro-progress" style={{ height: "100%", width: "100%", borderRadius: 6 }} />
+                  : role === "moderator"
+                  ? <div className="fire-progress" style={{ height: "100%", width: "100%", borderRadius: 6 }} />
+                  : <div style={{ height: "100%", width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 6, transition: "width 0.3s" }} />}
+              </div>
+              <div style={{ fontSize: 11, color: "#7c5c9a", marginTop: 4 }}>
+                {progress.done} / {progress.total} chapitre{progress.total > 1 ? "s" : ""} terminé{progress.done > 1 ? "s" : ""}
+              </div>
             </div>
           )}
+
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            {!isMe && (
+              <>
+                <button
+                  onClick={() => void toggleFollow()}
+                  disabled={busy}
+                  style={{
+                    background: isFollowing ? "rgba(124,58,237,0.2)" : "linear-gradient(135deg, #7c3aed, #a855f7)",
+                    color: "#fff", border: isFollowing ? "1px solid rgba(168,85,247,0.5)" : "none",
+                    padding: "10px 22px", borderRadius: 22, fontWeight: 700, fontSize: 14, cursor: "pointer",
+                  }}
+                >
+                  {busy ? "…" : isFollowing ? "✓ Abonné" : "+ S'abonner"}
+                </button>
+                <Link
+                  to="/messages/$userId"
+                  params={{ userId }}
+                  style={{ background: "linear-gradient(135deg, #ec4899, #f43f5e)", color: "#fff", padding: "10px 22px", borderRadius: 22, fontWeight: 700, fontSize: 14, textDecoration: "none" }}
+                >
+                  💬 Message privé
+                </Link>
+              </>
+            )}
+            <Link
+              to="/profil/$userId/groupe"
+              params={{ userId }}
+              style={{ background: "rgba(124,58,237,0.18)", border: "1px solid rgba(168,85,247,0.45)", color: "#e9d5ff", padding: "10px 22px", borderRadius: 22, fontWeight: 700, fontSize: 14, textDecoration: "none" }}
+            >
+              👥 Messages dans le groupe
+            </Link>
+          </div>
         </div>
       </div>
 
