@@ -1317,18 +1317,56 @@
 .profile-edit-input:focus { border-color: #a855f7; }
 
 /* fire progress (reused from admin) */
-@keyframes fireGradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+@keyframes modRedShift {
+  0%,100% { background-position: 0% 50%, 0 0; }
+  50%     { background-position: 100% 50%, 60px 0; }
+}
+@keyframes modRedShimmer {
+  0%   { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
+  40%  { opacity: 1; }
+  100% { transform: translateX(220%) skewX(-20deg); opacity: 0; }
+}
+@keyframes modRedFlash {
+  0%, 92%, 100% { box-shadow: 0 0 10px rgba(239,68,68,0.55), 0 0 20px rgba(220,38,38,0.45) inset; filter: brightness(1); }
+  94%           { box-shadow: 0 0 28px rgba(255,255,255,0.95), 0 0 40px rgba(239,68,68,1) inset; filter: brightness(1.6) saturate(1.4); }
+  96%           { box-shadow: 0 0 12px rgba(239,68,68,0.6); filter: brightness(0.95); }
+  98%           { box-shadow: 0 0 30px rgba(255,255,255,1), 0 0 48px rgba(220,38,38,1) inset; filter: brightness(1.8) saturate(1.5); }
 }
 .fire-progress {
-  background: linear-gradient(270deg, #ff4500, #ff8c00, #ffd700, #ff8c00, #ff4500);
-  background-size: 300% 100%;
-  animation: fireGradient 2s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(115deg,
+      rgba(255,255,255,0.18) 0 6px,
+      transparent 6px 16px),
+    linear-gradient(90deg, #7f1d1d, #dc2626, #ef4444, #b91c1c, #7f1d1d);
+  background-size: 60px 100%, 250% 100%;
   border-radius: 4px;
   height: 100%;
   width: 100%;
+  animation: modRedShift 1.6s linear infinite, modRedFlash 2.2s ease-in-out infinite;
+}
+.fire-progress::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.85) 45%, rgba(255,255,255,1) 50%, rgba(255,255,255,0.85) 55%, transparent 100%);
+  width: 40%;
+  animation: modRedShimmer 2.4s ease-in-out infinite;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+.fire-progress::after {
+  content: "⚡";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  font-size: 10px;
+  color: #fff;
+  text-shadow: 0 0 6px #fff, 0 0 12px #ef4444, 0 0 18px #b91c1c;
+  animation: modRedFlash 1.4s ease-in-out infinite;
+  pointer-events: none;
 }
 
 /* ── Nitro / boost progress (admin) ── */
