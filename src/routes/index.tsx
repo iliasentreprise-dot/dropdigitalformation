@@ -6,6 +6,7 @@ import { useTheme } from "@/lib/theme-context";
 import logo from "@/assets/logo.png";
 import { GroupChat } from "@/components/dd/GroupChat";
 import { ResultsWall } from "@/components/dd/ResultsWall";
+import { toast } from "sonner";
 import "../styles/dropdigital.css";
 
 export const Route = createFileRoute("/")({
