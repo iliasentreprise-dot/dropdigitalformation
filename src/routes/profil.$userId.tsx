@@ -12,6 +12,7 @@ type PublicProfile = {
   bio: string | null;
   followers_count: number | null;
   following_count: number | null;
+  show_progression: boolean | null;
 };
 
 export const Route = createFileRoute("/profil/$userId")({
