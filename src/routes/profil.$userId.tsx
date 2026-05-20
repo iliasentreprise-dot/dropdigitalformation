@@ -155,6 +155,39 @@ function ProfilPage() {
           )}
         </div>
       </div>
+
+      {listOpen && (
+        <div onClick={() => setListOpen(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 420, maxHeight: "80vh", overflowY: "auto", background: "rgba(20,8,40,0.98)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 14 }}>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(168,85,247,0.2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong style={{ color: "#f0e8ff" }}>{listOpen === "followers" ? "Abonnés" : "Abonnements"}</strong>
+              <button onClick={() => setListOpen(null)} style={{ background: "none", border: "none", color: "#c4a3f0", fontSize: 20, cursor: "pointer" }}>×</button>
+            </div>
+            <div style={{ padding: 8 }}>
+              {listLoading ? (
+                <div style={{ padding: 24, textAlign: "center", color: "#9a7dbd" }}>Chargement…</div>
+              ) : listData.length === 0 ? (
+                <div style={{ padding: 32, textAlign: "center", color: "#9a7dbd", fontSize: 14 }}>
+                  {listOpen === "followers" ? "Pas encore d'abonné pour l'instant" : "Pas encore d'abonnement"}
+                </div>
+              ) : listData.map((u) => {
+                const n = u.full_name || u.username || "Élève";
+                return (
+                  <Link key={u.id} to="/profil/$userId" params={{ userId: u.id }} onClick={() => setListOpen(null)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, textDecoration: "none", color: "#f0e8ff" }}>
+                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(124,58,237,0.2)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {u.avatar_url ? <img src={u.avatar_url} alt={n} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#c4a3f0", fontWeight: 700 }}>{n[0]?.toUpperCase()}</span>}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{n}</div>
+                      {u.username && <div style={{ fontSize: 12, color: "#9a7dbd" }}>@{u.username}</div>}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
