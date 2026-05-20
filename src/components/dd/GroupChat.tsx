@@ -424,7 +424,7 @@ export function GroupChat({
                   <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{name}</div>
                   <div style={{ marginBottom: 10 }}>
                     {role === "admin" && <span className="chat-mini-badge admin">👑 Admin</span>}
-                    {role === "moderator" && <span className="chat-mini-badge mod">⚡ Modérateur</span>}
+                    {role === "moderator" && <span className="chat-mini-badge mod">Modérateur</span>}
                     {role === "user" && <span style={{ fontSize: 11, color: "#9ca3af" }}>Élève</span>}
                   </div>
                   {p?.bio && <div style={{ fontSize: 13, color: "#c4a3f0", marginBottom: 12 }}>{p.bio}</div>}
