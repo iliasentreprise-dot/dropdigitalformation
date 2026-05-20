@@ -163,11 +163,30 @@ export type Database = {
           },
         ]
       }
+      follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+        }
+        Relationships: []
+      }
       group_messages: {
         Row: {
           content: string
           created_at: string
           id: string
+          reply_to_id: string | null
           user_id: string
           visible: boolean
         }
@@ -175,6 +194,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          reply_to_id?: string | null
           user_id: string
           visible?: boolean
         }
@@ -182,10 +202,51 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          reply_to_id?: string | null
           user_id?: string
           visible?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "group_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "group_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "group_messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       module_completions: {
         Row: {
@@ -252,6 +313,27 @@ export type Database = {
           thumbnail_url?: string | null
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      muted_users: {
+        Row: {
+          muted_at: string
+          muted_by: string
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          muted_at?: string
+          muted_by: string
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          muted_at?: string
+          muted_by?: string
+          reason?: string | null
+          user_id?: string
         }
         Relationships: []
       }
