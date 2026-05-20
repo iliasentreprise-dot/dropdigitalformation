@@ -421,7 +421,9 @@ function HomePage() {
           <div className="logo-icon"><img src={logo} alt="DropDigital" width={36} height={36} /></div>
           <div className="logo-text">Drop<span>Digital</span></div>
         </div>
-        <div className="topbar-right" />
+        <div className="topbar-right" style={{ display: "flex", alignItems: "center", gap: 12, paddingRight: 8 }}>
+          <NotificationBell userId={user.id} />
+        </div>
 
       </div>
 
