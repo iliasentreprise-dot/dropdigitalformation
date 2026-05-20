@@ -8,6 +8,13 @@ import { ChapterResourcesAdmin } from "@/components/dd/ChapterResourcesAdmin";
 import { AdminDashboard } from "@/components/dd/AdminDashboard";
 import "../styles/admin.css";
 
+type AppNotification = {
+  id: string;
+  message: string;
+  read: boolean;
+  created_at: string;
+};
+
 function VideoInput({
   moduleId,
   value,
@@ -200,7 +207,7 @@ const listStudentsFn = createServerFn({ method: "GET" })
 
 const updateRoleFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
-    const { userId, role } = (data as unknown) as { userId: string; role: string };
+    const { userId, role, adminUserId, targetUsername } = (data as unknown) as { userId: string; role: string; adminUserId: string; targetUsername: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sa = supabaseAdmin as any;
@@ -210,6 +217,7 @@ const updateRoleFn = createServerFn({ method: "POST" })
         .from("user_roles")
         .upsert({ user_id: userId, role: "moderator" }, { onConflict: "user_id,role", ignoreDuplicates: true });
       if (error) throw new Error((error as { message: string }).message);
+      await sa.from("notifications").insert({ user_id: adminUserId, message: `Tu as promu ${targetUsername} modérateur ⬆️` });
     } else {
       const { error } = await sa
         .from("user_roles")
@@ -217,6 +225,7 @@ const updateRoleFn = createServerFn({ method: "POST" })
         .eq("user_id", userId)
         .eq("role", "moderator");
       if (error) throw new Error((error as { message: string }).message);
+      await sa.from("notifications").insert({ user_id: adminUserId, message: `Tu as rétrogradé ${targetUsername} en élève ↩️` });
     }
     return { success: true };
   });
@@ -647,6 +656,10 @@ function AdminPage() {
   const [groupeLoading, setGroupeLoading] = useState(false);
   const [groupeSubTab, setGroupeSubTab] = useState<"messages" | "resultats">("messages");
 
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!loading && !user) {
       navigate({ to: "/login" });
@@ -668,6 +681,47 @@ function AdminPage() {
       void loadModules();
     })();
   }, [user, loading]);
+
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any)
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      setNotifications((data as AppNotification[]) ?? []);
+    };
+    void load();
+
+    const channel = supabase
+      .channel("admin_notifications")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` }, (payload) => {
+        setNotifications((prev) => [payload.new as AppNotification, ...prev]);
+      })
+      .subscribe();
+
+    const handleClick = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+
+    return () => {
+      void supabase.removeChannel(channel);
+      document.removeEventListener("mousedown", handleClick);
+    };
+  }, [user]);
+
+  const markAllRead = async () => {
+    if (!user) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("notifications").update({ read: true }).eq("user_id", user.id).eq("read", false);
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
 
   const loadModules = async () => {
     const { data } = await supabase
@@ -921,7 +975,7 @@ function AdminPage() {
           ← Formation
         </Link>
         <h1 className="admin-title">⚙️ Admin</h1>
-        <div style={{ display: "flex", gap: 8, marginLeft: 16 }}>
+        <div style={{ display: "flex", gap: 8, marginLeft: 16, flex: 1 }}>
           <button
             className={activeTab === "content" ? "admin-btn-primary sm" : "admin-btn-ghost sm"}
             onClick={() => setActiveTab("content")}
@@ -955,6 +1009,47 @@ function AdminPage() {
         </div>
         {msg && <span className="admin-msg">{msg}</span>}
         {err && <span className="admin-err">{err}</span>}
+        <div ref={notifRef} style={{ position: "relative", marginLeft: "auto" }}>
+          <button
+            onClick={() => setNotifOpen((o) => !o)}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, position: "relative", padding: "4px 8px", display: "flex", alignItems: "center" }}
+            title="Notifications"
+          >
+            🔔
+            {notifications.filter((n) => !n.read).length > 0 && (
+              <span style={{ position: "absolute", top: 0, right: 0, background: "#ef4444", color: "#fff", borderRadius: "50%", fontSize: 10, fontWeight: 800, width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                {notifications.filter((n) => !n.read).length}
+              </span>
+            )}
+          </button>
+          {notifOpen && (
+            <div style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", background: "#1e1132", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 10, width: 320, maxHeight: 400, overflowY: "auto", zIndex: 1000, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid rgba(168,85,247,0.2)" }}>
+                <span style={{ fontWeight: 700, color: "#e0d0ff", fontSize: 14 }}>Notifications</span>
+                {notifications.some((n) => !n.read) && (
+                  <button onClick={() => void markAllRead()} style={{ background: "none", border: "none", color: "#a855f7", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                    Tout marquer lu
+                  </button>
+                )}
+              </div>
+              {notifications.length === 0 ? (
+                <div style={{ padding: "20px 16px", color: "#7c5c9a", fontSize: 13, textAlign: "center" }}>Aucune notification</div>
+              ) : (
+                notifications.map((n) => (
+                  <div key={n.id} style={{ padding: "10px 16px", borderBottom: "1px solid rgba(168,85,247,0.1)", background: n.read ? "transparent" : "rgba(168,85,247,0.07)", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    {!n.read && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#a855f7", flexShrink: 0, marginTop: 5 }} />}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, color: "#e0d0ff" }}>{n.message}</div>
+                      <div style={{ fontSize: 11, color: "#7c5c9a", marginTop: 2 }}>
+                        {new Date(n.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {activeTab === "dashboard" && (
@@ -1044,11 +1139,14 @@ function AdminPage() {
               onClose={() => setSelectedStudent(null)}
               onRoleChange={async (userId, role) => {
                 try {
-                  await (updateRoleFn as unknown as (args: { data: { userId: string; role: string } }) => Promise<void>)({ data: { userId, role } });
+                  const target = students.find((s) => s.id === userId);
+                  const targetUsername = target?.profile?.full_name || target?.profile?.username || target?.email?.split("@")[0] || "cet élève";
+                  await (updateRoleFn as unknown as (args: { data: { userId: string; role: string; adminUserId: string; targetUsername: string } }) => Promise<void>)({ data: { userId, role, adminUserId: user?.id ?? "", targetUsername } });
                   setStudents((prev) =>
                     prev.map((s) => s.id === userId ? { ...s, role } : s)
                   );
                   setSelectedStudent((prev) => prev ? { ...prev, role } : null);
+                  flash(role === "moderator" ? `${targetUsername} est maintenant modérateur ⬆️` : `${targetUsername} a été rétrogradé en élève ↩️`);
                 } catch (e) {
                   flash((e as Error).message, true);
                 }
