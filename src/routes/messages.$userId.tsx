@@ -47,9 +47,10 @@ function MessagesPage() {
     if (!user) return;
 
     (async () => {
-      const [{ data: prof }, { data: roleRow }, { data: msgs }, { data: accs }] = await Promise.all([
+      const [{ data: prof }, { data: myProf }, { data: rolesData }, { data: msgs }, { data: accs }] = await Promise.all([
         supabase.from("profiles").select("id, username, full_name, avatar_url").eq("id", otherId).maybeSingle(),
-        supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle(),
+        supabase.from("profiles").select("id, username, full_name, avatar_url").eq("id", user.id).maybeSingle(),
+        supabase.from("user_roles").select("user_id, role").in("user_id", [user.id, otherId]),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase as any).from("private_messages")
           .select("*")
@@ -62,7 +63,17 @@ function MessagesPage() {
           .or(`and(recipient_id.eq.${user.id},sender_id.eq.${otherId}),and(recipient_id.eq.${otherId},sender_id.eq.${user.id})`),
       ]);
       setOther(prof as MiniProfile | null);
-      setIsAdmin(!!roleRow);
+      setMe(myProf as MiniProfile | null);
+      const rmap: Record<string, Role> = {};
+      for (const r of (rolesData ?? []) as { user_id: string; role: string }[]) {
+        const cur = rmap[r.user_id];
+        if (r.role === "admin") rmap[r.user_id] = "admin";
+        else if (r.role === "moderator" && cur !== "admin") rmap[r.user_id] = "moderator";
+        else if (!cur) rmap[r.user_id] = "user";
+      }
+      setMyRole(rmap[user.id] ?? "user");
+      setOtherRole(rmap[otherId] ?? "user");
+      setIsAdmin(rmap[user.id] === "admin");
       setMessages((msgs as PMessage[]) ?? []);
       const list = (accs as { recipient_id: string; sender_id: string }[] | null) ?? [];
       setIHaveAccepted(list.some((a) => a.recipient_id === user.id && a.sender_id === otherId));
