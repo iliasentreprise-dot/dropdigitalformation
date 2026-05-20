@@ -492,14 +492,10 @@ function StudentModal({
 }) {
   const [changing, setChanging] = useState(false);
   const [togglingAccess, setTogglingAccess] = useState(false);
-  const [tempPw, setTempPw] = useState(student.profile?.temp_password ?? "");
-  const [showTempPw, setShowTempPw] = useState(false);
-  const [savingTempPw, setSavingTempPw] = useState(false);
-  const [tempPwMsg, setTempPwMsg] = useState<string | null>(null);
   const name = student.profile?.full_name || student.profile?.username || student.email.split("@")[0];
   const isAdminUser = student.role === "admin";
   const isMod = student.role === "moderator";
-  const pct = isAdminUser ? 100 : totalChapters > 0
+  const pct = totalChapters > 0
     ? Math.round((student.completedChapters / totalChapters) * 100)
     : 0;
 
@@ -545,52 +541,18 @@ function StudentModal({
         )}
 
         <div>
-          <div className="s-modal-prog-label">Progression — {isAdminUser ? "⚡ 1000%" : `${pct}%`}</div>
+          <div className="s-modal-prog-label">Progression — {isAdminUser ? "⚡ 1000%" : isMod ? "🔥 100%" : `${pct}%`}</div>
           <div className="s-modal-prog-bg">
             {isAdminUser
               ? <div className="nitro-progress" style={{ borderRadius: 6, height: "100%", width: "100%" }} />
+              : isMod
+              ? <div className="fire-progress" style={{ borderRadius: 6, height: "100%", width: "100%" }} />
               : <div className="s-modal-prog-fill" style={{ width: `${pct}%` }} />
             }
           </div>
         </div>
 
-        {/* Mot de passe temporaire */}
-        <div style={{ marginTop: 12, background: "rgba(124,58,237,0.08)", borderRadius: 10, padding: "12px 14px" }}>
-          <div style={{ fontSize: 12, color: "#9a7dbd", fontWeight: 600, marginBottom: 8 }}>🔑 Mot de passe temporaire</div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input
-              type={showTempPw ? "text" : "password"}
-              value={tempPw}
-              onChange={(e) => { setTempPw(e.target.value); setTempPwMsg(null); }}
-              placeholder="Saisir un mot de passe temporaire"
-              style={{ flex: 1, background: "rgba(25,10,48,0.8)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 6, padding: "6px 10px", color: "#f0e8ff", fontSize: 13 }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowTempPw((v) => !v)}
-              style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 6, padding: "6px 8px", color: "#c4a3f0", cursor: "pointer", fontSize: 14 }}
-            >
-              {showTempPw ? "🙈" : "👁"}
-            </button>
-            <button
-              className="admin-btn-ghost sm"
-              onClick={async () => {
-                setSavingTempPw(true);
-                try {
-                  await (updateTempPasswordFn as unknown as (args: { data: { userId: string; tempPassword: string } }) => Promise<void>)({ data: { userId: student.id, tempPassword: tempPw } });
-                  setTempPwMsg("Sauvegardé ✓");
-                } catch (e) {
-                  setTempPwMsg((e as Error).message);
-                }
-                setSavingTempPw(false);
-              }}
-              disabled={savingTempPw}
-            >
-              {savingTempPw ? "…" : "Modifier"}
-            </button>
-          </div>
-          {tempPwMsg && <div style={{ fontSize: 12, color: "#10b981", marginTop: 6 }}>{tempPwMsg}</div>}
-        </div>
+        {/* Mot de passe temporaire déplacé dans Profil complet → Informations personnelles */}
 
         <div className="s-modal-actions" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <button
@@ -993,9 +955,11 @@ function AdminPage() {
               {students.map((s) => {
                 const name = s.profile?.full_name || s.profile?.username || s.email.split("@")[0];
                 const isAdminUser = s.role === "admin";
-                const pct = isAdminUser ? 100 : totalChapters > 0
+                const isMod = s.role === "moderator";
+                const pct = totalChapters > 0
                   ? Math.round((s.completedChapters / totalChapters) * 100)
                   : 0;
+                const label = isAdminUser ? "⚡ 1000%" : isMod ? "🔥 100%" : `${pct}%`;
                 return (
                   <div key={s.id} className="student-card">
                     <div className="s-card-top">
@@ -1014,11 +978,13 @@ function AdminPage() {
                     <div className="s-prog-row">
                       <div className="s-prog-bg">
                         {isAdminUser
-                          ? <div className="fire-progress" />
+                          ? <div className="nitro-progress" style={{ width: "100%", height: "100%", borderRadius: 6 }} />
+                          : isMod
+                          ? <div className="fire-progress" style={{ width: "100%", height: "100%", borderRadius: 6 }} />
                           : <div className="s-prog-fill" style={{ width: `${pct}%` }} />
                         }
                       </div>
-                      <span className="s-prog-pct">{pct}%</span>
+                      <span className="s-prog-pct" style={isAdminUser || isMod ? { color: "#ff6a00", textShadow: "0 0 6px rgba(255,106,0,0.6)", fontWeight: 800 } : undefined}>{label}</span>
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
                       <button
