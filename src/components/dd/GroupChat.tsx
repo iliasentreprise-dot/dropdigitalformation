@@ -397,12 +397,28 @@ export function GroupChat({
                   {p?.bio && <div style={{ fontSize: 13, color: "#c4a3f0", marginBottom: 12 }}>{p.bio}</div>}
                   <div className="mpc-actions">
                     {openProfile !== userId && (
-                      <button className="admin-btn-primary sm" onClick={() => alert("Messagerie privée : bientôt disponible 💬")}>
-                        💬 Message privé
-                      </button>
+                      <>
+                        <Link
+                          to="/messages/$userId"
+                          params={{ userId: openProfile! }}
+                          className="admin-btn-primary sm"
+                          style={{ textDecoration: "none", display: "inline-block" }}
+                        >
+                          💬 Message privé
+                        </Link>
+                        <Link
+                          to="/profil/$userId"
+                          params={{ userId: openProfile! }}
+                          className="admin-btn-ghost sm"
+                          style={{ textDecoration: "none", display: "inline-block" }}
+                        >
+                          Profil complet
+                        </Link>
+                      </>
                     )}
                     <button className="admin-btn-ghost sm" onClick={() => setOpenProfile(null)}>Fermer</button>
                   </div>
+
                 </>
               );
             })()}
