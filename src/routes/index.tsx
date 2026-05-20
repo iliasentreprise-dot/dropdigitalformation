@@ -599,10 +599,17 @@ function HomePage() {
                   )}
                 </div>
 
-                {/* Email */}
-                <div className="profile-field-row">
-                  <div className="profile-field-label">Email</div>
-                  <div className="profile-field-value">{user.email}</div>
+                {/* Followers / Following */}
+                <div style={{ display: "flex", justifyContent: "center", gap: 28, marginBottom: 24 }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#e2d4f8" }}>{profile?.followers_count ?? 0}</div>
+                    <div style={{ fontSize: 11, color: "#9a7dbd", textTransform: "uppercase", letterSpacing: 0.5 }}>Abonnés</div>
+                  </div>
+                  <div style={{ width: 1, background: "rgba(168,85,247,0.2)" }} />
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#e2d4f8" }}>{profile?.following_count ?? 0}</div>
+                    <div style={{ fontSize: 11, color: "#9a7dbd", textTransform: "uppercase", letterSpacing: 0.5 }}>Abonnements</div>
+                  </div>
                 </div>
 
                 {/* Username */}
