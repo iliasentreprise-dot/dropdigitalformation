@@ -148,14 +148,14 @@ function RoleBadge({ role }: { role: string }) {
   if (role === "admin") {
     return (
       <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #FFD700, #FFC200, #FFAA00)", color: "#1a0800", fontWeight: 800, fontSize: 14, padding: "6px 16px", borderRadius: 8, animation: "adminGlow 2s ease-in-out infinite" }}>
-        👑 Admin <span style={{ animation: "starPop 1.5s ease-in-out infinite" }}>✦</span><span style={{ animation: "starPop 1.5s ease-in-out 0.5s infinite" }}>✦</span>
+        👑 Admin
       </span>
     );
   }
   if (role === "moderator") {
     return (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #7f1d1d, #991b1b)", color: "#fca5a5", fontWeight: 800, fontSize: 14, padding: "6px 16px", borderRadius: 8, border: "1px solid #ef4444", animation: "modNeon 2s ease-in-out infinite" }}>
-        🏴‍☠️ Modérateur <span style={{ animation: "lightning 5s ease-in-out infinite", display: "inline-block" }}>⚡</span><span style={{ animation: "lightning 5s ease-in-out 0.1s infinite", display: "inline-block" }}>⚡</span>
+      <span className="chat-mini-badge mod" style={{ fontSize: 13, padding: "6px 14px", borderRadius: 8 }}>
+        Modérateur
       </span>
     );
   }
@@ -165,6 +165,7 @@ function RoleBadge({ role }: { role: string }) {
     </span>
   );
 }
+
 
 // ── Component ────────────────────────────────────────────────────────────────
 
