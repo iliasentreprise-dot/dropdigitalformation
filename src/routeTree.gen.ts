@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProfilUserIdRouteImport } from './routes/profil.$userId'
 import { Route as PlayerChapterIdRouteImport } from './routes/player.$chapterId'
 import { Route as ModuleModuleIdRouteImport } from './routes/module.$moduleId'
 import { Route as AdminStudentUserIdRouteImport } from './routes/admin.student.$userId'
@@ -49,6 +50,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfilUserIdRoute = ProfilUserIdRouteImport.update({
+  id: '/profil/$userId',
+  path: '/profil/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlayerChapterIdRoute = PlayerChapterIdRouteImport.update({
   id: '/player/$chapterId',
   path: '/player/$chapterId',
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
+  '/profil/$userId': typeof ProfilUserIdRoute
   '/admin/student/$userId': typeof AdminStudentUserIdRoute
 }
 export interface FileRoutesByTo {
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
+  '/profil/$userId': typeof ProfilUserIdRoute
   '/admin/student/$userId': typeof AdminStudentUserIdRoute
 }
 export interface FileRoutesById {
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
+  '/profil/$userId': typeof ProfilUserIdRoute
   '/admin/student/$userId': typeof AdminStudentUserIdRoute
 }
 export interface FileRouteTypes {
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/module/$moduleId'
     | '/player/$chapterId'
+    | '/profil/$userId'
     | '/admin/student/$userId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/module/$moduleId'
     | '/player/$chapterId'
+    | '/profil/$userId'
     | '/admin/student/$userId'
   id:
     | '__root__'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/module/$moduleId'
     | '/player/$chapterId'
+    | '/profil/$userId'
     | '/admin/student/$userId'
   fileRoutesById: FileRoutesById
 }
@@ -144,6 +156,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   ModuleModuleIdRoute: typeof ModuleModuleIdRoute
   PlayerChapterIdRoute: typeof PlayerChapterIdRoute
+  ProfilUserIdRoute: typeof ProfilUserIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -190,6 +203,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profil/$userId': {
+      id: '/profil/$userId'
+      path: '/profil/$userId'
+      fullPath: '/profil/$userId'
+      preLoaderRoute: typeof ProfilUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/player/$chapterId': {
       id: '/player/$chapterId'
       path: '/player/$chapterId'
@@ -233,7 +253,18 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   ModuleModuleIdRoute: ModuleModuleIdRoute,
   PlayerChapterIdRoute: PlayerChapterIdRoute,
+  ProfilUserIdRoute: ProfilUserIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
