@@ -7,6 +7,7 @@ import logo from "@/assets/logo.png";
 import { GroupChat } from "@/components/dd/GroupChat";
 import { ResultsWall } from "@/components/dd/ResultsWall";
 import { NotificationBell } from "@/components/dd/NotificationBell";
+import { AvatarCropModal } from "@/components/dd/AvatarCropModal";
 import { toast } from "sonner";
 import "../styles/dropdigital.css";
 
@@ -102,6 +103,10 @@ function HomePage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Lightbox + crop
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
 
   // Password change
   const [pwFormOpen, setPwFormOpen] = useState(false);
@@ -266,11 +271,11 @@ function HomePage() {
     setProfileSaving(false);
   };
 
-  const uploadAvatar = async (file: File) => {
+  const uploadAvatar = async (file: Blob | File) => {
     if (!user) return;
     setAvatarUploading(true);
     try {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const ext = (file instanceof File ? (file.name.split(".").pop() || "jpg") : "jpg").toLowerCase();
       const path = `${user.id}/avatar.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("avatars")
@@ -575,15 +580,20 @@ function HomePage() {
 
                 {/* Avatar */}
                 <div style={{ textAlign: "center", marginBottom: 28 }}>
-                  <div className="profile-avatar-wrap" onClick={() => avatarInputRef.current?.click()} title="Changer la photo" style={userRole === "admin" ? { border: "3px solid #FFD700", boxShadow: "0 0 14px #FFD700, 0 0 28px #FFD700" } : userRole === "moderator" ? { border: "3px solid #ef4444", boxShadow: "0 0 14px #ef4444, 0 0 28px #dc2626" } : { border: "3px solid #7c3aed" }}>
+                  <div
+                    className="profile-avatar-wrap"
+                    title={profile?.avatar_url ? "Voir la photo" : "Changer la photo"}
+                    style={userRole === "admin" ? { border: "3px solid #FFD700", boxShadow: "0 0 14px #FFD700, 0 0 28px #FFD700" } : userRole === "moderator" ? { border: "3px solid #ef4444", boxShadow: "0 0 14px #ef4444, 0 0 28px #dc2626" } : { border: "3px solid #7c3aed" }}
+                    onClick={() => { if (profile?.avatar_url) setLightboxSrc(profile.avatar_url); else avatarInputRef.current?.click(); }}
+                  >
                     {profile?.avatar_url
                       ? <img src={profile.avatar_url} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
                       : <span style={{ fontSize: 36, color: "#c4a3f0" }}>{displayName[0]?.toUpperCase()}</span>
                     }
-                    <div className="profile-avatar-overlay">{avatarUploading ? "…" : "📷"}</div>
+                    <div className="profile-avatar-overlay" onClick={(e) => { e.stopPropagation(); avatarInputRef.current?.click(); }}>{avatarUploading ? "…" : "📷"}</div>
                   </div>
-                  <input ref={avatarInputRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadAvatar(f); }} />
-                  <div style={{ marginTop: 8, fontSize: 12, color: "#7c5c9a" }}>Clique pour changer la photo</div>
+                  <input ref={avatarInputRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) setCropFile(f); e.target.value = ""; }} />
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#7c5c9a" }}>📷 pour changer · clic photo pour agrandir</div>
                 </div>
 
                 {/* Role badge */}
@@ -659,12 +669,17 @@ function HomePage() {
                     <div style={{ flex: 1, height: 14, background: "rgba(168,85,247,0.12)", borderRadius: 8, overflow: "hidden" }}>
                       {isAdmin
                         ? <div className="nitro-progress" style={{ borderRadius: 8, height: "100%", width: "100%" }} />
+                        : userRole === "moderator"
+                        ? <div className="fire-progress" style={{ borderRadius: 8, height: "100%", width: "100%" }} />
                         : <div style={{ height: "100%", width: `${globalPct}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 8, transition: "width 0.4s" }} />
                       }
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: isAdmin ? "#ff6a00" : "#9a7dbd", textShadow: isAdmin ? "0 0 6px rgba(255,106,0,0.6)" : undefined }}>
-                      {isAdmin ? "⚡ 1000%" : `${globalPct}%`}
+                    <span style={{ fontSize: 13, fontWeight: 800, color: isAdmin || userRole === "moderator" ? "#ff6a00" : "#9a7dbd", textShadow: isAdmin || userRole === "moderator" ? "0 0 6px rgba(255,106,0,0.6)" : undefined }}>
+                      {isAdmin ? "⚡ 1000%" : userRole === "moderator" ? "🔥 100%" : `${globalPct}%`}
                     </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#7c5c9a" }}>
+                    {(isAdmin || userRole === "moderator") ? "∞ chapitres terminés" : `${completed.size} / ${chapters.length} chapitre${chapters.length > 1 ? "s" : ""} terminé${completed.size > 1 ? "s" : ""}`}
                   </div>
                 </div>
               </div>
@@ -751,6 +766,25 @@ function HomePage() {
           </div>
         </main>
       </div>
+
+      {/* Lightbox */}
+      {lightboxSrc && (
+        <div onClick={() => setLightboxSrc(null)} style={{ position: "fixed", inset: 0, zIndex: 9500, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${lightboxSrc})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(20px)", opacity: 0.3, transform: "scale(1.1)" }} />
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.72)" }} />
+          <img src={lightboxSrc} onClick={(e) => e.stopPropagation()} className="lightbox-img-anim" style={{ position: "relative", maxWidth: "90vw", maxHeight: "90vh", borderRadius: "50%", objectFit: "cover", width: "min(80vw,80vh)", height: "min(80vw,80vh)", boxShadow: "0 0 60px rgba(0,0,0,0.8)" }} alt="avatar" />
+          <button onClick={() => setLightboxSrc(null)} style={{ position: "absolute", top: 20, right: 20, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "50%", width: 40, height: 40, color: "#fff", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+        </div>
+      )}
+
+      {/* Avatar crop modal */}
+      {cropFile && (
+        <AvatarCropModal
+          file={cropFile}
+          onCrop={async (blob) => { setCropFile(null); await uploadAvatar(blob); }}
+          onCancel={() => setCropFile(null)}
+        />
+      )}
     </div>
   );
 }

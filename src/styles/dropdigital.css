@@ -1541,3 +1541,24 @@
   .chat-bubble-wrap { max-width: 85%; }
   .results-amount-input { width: 100%; }
 }
+
+/* Lightbox zoom-in animation */
+@keyframes lightbox-in {
+  from { transform: scale(0.3); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.lightbox-img-anim {
+  animation: lightbox-in 0.2s ease-out forwards;
+}
+
+/* Hide Lovable watermark (injected badge) */
+[data-lovable-badge],
+[class*="lovable-badge"],
+[id*="lovable-badge"],
+a[href*="lovable.app"][style*="fixed"],
+a[href*="lovable.dev"][style*="fixed"],
+div[data-lovable],
+#lovable-badge {
+  display: none !important;
+  pointer-events: none !important;
+}

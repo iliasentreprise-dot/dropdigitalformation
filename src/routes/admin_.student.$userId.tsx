@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import { AvatarCropModal } from "@/components/dd/AvatarCropModal";
 import "../styles/admin.css";
 import "../styles/dropdigital.css";
 
@@ -245,6 +246,8 @@ function StudentProfilePage() {
   const [messages, setMessages] = useState<StudentMessage[]>([]);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const [dmsOpen, setDmsOpen] = useState(false);
   const [dmsData, setDmsData] = useState<{ partners: DmPartner[]; messagesByPartner: Record<string, DmRow[]> } | null>(null);
   const [dmsActive, setDmsActive] = useState<string | null>(null);
@@ -343,9 +346,9 @@ function StudentProfilePage() {
     showFlash("Message supprimé ✓");
   };
 
-  const uploadAvatar = async (file: File) => {
+  const uploadAvatar = async (file: Blob | File) => {
     setAvatarUploading(true);
-    const ext = file.name.split(".").pop() || "jpg";
+    const ext = (file instanceof File ? (file.name.split(".").pop() || "jpg") : "jpg").toLowerCase();
     const path = `${userId}/avatar.${ext}`;
     const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
     if (!error) {
@@ -437,9 +440,9 @@ function StudentProfilePage() {
           {/* Avatar + overlay upload */}
           <div style={{ position: "relative", width: 120, height: 120, flexShrink: 0 }}>
             <div
-              style={{ width: 120, height: 120, borderRadius: "50%", background: "rgba(124,58,237,0.2)", border: "3px solid rgba(168,85,247,0.4)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}
-              onClick={() => avatarInputRef.current?.click()}
-              title="Changer la photo de profil"
+              style={{ width: 120, height: 120, borderRadius: "50%", background: "rgba(124,58,237,0.2)", border: "3px solid rgba(168,85,247,0.4)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: profile?.avatar_url ? "zoom-in" : "pointer" }}
+              onClick={() => { if (profile?.avatar_url) setLightboxSrc(profile.avatar_url); else avatarInputRef.current?.click(); }}
+              title={profile?.avatar_url ? "Agrandir la photo" : "Changer la photo de profil"}
             >
               {profile?.avatar_url
                 ? <img src={profile.avatar_url} alt={displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -448,7 +451,7 @@ function StudentProfilePage() {
             </div>
             {/* Always-visible overlay at low opacity, full on hover */}
             <div
-              onClick={() => avatarInputRef.current?.click()}
+              onClick={(e) => { e.stopPropagation(); avatarInputRef.current?.click(); }}
               style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, cursor: "pointer", opacity: 0.5, transition: "opacity 0.2s" }}
               onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
               onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.5")}
@@ -461,7 +464,7 @@ function StudentProfilePage() {
             type="file"
             accept="image/*"
             hidden
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadAvatar(f); e.target.value = ""; }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) setCropFile(f); e.target.value = ""; }}
           />
 
           {/* Name + username */}
@@ -731,6 +734,25 @@ function StudentProfilePage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxSrc && (
+        <div onClick={() => setLightboxSrc(null)} style={{ position: "fixed", inset: 0, zIndex: 9500, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${lightboxSrc})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(20px)", opacity: 0.3, transform: "scale(1.1)" }} />
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.72)" }} />
+          <img src={lightboxSrc} onClick={(e) => e.stopPropagation()} className="lightbox-img-anim" style={{ position: "relative", maxWidth: "90vw", maxHeight: "90vh", borderRadius: "50%", objectFit: "cover", width: "min(80vw,80vh)", height: "min(80vw,80vh)", boxShadow: "0 0 60px rgba(0,0,0,0.8)" }} alt="avatar" />
+          <button onClick={() => setLightboxSrc(null)} style={{ position: "absolute", top: 20, right: 20, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "50%", width: 40, height: 40, color: "#fff", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+        </div>
+      )}
+
+      {/* Avatar crop modal */}
+      {cropFile && (
+        <AvatarCropModal
+          file={cropFile}
+          onCrop={async (blob) => { setCropFile(null); await uploadAvatar(blob); }}
+          onCancel={() => setCropFile(null)}
+        />
       )}
     </div>
   );

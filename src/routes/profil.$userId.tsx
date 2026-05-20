@@ -44,6 +44,7 @@ function ProfilPage() {
   const [groupMsgsOpen, setGroupMsgsOpen] = useState(false);
   const [groupMsgs, setGroupMsgs] = useState<{ id: string; content: string; created_at: string }[]>([]);
   const [groupMsgsLoading, setGroupMsgsLoading] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const openList = async (kind: "followers" | "following") => {
     setListOpen(kind);
@@ -155,7 +156,10 @@ function ProfilPage() {
         <Link to="/" style={{ color: "#c4a3f0", fontSize: 13, textDecoration: "none", display: "inline-block", marginBottom: 20 }}>← Retour</Link>
 
         <div style={{ background: "rgba(25,10,48,0.7)", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 16, padding: "32px 24px", textAlign: "center" }}>
-          <div style={{ width: 140, height: 140, borderRadius: "50%", margin: "0 auto 18px", background: "rgba(124,58,237,0.2)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", ...(role === "admin" ? { border: "3px solid #FFD700", boxShadow: "0 0 14px #FFD700, 0 0 28px #FFD700" } : role === "moderator" ? { border: "3px solid #ef4444", boxShadow: "0 0 14px #ef4444, 0 0 28px #dc2626" } : { border: "3px solid #7c3aed" }) }}>
+          <div
+            style={{ width: 140, height: 140, borderRadius: "50%", margin: "0 auto 18px", background: "rgba(124,58,237,0.2)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", cursor: profile.avatar_url ? "zoom-in" : "default", ...(role === "admin" ? { border: "3px solid #FFD700", boxShadow: "0 0 14px #FFD700, 0 0 28px #FFD700" } : role === "moderator" ? { border: "3px solid #ef4444", boxShadow: "0 0 14px #ef4444, 0 0 28px #dc2626" } : { border: "3px solid #7c3aed" }) }}
+            onClick={() => { if (profile.avatar_url) setLightboxSrc(profile.avatar_url); }}
+          >
             {profile.avatar_url ? (
               <img src={profile.avatar_url} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
@@ -306,6 +310,16 @@ function ProfilPage() {
               })}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxSrc && (
+        <div onClick={() => setLightboxSrc(null)} style={{ position: "fixed", inset: 0, zIndex: 9500, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${lightboxSrc})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(20px)", opacity: 0.3, transform: "scale(1.1)" }} />
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.72)" }} />
+          <img src={lightboxSrc} onClick={(e) => e.stopPropagation()} className="lightbox-img-anim" style={{ position: "relative", maxWidth: "90vw", maxHeight: "90vh", borderRadius: "50%", objectFit: "cover", width: "min(80vw,80vh)", height: "min(80vw,80vh)", boxShadow: "0 0 60px rgba(0,0,0,0.8)" }} alt="avatar" />
+          <button onClick={() => setLightboxSrc(null)} style={{ position: "absolute", top: 20, right: 20, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "50%", width: 40, height: 40, color: "#fff", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
         </div>
       )}
     </div>

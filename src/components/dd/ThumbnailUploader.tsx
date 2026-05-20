@@ -19,10 +19,10 @@ export function ThumbnailUploader({ value, onChange }: Props) {
     const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
     const { error } = await supabase.storage
       .from("module-thumbnails")
-      .upload(path, file, { upsert: false });
+      .upload(path, file, { upsert: true });
     if (!error) {
       const { data } = supabase.storage.from("module-thumbnails").getPublicUrl(path);
-      onChange(data.publicUrl);
+      onChange(`${data.publicUrl}?t=${Date.now()}`);
     }
     setUploading(false);
   };

@@ -1456,20 +1456,29 @@ function AdminPage() {
               className="admin-module-header"
               onClick={() => toggleModule(m.id)}
             >
-              <div>
-                <span className="admin-module-section">
-                  {SECTIONS.find((s) => s.value === m.section)?.label ||
-                    m.section}
-                </span>
-                <span className="admin-module-title">{m.title}</span>
-                {m.badge && (
-                  <span
-                    className="admin-module-badge"
-                    style={{ background: m.badge_color || "#a855f7" }}
-                  >
-                    {m.badge}
-                  </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                {m.thumbnail_url && (
+                  <img
+                    src={m.thumbnail_url}
+                    alt=""
+                    style={{ width: 48, height: 32, objectFit: "cover", borderRadius: 4, flexShrink: 0, border: "1px solid rgba(168,85,247,0.2)" }}
+                  />
                 )}
+                <div>
+                  <span className="admin-module-section">
+                    {SECTIONS.find((s) => s.value === m.section)?.label ||
+                      m.section}
+                  </span>
+                  <span className="admin-module-title">{m.title}</span>
+                  {m.badge && (
+                    <span
+                      className="admin-module-badge"
+                      style={{ background: m.badge_color || "#a855f7" }}
+                    >
+                      {m.badge}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="admin-module-actions">
                 <button
