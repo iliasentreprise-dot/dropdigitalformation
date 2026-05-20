@@ -42,6 +42,9 @@ type StudentData = {
   messages: StudentMessage[];
 };
 
+type DmRow = { id: string; sender_id: string; recipient_id: string; content: string; created_at: string; deleted_at: string | null };
+type DmPartner = { id: string; username: string | null; full_name: string | null; avatar_url: string | null; lastAt: string; count: number };
+
 // ── Server functions ────────────────────────────────────────────────────────
 
 const getStudentFn = createServerFn({ method: "POST" })
@@ -156,6 +159,38 @@ const setRoleFn = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+const getAdminDmsFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { userId } = (data as unknown) as { userId: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sa = supabaseAdmin as any;
+    const { data: msgs } = await sa
+      .from("private_messages")
+      .select("id, sender_id, recipient_id, content, created_at, deleted_at")
+      .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+      .order("created_at", { ascending: true })
+      .limit(2000);
+    const rows = (msgs ?? []) as DmRow[];
+    const map: Record<string, DmRow[]> = {};
+    for (const r of rows) {
+      const partner = r.sender_id === userId ? r.recipient_id : r.sender_id;
+      (map[partner] = map[partner] || []).push(r);
+    }
+    const partnerIds = Object.keys(map);
+    const { data: profs } = partnerIds.length
+      ? await sa.from("profiles").select("id, username, full_name, avatar_url").in("id", partnerIds)
+      : { data: [] };
+    const profMap: Record<string, { username: string | null; full_name: string | null; avatar_url: string | null }> =
+      Object.fromEntries(((profs ?? []) as Array<{ id: string; username: string | null; full_name: string | null; avatar_url: string | null }>).map((p) => [p.id, p]));
+    const partners: DmPartner[] = partnerIds.map((pid) => {
+      const list = map[pid];
+      const p = profMap[pid] ?? { username: null, full_name: null, avatar_url: null };
+      return { id: pid, username: p.username, full_name: p.full_name, avatar_url: p.avatar_url, lastAt: list[list.length - 1]?.created_at ?? "", count: list.length };
+    }).sort((a, b) => (b.lastAt > a.lastAt ? 1 : -1));
+    return { partners, messagesByPartner: map };
+  });
+
 // ── Route ────────────────────────────────────────────────────────────────────
 
 export const Route = createFileRoute("/admin_/student/$userId")({
@@ -210,6 +245,10 @@ function StudentProfilePage() {
   const [messages, setMessages] = useState<StudentMessage[]>([]);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  const [dmsOpen, setDmsOpen] = useState(false);
+  const [dmsData, setDmsData] = useState<{ partners: DmPartner[]; messagesByPartner: Record<string, DmRow[]> } | null>(null);
+  const [dmsActive, setDmsActive] = useState<string | null>(null);
+  const [dmsLoading, setDmsLoading] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [usernameDraft, setUsernameDraft] = useState("");
   const [bioDraft, setBioDraft] = useState("");
@@ -318,6 +357,18 @@ function StudentProfilePage() {
       showFlash("Photo mise à jour ✓");
     }
     setAvatarUploading(false);
+  };
+
+  const openDms = async () => {
+    setDmsOpen(true);
+    if (dmsData) return;
+    setDmsLoading(true);
+    try {
+      const result = await (getAdminDmsFn as unknown as (a: { data: { userId: string } }) => Promise<{ partners: DmPartner[]; messagesByPartner: Record<string, DmRow[]> }>)({ data: { userId } });
+      setDmsData(result);
+      if (result.partners.length) setDmsActive(result.partners[0].id);
+    } catch (e) { console.error(e); }
+    setDmsLoading(false);
   };
 
   if (loading || dataLoading) {
@@ -474,9 +525,9 @@ function StudentProfilePage() {
 
           {/* Quick links */}
           <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap", justifyContent: "center" }}>
-            <Link to="/admin/student/$userId/dms" params={{ userId }} className="admin-btn-ghost sm" style={{ textDecoration: "none" }}>
+            <button className="admin-btn-ghost sm" onClick={() => void openDms()}>
               💬 Messages privés
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -504,9 +555,9 @@ function StudentProfilePage() {
               {completedCount} chapitre{completedCount !== 1 ? "s" : ""} validé{completedCount !== 1 ? "s" : ""} sur {studentData.totalChapters}
             </div>
           )}
-          {currentRole === "moderator" && (
+          {(currentRole === "admin" || currentRole === "moderator") && (
             <div style={{ fontSize: 12, color: "#fca5a5", marginTop: 8 }}>
-              Accès total : tous les modules + tous les logiciels.
+              ∞ chapitres terminés{currentRole === "moderator" ? " — Accès total : tous les modules + tous les logiciels." : ""}
             </div>
           )}
         </div>
@@ -628,6 +679,59 @@ function StudentProfilePage() {
         </div>
 
       </div>
+
+      {/* ── DM Panel Overlay ── */}
+      {dmsOpen && (
+        <div onClick={() => setDmsOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)", zIndex: 1001, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 820, height: "85vh", background: "rgba(16,6,36,0.99)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 16, display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(168,85,247,0.2)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+              <strong style={{ color: "#f0e8ff", fontSize: 15 }}>💬 Messages privés — {displayName}</strong>
+              <button onClick={() => setDmsOpen(false)} style={{ background: "none", border: "none", color: "#c4a3f0", fontSize: 22, cursor: "pointer" }}>×</button>
+            </div>
+            {dmsLoading ? (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#9a7dbd" }}>Chargement…</div>
+            ) : !dmsData || dmsData.partners.length === 0 ? (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#6b4fa0", fontSize: 14 }}>Aucune conversation privée.</div>
+            ) : (
+              <div style={{ flex: 1, display: "grid", gridTemplateColumns: "220px 1fr", minHeight: 0 }}>
+                <div style={{ borderRight: "1px solid rgba(168,85,247,0.15)", overflowY: "auto", padding: 8 }}>
+                  {dmsData.partners.map((p) => {
+                    const pname = p.full_name || p.username || "Élève";
+                    return (
+                      <button key={p.id} onClick={() => setDmsActive(p.id)} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: dmsActive === p.id ? "rgba(124,58,237,0.25)" : "transparent", border: "none", borderRadius: 8, cursor: "pointer", marginBottom: 2, color: "#f0e8ff" }}>
+                        <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(124,58,237,0.2)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {p.avatar_url ? <img src={p.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#c4a3f0", fontWeight: 700, fontSize: 12 }}>{pname[0]?.toUpperCase()}</span>}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pname}</div>
+                          <div style={{ fontSize: 10, color: "#9a7dbd" }}>{p.count} msg</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                  {dmsActive && (dmsData.messagesByPartner[dmsActive] ?? []).map((m) => {
+                    const fromStudent = m.sender_id === userId;
+                    const isDeleted = !!m.deleted_at;
+                    return (
+                      <div key={m.id} style={{ alignSelf: fromStudent ? "flex-end" : "flex-start", maxWidth: "78%" }}>
+                        <div style={{ background: isDeleted ? "rgba(220,38,38,0.22)" : fromStudent ? "linear-gradient(135deg, #7c3aed, #a855f7)" : "rgba(30,15,55,0.85)", border: isDeleted ? "1px solid rgba(239,68,68,0.55)" : "1px solid rgba(168,85,247,0.18)", color: isDeleted ? "#fecaca" : "#fff", borderRadius: 10, padding: "7px 11px", fontSize: 13, lineHeight: 1.45, wordBreak: "break-word" }}>
+                          {m.content}
+                          {isDeleted && <div style={{ fontSize: 10, marginTop: 3, color: "#fca5a5", fontStyle: "italic" }}>(supprimé)</div>}
+                        </div>
+                        <div style={{ fontSize: 10, color: "#6b4fa0", marginTop: 2, textAlign: fromStudent ? "right" : "left" }}>
+                          {new Date(m.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

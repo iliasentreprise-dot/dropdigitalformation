@@ -9,6 +9,9 @@ type Result = {
   photo_url: string | null;
   visible: boolean;
   created_at: string;
+  deleted?: boolean;
+  deleted_by?: string | null;
+  deleted_at?: string | null;
 };
 
 type RProfile = {
@@ -44,6 +47,7 @@ export function ResultsWall({
   username: string | null;
   avatarUrl: string | null;
 }) {
+  const [myRole, setMyRole] = useState<string>("user");
   const [results, setResults] = useState<Result[]>([]);
   const [profiles, setProfiles] = useState<Record<string, RProfile>>({});
   const [reactions, setReactions] = useState<Reaction[]>([]);
@@ -58,6 +62,20 @@ export function ResultsWall({
   const fileRef = useRef<HTMLInputElement>(null);
   const [roles, setRoles] = useState<Record<string, string>>({});
   const [reactionPopup, setReactionPopup] = useState<{ list: Reaction[]; emoji: string; resultId: string } | null>(null);
+
+  // Fetch current user's role
+  useEffect(() => {
+    if (!userId) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).rpc("get_top_role", { _user_id: userId }).then(({ data }: { data: string | null }) => {
+      if (data) { setMyRole(data); return; }
+      supabase.from("user_roles").select("role").eq("user_id", userId).then(({ data: rows }) => {
+        const pri: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
+        const top = ((rows ?? []) as { role: string }[]).reduce<string>((b, r) => ((pri[r.role] ?? 0) > (pri[b] ?? 0) ? r.role : b), "user");
+        setMyRole(top);
+      });
+    });
+  }, [userId]);
 
   // Load results + reactions + comments + subscribe
   useEffect(() => {
@@ -215,6 +233,25 @@ export function ResultsWall({
     setCommentDrafts((p) => ({ ...p, [resultId]: "" }));
   };
 
+  const softDeleteResult = async (resultId: string) => {
+    const now = new Date().toISOString();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("results").update({ deleted: true, deleted_by: userId, deleted_at: now }).eq("id", resultId);
+    setResults((prev) => prev.map((r) => r.id === resultId ? { ...r, deleted: true, deleted_by: userId, deleted_at: now } : r));
+  };
+
+  const restoreResult = async (resultId: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("results").update({ deleted: false, deleted_by: null, deleted_at: null }).eq("id", resultId);
+    setResults((prev) => prev.map((r) => r.id === resultId ? { ...r, deleted: false, deleted_by: null, deleted_at: null } : r));
+  };
+
+  const hardDeleteResult = async (resultId: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("results").delete().eq("id", resultId);
+    setResults((prev) => prev.filter((r) => r.id !== resultId));
+  };
+
   const nameOf = (uid: string) => {
     if (uid === userId) return username || "Moi";
     const p = profiles[uid];
@@ -283,20 +320,28 @@ export function ResultsWall({
       )}
 
       <div className="results-wall">
-        {results.length === 0 && (
+        {results.filter((r) => !r.deleted || myRole === "admin").length === 0 && (
           <div style={{ textAlign: "center", color: "#6b4fa0", padding: "40px 0", fontSize: 14 }}>
             Aucun résultat partagé pour l'instant. Sois le premier !
           </div>
         )}
-        {results.map((r) => {
+        {results.filter((r) => !r.deleted || myRole === "admin").map((r) => {
           const name = nameOf(r.user_id);
           const avatar = avatarOf(r.user_id);
           const myReacts = new Set(reactions.filter((x) => x.result_id === r.id && x.user_id === userId).map((x) => x.emoji));
           const commentsForResult = comments.filter((c) => c.result_id === r.id);
           const isOpen = !!openComments[r.id];
           const rRole = roleOf(r.user_id);
+          const isDeleted = !!r.deleted;
           return (
-            <div key={r.id} className="result-card">
+            <div key={r.id} className="result-card" style={isDeleted ? { background: "rgba(220,38,38,0.08)", border: "1px solid rgba(239,68,68,0.3)" } : {}}>
+              {isDeleted && (
+                <div style={{ fontSize: 11, color: "#fca5a5", fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span>🗑 Post masqué</span>
+                  <button onClick={() => void restoreResult(r.id)} style={{ background: "rgba(16,185,129,0.15)", border: "1px solid #10b981", borderRadius: 6, color: "#10b981", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "2px 8px" }}>↩ Restaurer</button>
+                  <button onClick={() => void hardDeleteResult(r.id)} style={{ background: "rgba(239,68,68,0.15)", border: "1px solid #ef4444", borderRadius: 6, color: "#ef4444", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "2px 8px" }}>✕ Supprimer définitivement</button>
+                </div>
+              )}
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(168,85,247,0.2)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0, ...avatarRing(rRole) }}>
                   {avatar
@@ -313,6 +358,17 @@ export function ResultsWall({
                   <div style={{ background: "linear-gradient(135deg, #059669, #10b981)", color: "#fff", fontWeight: 800, fontSize: 14, padding: "4px 14px", borderRadius: 20, whiteSpace: "nowrap" }}>
                     +{r.amount.toLocaleString("fr-FR")}€
                   </div>
+                )}
+                {!isDeleted && (r.user_id === userId || myRole === "admin") && (
+                  <button
+                    onClick={() => void softDeleteResult(r.id)}
+                    title="Masquer ce post"
+                    style={{ background: "none", border: "none", color: "#6b4fa0", cursor: "pointer", fontSize: 15, padding: "2px 4px", opacity: 0.5, flexShrink: 0, transition: "opacity 0.15s" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.5")}
+                  >
+                    🗑
+                  </button>
                 )}
               </div>
               <p style={{ color: "#c4a3f0", fontSize: 14, lineHeight: 1.6, margin: 0 }}>{r.content}</p>

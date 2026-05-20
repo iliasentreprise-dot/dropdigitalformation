@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import "../styles/dropdigital.css";
@@ -21,6 +21,12 @@ export const Route = createFileRoute("/profil/$userId")({
 
 type FollowEntry = { id: string; username: string | null; full_name: string | null; avatar_url: string | null };
 
+function avatarRing(role: string): React.CSSProperties {
+  if (role === "admin") return { border: "2px solid #FFD700", boxShadow: "0 0 10px #FFD700, 0 0 20px #FFD700" };
+  if (role === "moderator") return { border: "2px solid #ef4444", boxShadow: "0 0 10px #ef4444, 0 0 20px #dc2626" };
+  return { border: "2px solid #7c3aed" };
+}
+
 function ProfilPage() {
   const { userId } = Route.useParams();
   const navigate = useNavigate();
@@ -33,6 +39,7 @@ function ProfilPage() {
   const [listOpen, setListOpen] = useState<null | "followers" | "following">(null);
   const [listData, setListData] = useState<FollowEntry[]>([]);
   const [listLoading, setListLoading] = useState(false);
+  const [listRoles, setListRoles] = useState<Record<string, string>>({});
   const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
   const [groupMsgsOpen, setGroupMsgsOpen] = useState(false);
   const [groupMsgs, setGroupMsgs] = useState<{ id: string; content: string; created_at: string }[]>([]);
@@ -42,13 +49,30 @@ function ProfilPage() {
     setListOpen(kind);
     setListLoading(true);
     setListData([]);
+    setListRoles({});
     const col = kind === "followers" ? "follower_id" : "following_id";
     const matchCol = kind === "followers" ? "following_id" : "follower_id";
     const { data: rows } = await supabase.from("follows").select(col).eq(matchCol, userId);
-    const ids = (rows ?? []).map((r: any) => r[col]).filter(Boolean);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ids = (rows ?? []).map((r: any) => r[col]).filter(Boolean) as string[];
     if (ids.length) {
       const { data: profs } = await supabase.from("profiles").select("id, username, full_name, avatar_url").in("id", ids);
       setListData((profs ?? []) as FollowEntry[]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: roleRows, error } = await (supabase as any).rpc("get_roles_for_users", { _user_ids: ids });
+      if (!error && roleRows?.length) {
+        const rm: Record<string, string> = {};
+        for (const r of roleRows as { user_id: string; role: string }[]) rm[r.user_id] = r.role;
+        setListRoles(rm);
+      } else {
+        const { data: fb } = await supabase.from("user_roles").select("user_id, role").in("user_id", ids);
+        const rm: Record<string, string> = {};
+        const pri: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
+        for (const r of (fb ?? []) as { user_id: string; role: string }[]) {
+          if ((pri[r.role] ?? 0) > (pri[rm[r.user_id]] ?? 0)) rm[r.user_id] = r.role;
+        }
+        setListRoles(rm);
+      }
     }
     setListLoading(false);
   };
@@ -184,7 +208,7 @@ function ProfilPage() {
                   : <div style={{ height: "100%", width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 6, transition: "width 0.3s" }} />}
               </div>
               <div style={{ fontSize: 11, color: "#7c5c9a", marginTop: 4 }}>
-                {progress.done} / {progress.total} chapitre{progress.total > 1 ? "s" : ""} terminé{progress.done > 1 ? "s" : ""}
+                {(role === "admin" || role === "moderator") ? "∞ chapitres terminés" : `${progress.done} / ${progress.total} chapitre${progress.total > 1 ? "s" : ""} terminé${progress.done > 1 ? "s" : ""}`}
               </div>
             </div>
           )}
@@ -267,9 +291,10 @@ function ProfilPage() {
                 </div>
               ) : listData.map((u) => {
                 const n = u.full_name || u.username || "Élève";
+                const uRole = listRoles[u.id] ?? "user";
                 return (
                   <Link key={u.id} to="/profil/$userId" params={{ userId: u.id }} onClick={() => setListOpen(null)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, textDecoration: "none", color: "#f0e8ff" }}>
-                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(124,58,237,0.2)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(124,58,237,0.2)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...avatarRing(uRole) }}>
                       {u.avatar_url ? <img src={u.avatar_url} alt={n} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#c4a3f0", fontWeight: 700 }}>{n[0]?.toUpperCase()}</span>}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
