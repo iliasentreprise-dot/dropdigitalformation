@@ -204,6 +204,10 @@ function StudentProfilePage() {
   const [messages, setMessages] = useState<StudentMessage[]>([]);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [usernameDraft, setUsernameDraft] = useState("");
+  const [bioDraft, setBioDraft] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
 
   const showFlash = (msg: string) => {
     setFlash(msg);
