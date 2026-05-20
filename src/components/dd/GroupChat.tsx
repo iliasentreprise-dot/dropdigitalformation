@@ -45,7 +45,7 @@ export function GroupChat({
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<GroupMessage | null>(null);
-  const [openProfile, setOpenProfile] = useState<string | null>(null);
+  // profile click navigates directly to /profil/$userId
   const navigate = useNavigate();
   const goToProfile = (uid: string) => { void navigate({ to: "/profil/$userId", params: { userId: uid } }); };
   const bottomRef = useRef<HTMLDivElement>(null);
