@@ -35,6 +35,9 @@ function MessagesPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [me, setMe] = useState<MiniProfile | null>(null);
+  const [myRole, setMyRole] = useState<Role>("user");
+  const [otherRole, setOtherRole] = useState<Role>("user");
   const [hasAcceptedMe, setHasAcceptedMe] = useState<boolean | null>(null); // other accepted my messages
   const [iHaveAccepted, setIHaveAccepted] = useState<boolean | null>(null); // I accepted theirs
   const bottomRef = useRef<HTMLDivElement>(null);
