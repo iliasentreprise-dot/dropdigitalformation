@@ -127,6 +127,7 @@ export function GroupChat({
   useEffect(() => {
     const unknownIds = [...new Set(messages.map((m) => m.user_id).filter((id) => !profiles[id]))];
     if (!unknownIds.length) return;
+
     supabase
       .from("profiles")
       .select("id, username, full_name, avatar_url, bio")
@@ -139,23 +140,37 @@ export function GroupChat({
           }));
         }
       });
-    supabase
-      .from("user_roles")
-      .select("user_id, role")
-      .in("user_id", unknownIds)
-      .then(({ data }) => {
-        if (data?.length) {
-          setRoles((prev) => {
-            const next = { ...prev };
-            for (const r of data as { user_id: string; role: string }[]) {
-              const cur = next[r.user_id];
-              if (!cur || (r.role === "admin") || (r.role === "moderator" && cur !== "admin")) {
-                next[r.user_id] = r.role;
-              }
-            }
-            return next;
-          });
+
+    // Use SECURITY DEFINER RPC — bypasses RLS so all users can read others' roles
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .rpc("get_roles_for_users", { _user_ids: unknownIds })
+      .then(({ data, error }: { data: { user_id: string; role: string }[] | null; error: unknown }) => {
+        const rows = error || !data?.length ? null : data;
+        if (!rows) {
+          // Fallback: direct query (works if RLS policy allows it after migration)
+          supabase
+            .from("user_roles")
+            .select("user_id, role")
+            .in("user_id", unknownIds)
+            .then(({ data: fallback }) => {
+              if (!fallback?.length) return;
+              setRoles((prev) => {
+                const next = { ...prev };
+                const priority: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
+                for (const r of fallback as { user_id: string; role: string }[]) {
+                  if ((priority[r.role] ?? 0) > (priority[next[r.user_id]] ?? 0)) next[r.user_id] = r.role;
+                }
+                return next;
+              });
+            });
+          return;
         }
+        setRoles((prev) => {
+          const next = { ...prev };
+          for (const r of rows) next[r.user_id] = r.role;
+          return next;
+        });
       });
   }, [messages]);
 
@@ -173,6 +188,23 @@ export function GroupChat({
     setMessages((prev) =>
       prev.map((m) => (m.id === id ? { ...m, deleted_at: new Date().toISOString(), deleted_by: userId } : m)),
     );
+  };
+
+  const restoreMessage = async (id: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from("group_messages")
+      .update({ deleted_at: null, deleted_by: null })
+      .eq("id", id);
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, deleted_at: null, deleted_by: null } : m)),
+    );
+  };
+
+  const hardDeleteMessage = async (id: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("group_messages").delete().eq("id", id);
+    setMessages((prev) => prev.filter((m) => m.id !== id));
   };
 
   const toggleReaction = async (messageId: string, emoji: string) => {
@@ -293,18 +325,38 @@ export function GroupChat({
 
                 {msg.deleted_at ? (
                   canModerate ? (
-                    <div
-                      className={`chat-bubble${isOwn ? " own" : ""}`}
-                      style={{
-                        background: "rgba(220,38,38,0.22)",
-                        border: "1px solid rgba(239,68,68,0.55)",
-                        color: "#fecaca",
-                      }}
-                    >
-                      {msg.content}
-                      <div style={{ fontSize: 11, marginTop: 6, color: "#fca5a5", fontStyle: "italic" }}>
-                        (message supprimé à {new Date(msg.deleted_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })})
+                    <div>
+                      <div
+                        className={`chat-bubble${isOwn ? " own" : ""}`}
+                        style={{
+                          background: "rgba(220,38,38,0.12)",
+                          border: "1px solid rgba(239,68,68,0.4)",
+                          color: "#fecaca",
+                          textDecoration: "line-through",
+                          opacity: 0.75,
+                        }}
+                      >
+                        {msg.content}
+                        <div style={{ fontSize: 11, marginTop: 4, color: "#fca5a5", fontStyle: "italic", textDecoration: "none" }}>
+                          supprimé à {new Date(msg.deleted_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                        </div>
                       </div>
+                      {isAdmin && (
+                        <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                          <button
+                            onClick={() => void restoreMessage(msg.id)}
+                            style={{ fontSize: 11, padding: "3px 8px", borderRadius: 5, border: "1px solid rgba(34,197,94,0.4)", background: "rgba(34,197,94,0.1)", color: "#86efac", cursor: "pointer" }}
+                          >
+                            ↩ Restaurer
+                          </button>
+                          <button
+                            onClick={() => void hardDeleteMessage(msg.id)}
+                            style={{ fontSize: 11, padding: "3px 8px", borderRadius: 5, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.1)", color: "#fca5a5", cursor: "pointer" }}
+                          >
+                            🗑 Supprimer définitivement
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div

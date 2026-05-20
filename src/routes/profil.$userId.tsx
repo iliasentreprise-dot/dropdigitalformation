@@ -54,17 +54,26 @@ function ProfilPage() {
     if (!loading && !user) { void navigate({ to: "/login" }); return; }
     if (!user) return;
     (async () => {
-      const [{ data: p }, { data: roleRows }, { data: f }, { data: chapters }, { data: done }] = await Promise.all([
+      const [{ data: p }, { data: f }, { data: chapters }, { data: done }] = await Promise.all([
         supabase.from("profiles").select("id, username, full_name, avatar_url, bio, followers_count, following_count, show_progression").eq("id", userId).maybeSingle(),
-        supabase.from("user_roles").select("role").eq("user_id", userId),
         supabase.from("follows").select("follower_id").eq("follower_id", user.id).eq("following_id", userId).maybeSingle(),
         supabase.from("chapters").select("id"),
         supabase.from("user_chapter_progress").select("chapter_id").eq("user_id", userId),
       ]);
       setProfile(p as PublicProfile | null);
-      const priority: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
-      const top = (roleRows ?? []).reduce<string>((b, r) => ((priority[r.role] ?? 0) > (priority[b] ?? 0) ? r.role : b), "user");
-      setRole(top);
+
+      // Use SECURITY DEFINER RPC — bypasses RLS so regular users can read others' roles
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rpcRole } = await (supabase as any).rpc("get_top_role", { _user_id: userId });
+      if (rpcRole) {
+        setRole(rpcRole as string);
+      } else {
+        // Fallback: direct query (works if RLS policy allows it after migration)
+        const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+        const priority: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
+        const top = (roleRows ?? []).reduce<string>((b, r) => ((priority[r.role] ?? 0) > (priority[b] ?? 0) ? r.role : b), "user");
+        setRole(top);
+      }
       setIsFollowing(!!f);
       setProgress({ done: (done ?? []).length, total: (chapters ?? []).length });
       setLoaded(true);
