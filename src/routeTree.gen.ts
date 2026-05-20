@@ -14,10 +14,10 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AdminRouteImport } from './routes/admin'
-import { Route as AdminStudentUserIdRouteImport } from './routes/admin.student.$userId'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlayerChapterIdRouteImport } from './routes/player.$chapterId'
 import { Route as ModuleModuleIdRouteImport } from './routes/module.$moduleId'
+import { Route as AdminStudentUserIdRouteImport } from './routes/admin.student.$userId'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -44,11 +44,6 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminStudentUserIdRoute = AdminStudentUserIdRouteImport.update({
-  id: '/admin/student/$userId',
-  path: '/admin/student/$userId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -64,81 +59,85 @@ const ModuleModuleIdRoute = ModuleModuleIdRouteImport.update({
   path: '/module/$moduleId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminStudentUserIdRoute = AdminStudentUserIdRouteImport.update({
+  id: '/student/$userId',
+  path: '/student/$userId',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
-  '/admin/student/$userId': typeof AdminStudentUserIdRoute
+  '/admin': typeof AdminRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
+  '/admin/student/$userId': typeof AdminStudentUserIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
-  '/admin/student/$userId': typeof AdminStudentUserIdRoute
+  '/admin': typeof AdminRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
+  '/admin/student/$userId': typeof AdminStudentUserIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
-  '/admin/student/$userId': typeof AdminStudentUserIdRoute
+  '/admin': typeof AdminRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
+  '/admin/student/$userId': typeof AdminStudentUserIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/admin'
-    | '/admin/student/$userId'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
     | '/signup'
     | '/module/$moduleId'
     | '/player/$chapterId'
+    | '/admin/student/$userId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
-    | '/admin/student/$userId'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
     | '/signup'
     | '/module/$moduleId'
     | '/player/$chapterId'
+    | '/admin/student/$userId'
   id:
     | '__root__'
     | '/'
     | '/admin'
-    | '/admin/student/$userId'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
     | '/signup'
     | '/module/$moduleId'
     | '/player/$chapterId'
+    | '/admin/student/$userId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
-  AdminStudentUserIdRoute: typeof AdminStudentUserIdRoute
+  AdminRoute: typeof AdminRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -184,13 +183,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/student/$userId': {
-      id: '/admin/student/$userId'
-      path: '/admin/student/$userId'
-      fullPath: '/admin/student/$userId'
-      preLoaderRoute: typeof AdminStudentUserIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -212,13 +204,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ModuleModuleIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/student/$userId': {
+      id: '/admin/student/$userId'
+      path: '/student/$userId'
+      fullPath: '/admin/student/$userId'
+      preLoaderRoute: typeof AdminStudentUserIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminStudentUserIdRoute: typeof AdminStudentUserIdRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminStudentUserIdRoute: AdminStudentUserIdRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
-  AdminStudentUserIdRoute: AdminStudentUserIdRoute,
+  AdminRoute: AdminRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
