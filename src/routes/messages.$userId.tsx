@@ -20,6 +20,8 @@ type MiniProfile = {
   avatar_url: string | null;
 };
 
+type Role = "admin" | "moderator" | "user";
+
 export const Route = createFileRoute("/messages/$userId")({
   component: MessagesPage,
 });
