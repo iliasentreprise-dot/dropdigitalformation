@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 
 type GroupMessage = {
@@ -45,7 +45,9 @@ export function GroupChat({
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<GroupMessage | null>(null);
-  const [openProfile, setOpenProfile] = useState<string | null>(null);
+  // profile click navigates directly to /profil/$userId
+  const navigate = useNavigate();
+  const goToProfile = (uid: string) => { void navigate({ to: "/profil/$userId", params: { userId: uid } }); };
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const canModerate = myRole === "admin" || myRole === "moderator";
@@ -266,7 +268,7 @@ export function GroupChat({
 
           return (
             <div key={msg.id} className={`chat-row${isOwn ? " own" : ""}`}>
-              <div className="chat-avatar" onClick={() => setOpenProfile(msg.user_id)} title={`Voir ${name}`}>
+              <div className="chat-avatar" onClick={() => goToProfile(msg.user_id)} title={`Voir le profil de ${name}`} style={{ cursor: "pointer" }}>
                 {avatar ? (
                   <img src={avatar} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
                 ) : (
@@ -275,7 +277,7 @@ export function GroupChat({
               </div>
               <div className="chat-bubble-wrap">
                 <div className={`chat-msg-name ${nameClass}`}>
-                  <span style={{ cursor: "pointer" }} onClick={() => setOpenProfile(msg.user_id)}>{name}</span>
+                  <span style={{ cursor: "pointer" }} onClick={() => goToProfile(msg.user_id)}>{name}</span>
                   {role === "admin" && <span className="chat-mini-badge admin">👑 Admin</span>}
                   {role === "moderator" && <span className="chat-mini-badge mod">Modo</span>}
                 </div>
@@ -419,61 +421,6 @@ export function GroupChat({
         </button>
       </div>
 
-      {openProfile && (
-        <div className="mini-profile-backdrop" onClick={() => setOpenProfile(null)}>
-          <div className="mini-profile-card" onClick={(e) => e.stopPropagation()}>
-            {(() => {
-              const p = openProfile === userId
-                ? { id: userId, username, full_name: null, avatar_url: avatarUrl, bio: null }
-                : profiles[openProfile];
-              const role = roleOf(openProfile);
-              const name = p?.full_name || p?.username || "Élève";
-              return (
-                <>
-                  {p?.avatar_url ? (
-                    <img src={p.avatar_url} alt={name} />
-                  ) : (
-                    <div style={{ width: 88, height: 88, borderRadius: "50%", margin: "0 auto 12px", background: "rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, color: "#c4a3f0" }}>
-                      {name[0]?.toUpperCase()}
-                    </div>
-                  )}
-                  <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{name}</div>
-                  <div style={{ marginBottom: 10 }}>
-                    {role === "admin" && <span className="chat-mini-badge admin">👑 Admin</span>}
-                    {role === "moderator" && <span className="chat-mini-badge mod">Modérateur</span>}
-                    {role === "user" && <span style={{ fontSize: 11, color: "#9ca3af" }}>Élève</span>}
-                  </div>
-                  {p?.bio && <div style={{ fontSize: 13, color: "#c4a3f0", marginBottom: 12 }}>{p.bio}</div>}
-                  <div className="mpc-actions">
-                    {openProfile !== userId && (
-                      <>
-                        <Link
-                          to="/messages/$userId"
-                          params={{ userId: openProfile! }}
-                          className="admin-btn-primary sm"
-                          style={{ textDecoration: "none", display: "inline-block" }}
-                        >
-                          💬 Message privé
-                        </Link>
-                        <Link
-                          to="/profil/$userId"
-                          params={{ userId: openProfile! }}
-                          className="admin-btn-ghost sm"
-                          style={{ textDecoration: "none", display: "inline-block" }}
-                        >
-                          Profil complet
-                        </Link>
-                      </>
-                    )}
-                    <button className="admin-btn-ghost sm" onClick={() => setOpenProfile(null)}>Fermer</button>
-                  </div>
-
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
