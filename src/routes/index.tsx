@@ -449,9 +449,15 @@ function HomePage() {
             <span>Message privé</span>
           </Link>
           {(userRole === "moderator" || userRole === "admin") && (
-            <div className={`sidebar-item ${tab === "associes" ? "active" : ""}`} onClick={() => handleTabClick("associes")}>
-              <span className="si-icon">🤝</span>
-              <span>Espace Associés</span>
+            <div
+              className={`sidebar-item ${tab === "associes" ? "active" : ""}`}
+              onClick={() => handleTabClick("associes")}
+              style={tab === "associes"
+                ? { background: "rgba(127,29,29,0.45)", borderLeft: "3px solid #ef4444", color: "#fca5a5", boxShadow: "inset 0 0 20px rgba(239,68,68,0.12)" }
+                : { borderLeft: "3px solid transparent", color: "#f87171" }}
+            >
+              <span className="si-icon" style={{ animation: "modNeon 2s ease-in-out infinite" }}>🤝</span>
+              <span style={{ fontWeight: tab === "associes" ? 800 : 600, animation: "neonRedPulse 3s ease-in-out infinite" }}>Espace Associés</span>
             </div>
           )}
           <div className="sidebar-section-label">COMPTE</div>

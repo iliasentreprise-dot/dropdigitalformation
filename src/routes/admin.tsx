@@ -3,8 +3,6 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { createServerFn } from "@tanstack/react-start";
-import { ThumbnailUploader } from "@/components/dd/ThumbnailUploader";
-import { ThumbnailCropModal } from "@/components/dd/ThumbnailCropModal";
 import { ChapterResourcesAdmin } from "@/components/dd/ChapterResourcesAdmin";
 import { AdminDashboard } from "@/components/dd/AdminDashboard";
 import "../styles/admin.css";
@@ -140,6 +138,57 @@ function VideoInput({
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+function SimpleThumbnailPicker({ value, onChange, moduleId }: { value: string; onChange: (url: string) => void; moduleId?: string }) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const upload = async (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    setUploading(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = moduleId
+      ? `module-${moduleId}-${Date.now()}.${ext}`
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from("module-thumbnails").upload(path, file, { upsert: true });
+    if (!error) {
+      const { data } = supabase.storage.from("module-thumbnails").getPublicUrl(path);
+      onChange(`${data.publicUrl}?t=${Date.now()}`);
+    }
+    setUploading(false);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div
+        onClick={() => fileRef.current?.click()}
+        style={{ width: "100%", height: 90, borderRadius: 8, border: "2px dashed rgba(168,85,247,0.4)", background: "rgba(124,58,237,0.08)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative" }}
+      >
+        {uploading ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#a855f7", fontSize: 13 }}>
+            <div style={{ width: 16, height: 16, border: "2px solid rgba(168,85,247,0.3)", borderTopColor: "#a855f7", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            Envoi…
+          </div>
+        ) : value ? (
+          <img src={value} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <div style={{ textAlign: "center", color: "#7c5c9a" }}>
+            <div style={{ fontSize: 28 }}>🖼️</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>Ajouter une miniature</div>
+          </div>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
+      </div>
+      <input
+        className="dz-url-input"
+        placeholder="ou coller une URL"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ fontSize: 12 }}
+      />
     </div>
   );
 }
@@ -652,9 +701,8 @@ function AdminPage() {
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const [thumbCropFile, setThumbCropFile] = useState<File | null>(null);
-  const [thumbCropModuleId, setThumbCropModuleId] = useState<string | null>(null);
   const [thumbUploading, setThumbUploading] = useState<string | null>(null);
+  const [thumbTargetModuleId, setThumbTargetModuleId] = useState<string | null>(null);
   const thumbFileRef = useRef<HTMLInputElement>(null);
 
   // Resources modérateurs
@@ -781,12 +829,10 @@ function AdminPage() {
     setModules((data as Module[]) || []);
   };
 
-  const uploadModuleThumbnail = async (moduleId: string, blob: Blob) => {
-    setThumbCropFile(null);
-    setThumbCropModuleId(null);
+  const uploadThumbnailDirect = async (moduleId: string, file: File) => {
     setThumbUploading(moduleId);
-    const path = `module-${moduleId}-${Date.now()}.jpg`;
-    const file = new File([blob], path, { type: "image/jpeg" });
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `module-${moduleId}-${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("module-thumbnails").upload(path, file, { upsert: true });
     if (!error) {
       const { data: urlData } = supabase.storage.from("module-thumbnails").getPublicUrl(path);
@@ -1577,9 +1623,10 @@ function AdminPage() {
               </label>
               <label>
                 Miniature
-                <ThumbnailUploader
+                <SimpleThumbnailPicker
                   value={moduleForm.thumbnail_url}
                   onChange={(url) => setModuleForm((f) => ({ ...f, thumbnail_url: url }))}
+                  moduleId={editingModule?.id}
                 />
               </label>
             </div>
@@ -1637,7 +1684,7 @@ function AdminPage() {
                   title="Changer la miniature"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setThumbCropModuleId(m.id);
+                    setThumbTargetModuleId(m.id);
                     thumbFileRef.current?.click();
                   }}
                 >
@@ -1853,7 +1900,7 @@ function AdminPage() {
 
       </div>}
 
-      {/* Hidden file input for thumbnail crop */}
+      {/* Hidden file input for module card thumbnails */}
       <input
         ref={thumbFileRef}
         type="file"
@@ -1861,17 +1908,11 @@ function AdminPage() {
         hidden
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f && thumbCropModuleId) setThumbCropFile(f);
+          if (f && thumbTargetModuleId) void uploadThumbnailDirect(thumbTargetModuleId, f);
           e.target.value = "";
+          setThumbTargetModuleId(null);
         }}
       />
-      {thumbCropFile && thumbCropModuleId && (
-        <ThumbnailCropModal
-          file={thumbCropFile}
-          onCrop={(blob) => void uploadModuleThumbnail(thumbCropModuleId, blob)}
-          onCancel={() => { setThumbCropFile(null); setThumbCropModuleId(null); }}
-        />
-      )}
     </div>
   );
 }

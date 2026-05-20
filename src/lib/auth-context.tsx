@@ -44,14 +44,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const uid = user.id;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sa = supabase as any;
-    const upsert = (online: boolean) =>
-      sa.from("user_presence").upsert({ user_id: uid, last_seen: new Date().toISOString(), is_online: online });
+    const goOnline = () =>
+      sa.from("user_presence").upsert(
+        { user_id: uid, last_seen: new Date().toISOString(), is_online: true },
+        { onConflict: "user_id" }
+      );
+    const goOffline = () =>
+      sa.from("user_presence").update({ is_online: false }).eq("user_id", uid);
 
-    void upsert(true);
-    const interval = window.setInterval(() => void upsert(true), 30000);
+    void goOnline();
+    const interval = window.setInterval(() => void goOnline(), 30000);
 
-    const onVisibility = () => void upsert(document.visibilityState !== "hidden");
-    const onUnload = () => void upsert(false);
+    const onVisibility = () => {
+      if (document.hidden) void goOffline();
+      else void goOnline();
+    };
+    const onUnload = () => void goOffline();
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("beforeunload", onUnload);
 
@@ -59,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("beforeunload", onUnload);
-      void upsert(false);
+      void goOffline();
     };
   }, [user?.id]);
 

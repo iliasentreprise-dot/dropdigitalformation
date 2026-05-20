@@ -11,6 +11,8 @@ type GroupMessage = {
   reply_to_id: string | null;
   deleted_at: string | null;
   deleted_by: string | null;
+  edited?: boolean;
+  edited_at?: string | null;
 };
 
 type GProfile = {
@@ -53,6 +55,8 @@ export function GroupChat({
   const [replyTo, setReplyTo] = useState<GroupMessage | null>(null);
   const [reactionPopup, setReactionPopup] = useState<{ list: Reaction[]; emoji: string; msgId: string } | null>(null);
   const [onlineCount, setOnlineCount] = useState(0);
+  const [editingMsg, setEditingMsg] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
   // profile click navigates directly to /profil/$userId
   const navigate = useNavigate();
   const goToProfile = (uid: string) => { void navigate({ to: "/profil/$userId", params: { userId: uid } }); };
@@ -215,6 +219,19 @@ export function GroupChat({
     setMessages((prev) => prev.filter((m) => m.id !== id));
   };
 
+  const editMessage = async (msg: GroupMessage, newContent: string) => {
+    if (!newContent.trim()) return;
+    const isOwner = msg.user_id === userId;
+    const payload = isOwner
+      ? { content: newContent.trim(), edited: true, edited_at: new Date().toISOString() }
+      : { content: newContent.trim() };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("group_messages").update(payload).eq("id", msg.id);
+    setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, ...payload } : m));
+    setEditingMsg(null);
+    setEditContent("");
+  };
+
   const toggleReaction = async (messageId: string, emoji: string) => {
     const mine = reactions.find((r) => r.message_id === messageId && r.user_id === userId && r.emoji === emoji);
     if (mine) {
@@ -310,12 +327,14 @@ export function GroupChat({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 220px)", minHeight: 380 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", background: "rgba(16,185,129,0.07)", borderBottom: "1px solid rgba(16,185,129,0.15)", flexShrink: 0 }}>
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 6px #10b981", display: "inline-block", animation: "onlinePulse 2s ease-in-out infinite" }} />
-        <span style={{ fontSize: 12, color: "#10b981", fontWeight: 700 }}>
-          {onlineCount} personne{onlineCount !== 1 ? "s" : ""} en ligne
-        </span>
-      </div>
+      {onlineCount > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", background: "rgba(16,185,129,0.07)", borderBottom: "1px solid rgba(16,185,129,0.15)", flexShrink: 0 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 6px #10b981", display: "inline-block", animation: "onlinePulse 2s ease-in-out infinite" }} />
+          <span style={{ fontSize: 12, color: "#10b981", fontWeight: 700 }}>
+            {onlineCount} personne{onlineCount !== 1 ? "s" : ""} en ligne
+          </span>
+        </div>
+      )}
       <div className="chat-messages">
         {messages.length === 0 && (
           <div style={{ textAlign: "center", color: "#6b4fa0", paddingTop: 60, fontSize: 14 }}>
@@ -405,8 +424,26 @@ export function GroupChat({
                       {name} a supprimé ce message
                     </div>
                   )
+                ) : editingMsg === msg.id ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 200 }}>
+                    <textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      autoFocus
+                      rows={2}
+                      style={{ background: "rgba(15,5,30,0.9)", border: "1px solid rgba(168,85,247,0.5)", borderRadius: 8, color: "#e2d4f8", padding: "8px 10px", fontSize: 13, resize: "vertical", width: "100%", boxSizing: "border-box" }}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void editMessage(msg, editContent); } if (e.key === "Escape") { setEditingMsg(null); setEditContent(""); } }}
+                    />
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => void editMessage(msg, editContent)} style={{ fontSize: 12, padding: "4px 12px", borderRadius: 6, border: "1px solid rgba(168,85,247,0.4)", background: "rgba(168,85,247,0.2)", color: "#e2d4f8", cursor: "pointer", fontWeight: 700 }}>✓ Sauvegarder</button>
+                      <button onClick={() => { setEditingMsg(null); setEditContent(""); }} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "#9a7dbd", cursor: "pointer" }}>Annuler</button>
+                    </div>
+                  </div>
                 ) : (
-                  <div className={`chat-bubble${isOwn ? " own" : ""}`}>{msg.content}</div>
+                  <div className={`chat-bubble${isOwn ? " own" : ""}`}>
+                    {msg.content}
+                    {msg.edited && <span style={{ fontSize: 10, color: "#7c5c9a", marginLeft: 6, fontStyle: "italic" }}>(modifié)</span>}
+                  </div>
                 )}
 
                 {!msg.deleted_at && Object.keys(grouped).length > 0 && (
@@ -437,7 +474,7 @@ export function GroupChat({
                         😊
                       </button>
                       <button className="msg-action-btn" onClick={() => setReplyTo(msg)}>↩ Répondre</button>
-                      {isOwn && (
+                      {(isOwn || isAdmin) && !msg.deleted_at && (
                         <button className="msg-action-btn" onClick={() => setMenuFor(menuFor === msg.id ? null : msg.id)} title="Plus">⋯</button>
                       )}
                       {canModerate && roleOf(msg.user_id) !== "admin" && msg.user_id !== userId && (
@@ -459,14 +496,22 @@ export function GroupChat({
                           ))}
                         </div>
                       )}
-                      {menuFor === msg.id && isOwn && (
-                        <div className="reaction-picker" style={{ ...(isOwn ? { right: 0 } : { left: 0 }), padding: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                      {menuFor === msg.id && (isOwn || isAdmin) && (
+                        <div className="reaction-picker" style={{ ...(isOwn ? { right: 0 } : { left: 0 }), padding: 6, display: "flex", flexDirection: "column", gap: 4, minWidth: 140 }}>
                           <button
-                            onClick={() => { setMenuFor(null); void deleteMessage(msg.id); }}
-                            style={{ background: "rgba(220,38,38,0.2)", border: "1px solid rgba(239,68,68,0.4)", color: "#fecaca", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" }}
+                            onClick={() => { setMenuFor(null); setEditingMsg(msg.id); setEditContent(msg.content); }}
+                            style={{ background: "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.4)", color: "#e2d4f8", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap", textAlign: "left" }}
                           >
-                            🗑 Supprimer
+                            ✏️ Modifier
                           </button>
+                          {isOwn && (
+                            <button
+                              onClick={() => { setMenuFor(null); void deleteMessage(msg.id); }}
+                              style={{ background: "rgba(220,38,38,0.2)", border: "1px solid rgba(239,68,68,0.4)", color: "#fecaca", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap", textAlign: "left" }}
+                            >
+                              🗑 Supprimer
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

@@ -1582,3 +1582,8 @@ div[data-lovable],
   display: none !important;
   pointer-events: none !important;
 }
+
+@keyframes neonRedPulse {
+  0%, 100% { color: #f87171; text-shadow: none; }
+  50% { color: #fca5a5; text-shadow: 0 0 8px rgba(239,68,68,0.6); }
+}
