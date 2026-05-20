@@ -200,22 +200,23 @@ const listStudentsFn = createServerFn({ method: "GET" })
 
 const updateRoleFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
-    const { userId, role } = (data as unknown) as { userId: string; role: string };
+    const { userId, role } = (data as unknown) as { userId: string; role: "admin" | "moderator" | "user" };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sa = supabaseAdmin as any;
 
-    if (role === "moderator") {
+    // Remove any non-target roles for this user, then add the target role (if not "user")
+    const { error: delErr } = await sa
+      .from("user_roles")
+      .delete()
+      .eq("user_id", userId)
+      .in("role", ["admin", "moderator"]);
+    if (delErr) throw new Error((delErr as { message: string }).message);
+
+    if (role === "admin" || role === "moderator") {
       const { error } = await sa
         .from("user_roles")
-        .upsert({ user_id: userId, role: "moderator" }, { onConflict: "user_id,role", ignoreDuplicates: true });
-      if (error) throw new Error((error as { message: string }).message);
-    } else {
-      const { error } = await sa
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId)
-        .eq("role", "moderator");
+        .upsert({ user_id: userId, role }, { onConflict: "user_id,role", ignoreDuplicates: true });
       if (error) throw new Error((error as { message: string }).message);
     }
     return { success: true };
