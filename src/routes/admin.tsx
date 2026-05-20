@@ -150,19 +150,25 @@ function SimpleThumbnailPicker({ value, onChange, moduleId }: { value: string; o
   const upload = async (file: File) => {
     setUploadErr(null);
     setUploading(true);
-    const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, "_").slice(0, 50);
-    const contentType = file.type || "image/webp";
-    const path = `${Date.now()}_${safeName}`;
-    console.log("[thumbnail] uploading", { name: file.name, safeName, type: file.type, size: file.size, path, contentType });
-    const { error } = await supabase.storage.from("module-thumbnails").upload(path, file, { upsert: true, contentType });
-    console.log("[thumbnail] upload result", { error });
-    if (!error) {
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `${moduleId || "new"}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("module-thumbnails")
+        .upload(path, file, { upsert: true, contentType: file.type || undefined, cacheControl: "3600" });
+      if (uploadError) { setUploadErr("Échec de l'upload : " + uploadError.message); return; }
       const { data } = supabase.storage.from("module-thumbnails").getPublicUrl(path);
-      onChange(`${data.publicUrl}?t=${Date.now()}`);
-    } else {
-      setUploadErr(`Erreur upload : ${error.message}`);
+      const url = `${data.publicUrl}?v=${Date.now()}`;
+      if (moduleId) {
+        const { error: updateError } = await supabase.from("modules").update({ thumbnail_url: url }).eq("id", moduleId);
+        if (updateError) { setUploadErr("Échec de la sauvegarde : " + updateError.message); return; }
+      }
+      onChange(url);
+    } catch (e: unknown) {
+      setUploadErr("Erreur : " + ((e as Error)?.message ?? "inconnue"));
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   };
 
   return (
@@ -184,7 +190,7 @@ function SimpleThumbnailPicker({ value, onChange, moduleId }: { value: string; o
             <div style={{ fontSize: 12, marginTop: 4 }}>Ajouter une miniature</div>
           </div>
         )}
-        <input ref={fileRef} type="file" accept="image/*,image/webp,image/png,image/jpeg,image/jpg,image/gif,image/avif" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
+        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
       </div>
       {uploadErr && <div style={{ color: "#fca5a5", fontSize: 11, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, padding: "4px 8px" }}>{uploadErr}</div>}
       <input
@@ -1231,7 +1237,7 @@ function AdminPage() {
                         </div>
                         <div className="s-email">{s.email}</div>
                         <div style={{ fontSize: 10, color: "#6b4fa0", marginTop: 1 }}>
-                          {s.is_online ? "En ligne" : s.last_seen ? `Vu ${(() => { const d = new Date(s.last_seen); const h = Math.floor((Date.now() - d.getTime()) / 3600000); return h < 1 ? "< 1h" : h < 24 ? `il y a ${h}h` : `le ${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`; })()}` : "Jamais connecté"}
+                          {s.is_online ? "En ligne" : s.last_seen ? (() => { const d = new Date(s.last_seen); const now = new Date(); const isToday = d.toDateString() === now.toDateString(); const time = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); return isToday ? `aujourd'hui à ${time}` : `${d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long" })} à ${time}`; })() : "Jamais connecté"}
                         </div>
                       </div>
                       <RoleBadge role={s.role} />

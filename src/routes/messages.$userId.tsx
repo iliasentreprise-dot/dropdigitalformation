@@ -70,6 +70,7 @@ function MessagesPage() {
   const [otherRole, setOtherRole] = useState<Role>("user");
   const [hasAcceptedMe, setHasAcceptedMe] = useState<boolean | null>(null); // other accepted my messages
   const [iHaveAccepted, setIHaveAccepted] = useState<boolean | null>(null); // I accepted theirs
+  const [otherPresence, setOtherPresence] = useState<{ is_online: boolean } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,7 +78,7 @@ function MessagesPage() {
     if (!user) return;
 
     (async () => {
-      const [{ data: prof }, { data: myProf }, { data: rolesData }, { data: msgs }, { data: accs }] = await Promise.all([
+      const [{ data: prof }, { data: myProf }, { data: rolesData }, { data: msgs }, { data: accs }, { data: presRow }] = await Promise.all([
         supabase.from("profiles").select("id, username, full_name, avatar_url").eq("id", otherId).maybeSingle(),
         supabase.from("profiles").select("id, username, full_name, avatar_url").eq("id", user.id).maybeSingle(),
         supabase.from("user_roles").select("user_id, role").in("user_id", [user.id, otherId]),
@@ -91,6 +92,7 @@ function MessagesPage() {
         (supabase as any).from("dm_acceptances")
           .select("recipient_id, sender_id")
           .or(`and(recipient_id.eq.${user.id},sender_id.eq.${otherId}),and(recipient_id.eq.${otherId},sender_id.eq.${user.id})`),
+        supabase.from("user_presence").select("is_online, last_seen").eq("user_id", otherId).maybeSingle(),
       ]);
       setOther(prof as MiniProfile | null);
       setMe(myProf as MiniProfile | null);
@@ -108,6 +110,10 @@ function MessagesPage() {
       const list = (accs as { recipient_id: string; sender_id: string }[] | null) ?? [];
       setIHaveAccepted(list.some((a) => a.recipient_id === user.id && a.sender_id === otherId));
       setHasAcceptedMe(list.some((a) => a.recipient_id === otherId && a.sender_id === user.id));
+      if (presRow) {
+        const p = presRow as { is_online: boolean; last_seen: string | null };
+        setOtherPresence({ is_online: !!(p.is_online && p.last_seen && Date.now() - new Date(p.last_seen).getTime() < 2 * 60 * 1000) });
+      }
     })();
 
     const channel = supabase
@@ -133,7 +139,16 @@ function MessagesPage() {
       })
       .subscribe();
 
-    return () => { void supabase.removeChannel(channel); };
+    const presChannel = supabase
+      .channel(`dm_presence_${otherId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_presence", filter: `user_id=eq.${otherId}` }, (payload) => {
+        const row = payload.new as { is_online: boolean; last_seen: string | null } | undefined;
+        if (!row) return;
+        setOtherPresence({ is_online: !!(row.is_online && row.last_seen && Date.now() - new Date(row.last_seen).getTime() < 2 * 60 * 1000) });
+      })
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); void supabase.removeChannel(presChannel); };
   }, [user, loading, otherId, navigate]);
 
   useEffect(() => {
@@ -242,7 +257,12 @@ function MessagesPage() {
               <span style={{ fontSize: 15, fontWeight: 700 }}>{name}</span>
               {roleBadge(otherRole, "md")}
             </div>
-            <div style={{ fontSize: 11, color: "#9a7dbd" }}>Message privé</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: otherPresence?.is_online ? "#10b981" : "#6b7280", boxShadow: otherPresence?.is_online ? "0 0 5px #10b981" : "none", display: "inline-block" }} />
+              <span style={{ fontSize: 11, color: otherPresence?.is_online ? "#10b981" : "#9a7dbd" }}>
+                {otherPresence === null ? "Message privé" : otherPresence.is_online ? "En ligne" : "Hors ligne"}
+              </span>
+            </div>
           </div>
         </Link>
       </div>

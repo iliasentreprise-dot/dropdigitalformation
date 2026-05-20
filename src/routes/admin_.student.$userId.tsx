@@ -594,10 +594,13 @@ function StudentProfilePage() {
             <div style={{ fontSize: 11, fontWeight: 600, color: "#7c5c9a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Dernière connexion</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#e2d4f8", background: "rgba(15,9,32,0.6)", padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(168,85,247,0.15)" }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: (studentData as unknown as { is_online: boolean }).is_online ? "#10b981" : "#6b7280", boxShadow: (studentData as unknown as { is_online: boolean }).is_online ? "0 0 5px #10b981" : "none", flexShrink: 0 }} />
-              {(studentData as unknown as { is_online: boolean }).is_online ? "En ligne maintenant" : (studentData as unknown as { last_seen: string | null }).last_seen
+              {studentData.is_online ? "En ligne maintenant" : studentData.last_seen
                 ? (() => {
-                    const d = new Date((studentData as unknown as { last_seen: string }).last_seen);
-                    return d.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                    const d = new Date(studentData.last_seen);
+                    const now = new Date();
+                    const isToday = d.toDateString() === now.toDateString();
+                    const time = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+                    return isToday ? `aujourd'hui à ${time}` : `${d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long" })} à ${time}`;
                   })()
                 : "Jamais connecté"}
             </div>

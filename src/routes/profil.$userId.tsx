@@ -211,21 +211,25 @@ function ProfilPage() {
           {(() => {
             const isSelf = user?.id === userId;
             const isOnline = isSelf || !!(presence?.is_online && presence.last_seen && (Date.now() - new Date(presence.last_seen).getTime()) < 2 * 60 * 1000);
-            const fmtLastSeen = (iso: string) => {
+            const canSeeLastSeen = myRole === "admin" || myRole === "moderator";
+            const fmtExact = (iso: string) => {
               const d = new Date(iso);
-              const diffMs = Date.now() - d.getTime();
-              const diffMins = Math.floor(diffMs / 60000);
-              const diffH = Math.floor(diffMs / 3600000);
-              if (diffMins < 1) return "à l'instant";
-              if (diffMins < 60) return `il y a ${diffMins}min`;
-              return `il y a ${diffH}h le ${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} à ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+              const now = new Date();
+              const time = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+              const isToday = d.toDateString() === now.toDateString();
+              if (isToday) return `aujourd'hui à ${time}`;
+              return `${d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long" })} à ${time}`;
             };
             return (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 14 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: isOnline ? "#10b981" : "#6b7280", boxShadow: isOnline ? "0 0 6px #10b981" : "none", display: "inline-block", animation: isOnline ? "onlinePulse 2s ease-in-out infinite" : "none" }} />
-                <span style={{ fontSize: 12, color: isOnline ? "#10b981" : "#6b7280", fontWeight: 600 }}>{isOnline ? "En ligne" : "Hors ligne"}</span>
-                {!isOnline && myRole === "admin" && presence?.last_seen && (
-                  <span style={{ fontSize: 11, color: "#6b4fa0" }}>— Dernière connexion {fmtLastSeen(presence.last_seen)}</span>
+              <div style={{ textAlign: "center", marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: isOnline ? "#10b981" : "#6b7280", boxShadow: isOnline ? "0 0 6px #10b981" : "none", display: "inline-block", animation: isOnline ? "onlinePulse 2s ease-in-out infinite" : "none" }} />
+                  <span style={{ fontSize: 12, color: isOnline ? "#10b981" : "#6b7280", fontWeight: 600 }}>{isOnline ? "En ligne" : "Hors ligne"}</span>
+                </div>
+                {canSeeLastSeen && presence?.last_seen && (
+                  <div style={{ fontSize: 12, color: "#7c5c9a", marginTop: 3 }}>
+                    Dernière connexion : {fmtExact(presence.last_seen)}
+                  </div>
                 )}
               </div>
             );
