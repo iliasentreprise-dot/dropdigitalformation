@@ -18,6 +18,8 @@ export const Route = createFileRoute("/profil/$userId")({
   component: ProfilPage,
 });
 
+type FollowEntry = { id: string; username: string | null; full_name: string | null; avatar_url: string | null };
+
 function ProfilPage() {
   const { userId } = Route.useParams();
   const navigate = useNavigate();
@@ -27,6 +29,24 @@ function ProfilPage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [listOpen, setListOpen] = useState<null | "followers" | "following">(null);
+  const [listData, setListData] = useState<FollowEntry[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+
+  const openList = async (kind: "followers" | "following") => {
+    setListOpen(kind);
+    setListLoading(true);
+    setListData([]);
+    const col = kind === "followers" ? "follower_id" : "following_id";
+    const matchCol = kind === "followers" ? "following_id" : "follower_id";
+    const { data: rows } = await supabase.from("follows").select(col).eq(matchCol, userId);
+    const ids = (rows ?? []).map((r: any) => r[col]).filter(Boolean);
+    if (ids.length) {
+      const { data: profs } = await supabase.from("profiles").select("id, username, full_name, avatar_url").in("id", ids);
+      setListData((profs ?? []) as FollowEntry[]);
+    }
+    setListLoading(false);
+  };
 
   useEffect(() => {
     if (!loading && !user) { void navigate({ to: "/login" }); return; }
