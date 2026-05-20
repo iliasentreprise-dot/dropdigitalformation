@@ -322,6 +322,3 @@ function MessagesPage() {
     </div>
   );
 }
-    </div>
-  );
-}
