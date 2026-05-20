@@ -163,6 +163,24 @@ export type Database = {
           },
         ]
       }
+      dm_acceptances: {
+        Row: {
+          accepted_at: string
+          recipient_id: string
+          sender_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          recipient_id: string
+          sender_id: string
+        }
+        Update: {
+          accepted_at?: string
+          recipient_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
       follows: {
         Row: {
           created_at: string
