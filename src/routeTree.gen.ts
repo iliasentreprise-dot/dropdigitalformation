@@ -20,6 +20,7 @@ import { Route as ProfilUserIdRouteImport } from './routes/profil.$userId'
 import { Route as PlayerChapterIdRouteImport } from './routes/player.$chapterId'
 import { Route as ModuleModuleIdRouteImport } from './routes/module.$moduleId'
 import { Route as MessagesUserIdRouteImport } from './routes/messages.$userId'
+import { Route as ProfilUserIdGroupeRouteImport } from './routes/profil.$userId.groupe'
 import { Route as AdminStudentUserIdRouteImport } from './routes/admin_.student.$userId'
 import { Route as AdminStudentUserIdDmsRouteImport } from './routes/admin_.student.$userId.dms'
 
@@ -78,6 +79,11 @@ const MessagesUserIdRoute = MessagesUserIdRouteImport.update({
   path: '/messages/$userId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfilUserIdGroupeRoute = ProfilUserIdGroupeRouteImport.update({
+  id: '/groupe',
+  path: '/groupe',
+  getParentRoute: () => ProfilUserIdRoute,
+} as any)
 const AdminStudentUserIdRoute = AdminStudentUserIdRouteImport.update({
   id: '/admin_/student/$userId',
   path: '/admin/student/$userId',
@@ -99,9 +105,10 @@ export interface FileRoutesByFullPath {
   '/messages/$userId': typeof MessagesUserIdRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
-  '/profil/$userId': typeof ProfilUserIdRoute
+  '/profil/$userId': typeof ProfilUserIdRouteWithChildren
   '/messages/': typeof MessagesIndexRoute
   '/admin/student/$userId': typeof AdminStudentUserIdRouteWithChildren
+  '/profil/$userId/groupe': typeof ProfilUserIdGroupeRoute
   '/admin/student/$userId/dms': typeof AdminStudentUserIdDmsRoute
 }
 export interface FileRoutesByTo {
@@ -114,9 +121,10 @@ export interface FileRoutesByTo {
   '/messages/$userId': typeof MessagesUserIdRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
-  '/profil/$userId': typeof ProfilUserIdRoute
+  '/profil/$userId': typeof ProfilUserIdRouteWithChildren
   '/messages': typeof MessagesIndexRoute
   '/admin/student/$userId': typeof AdminStudentUserIdRouteWithChildren
+  '/profil/$userId/groupe': typeof ProfilUserIdGroupeRoute
   '/admin/student/$userId/dms': typeof AdminStudentUserIdDmsRoute
 }
 export interface FileRoutesById {
@@ -130,9 +138,10 @@ export interface FileRoutesById {
   '/messages/$userId': typeof MessagesUserIdRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
-  '/profil/$userId': typeof ProfilUserIdRoute
+  '/profil/$userId': typeof ProfilUserIdRouteWithChildren
   '/messages/': typeof MessagesIndexRoute
   '/admin_/student/$userId': typeof AdminStudentUserIdRouteWithChildren
+  '/profil/$userId/groupe': typeof ProfilUserIdGroupeRoute
   '/admin_/student/$userId/dms': typeof AdminStudentUserIdDmsRoute
 }
 export interface FileRouteTypes {
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
     | '/profil/$userId'
     | '/messages/'
     | '/admin/student/$userId'
+    | '/profil/$userId/groupe'
     | '/admin/student/$userId/dms'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
     | '/profil/$userId'
     | '/messages'
     | '/admin/student/$userId'
+    | '/profil/$userId/groupe'
     | '/admin/student/$userId/dms'
   id:
     | '__root__'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
     | '/profil/$userId'
     | '/messages/'
     | '/admin_/student/$userId'
+    | '/profil/$userId/groupe'
     | '/admin_/student/$userId/dms'
   fileRoutesById: FileRoutesById
 }
@@ -193,7 +205,7 @@ export interface RootRouteChildren {
   MessagesUserIdRoute: typeof MessagesUserIdRoute
   ModuleModuleIdRoute: typeof ModuleModuleIdRoute
   PlayerChapterIdRoute: typeof PlayerChapterIdRoute
-  ProfilUserIdRoute: typeof ProfilUserIdRoute
+  ProfilUserIdRoute: typeof ProfilUserIdRouteWithChildren
   MessagesIndexRoute: typeof MessagesIndexRoute
   AdminStudentUserIdRoute: typeof AdminStudentUserIdRouteWithChildren
 }
@@ -277,6 +289,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MessagesUserIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profil/$userId/groupe': {
+      id: '/profil/$userId/groupe'
+      path: '/groupe'
+      fullPath: '/profil/$userId/groupe'
+      preLoaderRoute: typeof ProfilUserIdGroupeRouteImport
+      parentRoute: typeof ProfilUserIdRoute
+    }
     '/admin_/student/$userId': {
       id: '/admin_/student/$userId'
       path: '/admin/student/$userId'
@@ -293,6 +312,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface ProfilUserIdRouteChildren {
+  ProfilUserIdGroupeRoute: typeof ProfilUserIdGroupeRoute
+}
+
+const ProfilUserIdRouteChildren: ProfilUserIdRouteChildren = {
+  ProfilUserIdGroupeRoute: ProfilUserIdGroupeRoute,
+}
+
+const ProfilUserIdRouteWithChildren = ProfilUserIdRoute._addFileChildren(
+  ProfilUserIdRouteChildren,
+)
 
 interface AdminStudentUserIdRouteChildren {
   AdminStudentUserIdDmsRoute: typeof AdminStudentUserIdDmsRoute
@@ -315,7 +346,7 @@ const rootRouteChildren: RootRouteChildren = {
   MessagesUserIdRoute: MessagesUserIdRoute,
   ModuleModuleIdRoute: ModuleModuleIdRoute,
   PlayerChapterIdRoute: PlayerChapterIdRoute,
-  ProfilUserIdRoute: ProfilUserIdRoute,
+  ProfilUserIdRoute: ProfilUserIdRouteWithChildren,
   MessagesIndexRoute: MessagesIndexRoute,
   AdminStudentUserIdRoute: AdminStudentUserIdRouteWithChildren,
 }
