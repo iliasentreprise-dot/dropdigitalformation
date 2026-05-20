@@ -115,6 +115,19 @@ const saveTempPasswordFn = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+const saveProfileFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { userId, username, bio } = (data as unknown) as { userId: string; username: string | null; bio: string | null };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any)
+      .from("profiles")
+      .update({ username: username || null, bio: bio || null })
+      .eq("id", userId);
+    if (error) throw new Error((error as { message: string }).message);
+    return { success: true };
+  });
+
 const setRoleFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { userId, role } = (data as unknown) as { userId: string; role: string };
