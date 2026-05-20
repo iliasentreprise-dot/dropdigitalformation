@@ -1471,12 +1471,15 @@
 }
 .chat-mini-badge.mod {
   position: relative;
+  display: inline-flex;
+  align-items: center;
   background: linear-gradient(135deg, #450a0a, #7f1d1d, #b91c1c);
   color: #fff;
   border: 1px solid #ef4444;
   text-shadow: 0 0 4px #ff0000, 0 0 8px #ff4444;
   box-shadow: 0 0 6px rgba(239, 68, 68, 0.6), 0 0 14px rgba(239, 68, 68, 0.4);
   overflow: hidden;
+  isolation: isolate;
   animation: modRedPulse 1.6s ease-in-out infinite;
 }
 .chat-mini-badge.mod::before {

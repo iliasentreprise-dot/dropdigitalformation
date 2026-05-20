@@ -134,6 +134,12 @@ const setRoleFn = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sa = supabaseAdmin as any;
+
+    const { data: targetAuth } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (targetAuth.user?.email === "ilias.entreprise@gmail.com") {
+      throw new Error("Impossible de modifier le rôle de l'admin originel");
+    }
+
     if (role === "moderator") {
       const { error } = await sa
         .from("user_roles")

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 type Result = {
@@ -20,6 +20,18 @@ type RProfile = {
 
 type Reaction = { id: string; result_id: string; user_id: string; emoji: string };
 type Comment = { id: string; result_id: string; user_id: string; body: string; created_at: string };
+
+function avatarRing(role: string): CSSProperties {
+  if (role === "admin") return { border: "2px solid #FFD700", boxShadow: "0 0 10px #FFD700, 0 0 20px #FFD700" };
+  if (role === "moderator") return { border: "2px solid #ef4444", boxShadow: "0 0 10px #ef4444, 0 0 20px #dc2626" };
+  return { border: "2px solid #7c3aed" };
+}
+
+function RoleBadgeMini({ role }: { role: string }) {
+  if (role === "admin") return <span style={{ fontSize: 10, fontWeight: 800, background: "linear-gradient(135deg,#FFD700,#FFAA00)", color: "#1a0800", padding: "1px 7px", borderRadius: 6, marginLeft: 5 }}>👑 Admin</span>;
+  if (role === "moderator") return <span style={{ fontSize: 10, fontWeight: 800, background: "linear-gradient(135deg,#450a0a,#b91c1c)", color: "#fca5a5", border: "1px solid #ef4444", padding: "1px 7px", borderRadius: 6, marginLeft: 5 }}>🏴‍☠️ Modo</span>;
+  return <span style={{ fontSize: 10, fontWeight: 800, background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff", padding: "1px 7px", borderRadius: 6, marginLeft: 5 }}>🎓 Élève</span>;
+}
 
 const EMOJIS = ["🔥", "🚀", "👏", "💪", "❤️"];
 
@@ -44,6 +56,8 @@ export function ResultsWall({
   const [photoPreview, setPhotoPreview] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [roles, setRoles] = useState<Record<string, string>>({});
+  const [reactionPopup, setReactionPopup] = useState<{ list: Reaction[]; emoji: string; resultId: string } | null>(null);
 
   // Load results + reactions + comments + subscribe
   useEffect(() => {
@@ -99,7 +113,7 @@ export function ResultsWall({
     return () => { void supabase.removeChannel(channel); };
   }, [userId]);
 
-  // Load missing profiles for all user_ids in results + comments + reactions
+  // Load missing profiles + roles for all user_ids
   useEffect(() => {
     const ids = new Set<string>();
     results.forEach((r) => ids.add(r.user_id));
@@ -118,6 +132,27 @@ export function ResultsWall({
             ...Object.fromEntries((data as RProfile[]).map((p) => [p.id, p])),
           }));
         }
+      });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).rpc("get_roles_for_users", { _user_ids: missing })
+      .then(({ data, error }: { data: { user_id: string; role: string }[] | null; error: unknown }) => {
+        const rows = error || !data?.length ? null : data;
+        if (!rows) {
+          supabase.from("user_roles").select("user_id, role").in("user_id", missing)
+            .then(({ data: fb }) => {
+              if (!fb?.length) return;
+              setRoles((prev) => {
+                const next = { ...prev };
+                const pri: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
+                for (const r of fb as { user_id: string; role: string }[]) {
+                  if ((pri[r.role] ?? 0) > (pri[next[r.user_id]] ?? 0)) next[r.user_id] = r.role;
+                }
+                return next;
+              });
+            });
+          return;
+        }
+        setRoles((prev) => { const next = { ...prev }; for (const r of rows) next[r.user_id] = r.role; return next; });
       });
   }, [results, comments, reactions]);
 
@@ -186,6 +221,7 @@ export function ResultsWall({
     return p?.full_name || p?.username || "Élève";
   };
   const avatarOf = (uid: string) => (uid === userId ? avatarUrl : profiles[uid]?.avatar_url ?? null);
+  const roleOf = (uid: string) => roles[uid] ?? "user";
 
   return (
     <div>
@@ -210,6 +246,42 @@ export function ResultsWall({
         </button>
       </div>
 
+      {reactionPopup && (
+        <div onClick={() => setReactionPopup(null)} style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "rgba(16,6,36,0.98)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 14, width: "100%", maxWidth: 360, maxHeight: "60vh", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(168,85,247,0.15)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 18 }}>{reactionPopup.emoji}</span>
+              <span style={{ color: "#c4a3f0", fontSize: 13 }}>{reactionPopup.list.length} réaction{reactionPopup.list.length > 1 ? "s" : ""}</span>
+              <button onClick={() => setReactionPopup(null)} style={{ background: "none", border: "none", color: "#c4a3f0", fontSize: 20, cursor: "pointer" }}>×</button>
+            </div>
+            <div style={{ overflowY: "auto", flex: 1, padding: 8 }}>
+              {reactionPopup.list.map((rx) => {
+                const n = nameOf(rx.user_id);
+                const av = avatarOf(rx.user_id);
+                const rl = roleOf(rx.user_id);
+                return (
+                  <div key={rx.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(124,58,237,0.2)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...avatarRing(rl) }}>
+                      {av ? <img src={av} alt={n} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#c4a3f0", fontWeight: 700, fontSize: 12 }}>{n[0]?.toUpperCase()}</span>}
+                    </div>
+                    <span style={{ color: "#f0e8ff", fontSize: 13, fontWeight: 600 }}>{n}</span>
+                    <RoleBadgeMini role={rl} />
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ padding: "10px 16px", borderTop: "1px solid rgba(168,85,247,0.15)" }}>
+              <button
+                onClick={() => { void toggleReaction(reactionPopup.resultId, reactionPopup.emoji); setReactionPopup(null); }}
+                style={{ width: "100%", background: reactionPopup.list.some(x => x.user_id === userId) ? "rgba(239,68,68,0.15)" : "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.35)", color: "#f0e8ff", borderRadius: 8, padding: "8px 0", cursor: "pointer", fontWeight: 700, fontSize: 13 }}
+              >
+                {reactionPopup.list.some(x => x.user_id === userId) ? "✕ Retirer ma réaction" : `${reactionPopup.emoji} Réagir`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="results-wall">
         {results.length === 0 && (
           <div style={{ textAlign: "center", color: "#6b4fa0", padding: "40px 0", fontSize: 14 }}>
@@ -222,16 +294,17 @@ export function ResultsWall({
           const myReacts = new Set(reactions.filter((x) => x.result_id === r.id && x.user_id === userId).map((x) => x.emoji));
           const commentsForResult = comments.filter((c) => c.result_id === r.id);
           const isOpen = !!openComments[r.id];
+          const rRole = roleOf(r.user_id);
           return (
             <div key={r.id} className="result-card">
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(168,85,247,0.2)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(168,85,247,0.2)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0, ...avatarRing(rRole) }}>
                   {avatar
                     ? <img src={avatar} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     : <span style={{ fontSize: 14, color: "#c4a3f0" }}>{name[0]?.toUpperCase()}</span>}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: "#f0e8ff" }}>{name}</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#f0e8ff", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2 }}>{name}<RoleBadgeMini role={rRole} /></div>
                   <div style={{ fontSize: 11, color: "#7c5c9a" }}>
                     {new Date(r.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
                   </div>
@@ -250,12 +323,19 @@ export function ResultsWall({
               {/* Reactions */}
               <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
                 {EMOJIS.map((emo) => {
-                  const count = reactions.filter((x) => x.result_id === r.id && x.emoji === emo).length;
+                  const list = reactions.filter((x) => x.result_id === r.id && x.emoji === emo);
+                  const count = list.length;
                   const active = myReacts.has(emo);
                   return (
                     <button
                       key={emo}
-                      onClick={() => void toggleReaction(r.id, emo)}
+                      onClick={() => {
+                        if (count > 0) {
+                          setReactionPopup(reactionPopup?.resultId === r.id && reactionPopup?.emoji === emo ? null : { list, emoji: emo, resultId: r.id });
+                        } else {
+                          void toggleReaction(r.id, emo);
+                        }
+                      }}
                       style={{
                         background: active ? "rgba(168,85,247,0.35)" : "rgba(168,85,247,0.1)",
                         border: active ? "1px solid #a855f7" : "1px solid rgba(168,85,247,0.25)",
@@ -282,9 +362,10 @@ export function ResultsWall({
                   {commentsForResult.map((c) => {
                     const cname = nameOf(c.user_id);
                     const cav = avatarOf(c.user_id);
+                    const cRole = roleOf(c.user_id);
                     return (
                       <div key={c.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                        <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(168,85,247,0.2)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                        <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(168,85,247,0.2)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0, ...avatarRing(cRole) }}>
                           {cav ? <img src={cav} alt={cname} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 11, color: "#c4a3f0" }}>{cname[0]?.toUpperCase()}</span>}
                         </div>
                         <div style={{ background: "rgba(124,58,237,0.12)", border: "1px solid rgba(168,85,247,0.18)", borderRadius: 10, padding: "6px 10px", flex: 1 }}>

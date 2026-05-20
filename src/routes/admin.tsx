@@ -212,6 +212,11 @@ const updateRoleFn = createServerFn({ method: "POST" })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sa = supabaseAdmin as any;
 
+    const { data: targetAuth } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (targetAuth.user?.email === "ilias.entreprise@gmail.com") {
+      throw new Error("Impossible de modifier le rôle de l'admin originel");
+    }
+
     // Remove any non-target roles for this user, then add the target role (if not "user")
     const { error: delErr } = await sa
       .from("user_roles")

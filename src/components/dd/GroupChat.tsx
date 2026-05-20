@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -25,6 +25,12 @@ type Reaction = { id: string; message_id: string; user_id: string; emoji: string
 
 const EMOJI_LIST = ["🏴‍☠️", "❤️", "🔥", "👎", "😎"];
 
+function avatarRing(role: string): CSSProperties {
+  if (role === "admin") return { border: "2px solid #FFD700", boxShadow: "0 0 10px #FFD700, 0 0 20px #FFD700" };
+  if (role === "moderator") return { border: "2px solid #ef4444", boxShadow: "0 0 10px #ef4444, 0 0 20px #dc2626" };
+  return { border: "2px solid #7c3aed" };
+}
+
 export function GroupChat({
   userId,
   username,
@@ -45,6 +51,7 @@ export function GroupChat({
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<GroupMessage | null>(null);
+  const [reactionPopup, setReactionPopup] = useState<{ list: Reaction[]; emoji: string; msgId: string } | null>(null);
   // profile click navigates directly to /profil/$userId
   const navigate = useNavigate();
   const goToProfile = (uid: string) => { void navigate({ to: "/profil/$userId", params: { userId: uid } }); };
@@ -275,6 +282,12 @@ export function GroupChat({
   const avatarOf = (uid: string) => (uid === userId ? avatarUrl : profiles[uid]?.avatar_url ?? null);
   const roleOf = (uid: string) => (uid === userId ? myRole : roles[uid] ?? "user");
 
+  const RoleBadgeMini = ({ role: r }: { role: string }) => {
+    if (r === "admin") return <span style={{ fontSize: 9, fontWeight: 800, background: "linear-gradient(135deg,#FFD700,#FFAA00)", color: "#1a0800", padding: "1px 6px", borderRadius: 5, marginLeft: 4 }}>👑 Admin</span>;
+    if (r === "moderator") return <span style={{ fontSize: 9, fontWeight: 800, background: "linear-gradient(135deg,#450a0a,#b91c1c)", color: "#fca5a5", border: "1px solid #ef4444", padding: "1px 6px", borderRadius: 5, marginLeft: 4 }}>🏴‍☠️ Modo</span>;
+    return <span style={{ fontSize: 9, fontWeight: 800, background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff", padding: "1px 6px", borderRadius: 5, marginLeft: 4 }}>🎓 Élève</span>;
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 220px)", minHeight: 380 }}>
       <div className="chat-messages">
@@ -300,7 +313,7 @@ export function GroupChat({
 
           return (
             <div key={msg.id} className={`chat-row${isOwn ? " own" : ""}`}>
-              <div className="chat-avatar" onClick={() => goToProfile(msg.user_id)} title={`Voir le profil de ${name}`} style={{ cursor: "pointer" }}>
+              <div className="chat-avatar" onClick={() => goToProfile(msg.user_id)} title={`Voir le profil de ${name}`} style={{ cursor: "pointer", ...avatarRing(role) }}>
                 {avatar ? (
                   <img src={avatar} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
                 ) : (
@@ -378,8 +391,8 @@ export function GroupChat({
                         <span
                           key={emoji}
                           className={`reaction-chip${mine ? " mine" : ""}`}
-                          onClick={() => void toggleReaction(msg.id, emoji)}
-                          title={mine ? "Retirer" : "Réagir"}
+                          onClick={() => setReactionPopup(reactionPopup?.msgId === msg.id && reactionPopup?.emoji === emoji ? null : { list, emoji, msgId: msg.id })}
+                          title="Voir les réactions"
                         >
                           {emoji} <strong>{list.length}</strong>
                         </span>
@@ -446,6 +459,42 @@ export function GroupChat({
             <strong>Réponse à {nameOf(replyTo.user_id)} :</strong> {replyTo.content.slice(0, 80)}
           </div>
           <button onClick={() => setReplyTo(null)} style={{ background: "none", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: 16 }}>✕</button>
+        </div>
+      )}
+
+      {reactionPopup && (
+        <div onClick={() => setReactionPopup(null)} style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "rgba(16,6,36,0.98)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 14, width: "100%", maxWidth: 320, maxHeight: "60vh", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(168,85,247,0.15)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 18 }}>{reactionPopup.emoji}</span>
+              <span style={{ color: "#c4a3f0", fontSize: 13 }}>{reactionPopup.list.length} réaction{reactionPopup.list.length > 1 ? "s" : ""}</span>
+              <button onClick={() => setReactionPopup(null)} style={{ background: "none", border: "none", color: "#c4a3f0", fontSize: 20, cursor: "pointer" }}>×</button>
+            </div>
+            <div style={{ overflowY: "auto", flex: 1, padding: 8 }}>
+              {reactionPopup.list.map((rx) => {
+                const n = nameOf(rx.user_id);
+                const av = avatarOf(rx.user_id);
+                const rl = roleOf(rx.user_id);
+                return (
+                  <div key={rx.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(124,58,237,0.2)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, ...avatarRing(rl) }}>
+                      {av ? <img src={av} alt={n} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#c4a3f0", fontWeight: 700, fontSize: 11 }}>{n[0]?.toUpperCase()}</span>}
+                    </div>
+                    <span style={{ color: "#f0e8ff", fontSize: 13, fontWeight: 600, flex: 1 }}>{n}</span>
+                    <RoleBadgeMini role={rl} />
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ padding: "10px 16px", borderTop: "1px solid rgba(168,85,247,0.15)" }}>
+              <button
+                onClick={() => { void toggleReaction(reactionPopup.msgId, reactionPopup.emoji); setReactionPopup(null); }}
+                style={{ width: "100%", background: reactionPopup.list.some(x => x.user_id === userId) ? "rgba(239,68,68,0.15)" : "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.35)", color: "#f0e8ff", borderRadius: 8, padding: "8px 0", cursor: "pointer", fontWeight: 700, fontSize: 13 }}
+              >
+                {reactionPopup.list.some(x => x.user_id === userId) ? "✕ Retirer ma réaction" : `${reactionPopup.emoji} Réagir`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -575,7 +575,7 @@ function HomePage() {
 
                 {/* Avatar */}
                 <div style={{ textAlign: "center", marginBottom: 28 }}>
-                  <div className="profile-avatar-wrap" onClick={() => avatarInputRef.current?.click()} title="Changer la photo">
+                  <div className="profile-avatar-wrap" onClick={() => avatarInputRef.current?.click()} title="Changer la photo" style={userRole === "admin" ? { border: "3px solid #FFD700", boxShadow: "0 0 14px #FFD700, 0 0 28px #FFD700" } : userRole === "moderator" ? { border: "3px solid #ef4444", boxShadow: "0 0 14px #ef4444, 0 0 28px #dc2626" } : { border: "3px solid #7c3aed" }}>
                     {profile?.avatar_url
                       ? <img src={profile.avatar_url} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
                       : <span style={{ fontSize: 36, color: "#c4a3f0" }}>{displayName[0]?.toUpperCase()}</span>

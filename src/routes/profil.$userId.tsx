@@ -34,6 +34,9 @@ function ProfilPage() {
   const [listData, setListData] = useState<FollowEntry[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
+  const [groupMsgsOpen, setGroupMsgsOpen] = useState(false);
+  const [groupMsgs, setGroupMsgs] = useState<{ id: string; content: string; created_at: string }[]>([]);
+  const [groupMsgsLoading, setGroupMsgsLoading] = useState(false);
 
   const openList = async (kind: "followers" | "following") => {
     setListOpen(kind);
@@ -80,6 +83,23 @@ function ProfilPage() {
     })();
   }, [user, loading, userId, navigate]);
 
+  const openGroupMessages = async () => {
+    setGroupMsgsOpen(true);
+    if (groupMsgs.length) return;
+    setGroupMsgsLoading(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any)
+      .from("group_messages")
+      .select("id, content, created_at")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .eq("visible", true)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    setGroupMsgs((data ?? []) as { id: string; content: string; created_at: string }[]);
+    setGroupMsgsLoading(false);
+  };
+
   const toggleFollow = async () => {
     if (!user || user.id === userId) return;
     setBusy(true);
@@ -111,7 +131,7 @@ function ProfilPage() {
         <Link to="/" style={{ color: "#c4a3f0", fontSize: 13, textDecoration: "none", display: "inline-block", marginBottom: 20 }}>← Retour</Link>
 
         <div style={{ background: "rgba(25,10,48,0.7)", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 16, padding: "32px 24px", textAlign: "center" }}>
-          <div style={{ width: 140, height: 140, borderRadius: "50%", margin: "0 auto 18px", background: "rgba(124,58,237,0.2)", border: "3px solid rgba(168,85,247,0.4)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 140, height: 140, borderRadius: "50%", margin: "0 auto 18px", background: "rgba(124,58,237,0.2)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", ...(role === "admin" ? { border: "3px solid #FFD700", boxShadow: "0 0 14px #FFD700, 0 0 28px #FFD700" } : role === "moderator" ? { border: "3px solid #ef4444", boxShadow: "0 0 14px #ef4444, 0 0 28px #dc2626" } : { border: "3px solid #7c3aed" }) }}>
             {profile.avatar_url ? (
               <img src={profile.avatar_url} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
@@ -126,7 +146,9 @@ function ProfilPage() {
 
           <div style={{ marginBottom: 16 }}>
             {role === "admin" && <span className="chat-mini-badge admin" style={{ fontSize: 13, padding: "5px 14px", borderRadius: 8 }}>👑 Admin</span>}
-            {role === "moderator" && <span className="chat-mini-badge mod" style={{ fontSize: 13, padding: "5px 14px", borderRadius: 8 }}>Modérateur</span>}
+            {role === "moderator" && (
+              <span className="chat-mini-badge mod" style={{ fontSize: 13, padding: "5px 14px", borderRadius: 8, overflow: "hidden", display: "inline-flex", alignItems: "center" }}>🏴‍☠️ Modérateur</span>
+            )}
             {role !== "admin" && role !== "moderator" && <span className="chat-mini-badge eleve" style={{ fontSize: 13, padding: "5px 14px", borderRadius: 8 }}>🎓 Élève</span>}
           </div>
 
@@ -190,16 +212,44 @@ function ProfilPage() {
                 </Link>
               </>
             )}
-            <Link
-              to="/profil/$userId/groupe"
-              params={{ userId }}
-              style={{ background: "rgba(124,58,237,0.18)", border: "1px solid rgba(168,85,247,0.45)", color: "#e9d5ff", padding: "10px 22px", borderRadius: 22, fontWeight: 700, fontSize: 14, textDecoration: "none" }}
+            <button
+              onClick={() => void openGroupMessages()}
+              style={{ background: "rgba(124,58,237,0.18)", border: "1px solid rgba(168,85,247,0.45)", color: "#e9d5ff", padding: "10px 22px", borderRadius: 22, fontWeight: 700, fontSize: 14, cursor: "pointer" }}
             >
               👥 Messages dans le groupe
-            </Link>
+            </button>
           </div>
         </div>
       </div>
+
+      {groupMsgsOpen && (
+        <div onClick={() => setGroupMsgsOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)", zIndex: 1001, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 0 0" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, maxHeight: "80vh", display: "flex", flexDirection: "column", background: "rgba(16,6,36,0.99)", border: "1px solid rgba(168,85,247,0.3)", borderTopLeftRadius: 18, borderTopRightRadius: 18 }}>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(168,85,247,0.2)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+              <strong style={{ color: "#f0e8ff", fontSize: 15 }}>👥 Messages de {name} dans le groupe</strong>
+              <button onClick={() => setGroupMsgsOpen(false)} style={{ background: "none", border: "none", color: "#c4a3f0", fontSize: 22, cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ overflowY: "auto", flex: 1, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+              {groupMsgsLoading && (
+                <div style={{ padding: 32, textAlign: "center", color: "#9a7dbd" }}>Chargement…</div>
+              )}
+              {!groupMsgsLoading && groupMsgs.length === 0 && (
+                <div style={{ padding: 32, textAlign: "center", color: "#9a7dbd", fontSize: 14 }}>
+                  {name} n'a pas encore envoyé de message dans le groupe.
+                </div>
+              )}
+              {groupMsgs.map((m) => (
+                <div key={m.id} style={{ background: "rgba(124,58,237,0.12)", border: "1px solid rgba(168,85,247,0.18)", borderRadius: 12, padding: "10px 14px" }}>
+                  <div style={{ color: "#f0e8ff", fontSize: 14, lineHeight: 1.55, wordBreak: "break-word" }}>{m.content}</div>
+                  <div style={{ fontSize: 11, color: "#6b4fa0", marginTop: 5 }}>
+                    {new Date(m.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {listOpen && (
         <div onClick={() => setListOpen(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
