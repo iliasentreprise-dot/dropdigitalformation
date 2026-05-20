@@ -43,6 +43,7 @@ export function GroupChat({
   const [sending, setSending] = useState(false);
   const [myRole, setMyRole] = useState<string>("user");
   const [pickerFor, setPickerFor] = useState<string | null>(null);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<GroupMessage | null>(null);
   const [openProfile, setOpenProfile] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
