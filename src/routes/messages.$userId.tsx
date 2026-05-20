@@ -142,30 +142,70 @@ function MessagesPage() {
       .eq("id", id);
   };
 
+  const restoreMessage = async (id: string) => {
+    if (!user) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from("private_messages")
+      .update({ deleted_at: null, deleted_by: null })
+      .eq("id", id);
+  };
+
   if (loading || !user) {
     return <div style={{ minHeight: "100dvh", background: "oklch(0.129 0.042 264.695)" }} />;
   }
 
   const name = other?.full_name || other?.username || "Élève";
+  const myName = me?.full_name || me?.username || "Moi";
   const otherSentToMe = messages.some((m) => m.sender_id === otherId && m.recipient_id === user.id);
   const iSentToOther = messages.some((m) => m.sender_id === user.id && m.recipient_id === otherId);
   const showAcceptBanner = otherSentToMe && iHaveAccepted === false;
   const showPending = iSentToOther && hasAcceptedMe === false;
+
+  const roleBadge = (role: Role, size: "sm" | "md" = "sm") => {
+    if (role === "user") return null;
+    const isAdminB = role === "admin";
+    const fs = size === "md" ? 11 : 10;
+    const pad = size === "md" ? "3px 9px" : "2px 7px";
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: 4, padding: pad, borderRadius: 999,
+        fontSize: fs, fontWeight: 800, letterSpacing: 0.3,
+        background: isAdminB ? "linear-gradient(135deg,#ffd700,#ffb700)" : "linear-gradient(135deg,#ef4444,#dc2626)",
+        color: isAdminB ? "#3b2a00" : "#fff",
+        boxShadow: isAdminB
+          ? "0 0 12px rgba(255,215,0,0.7)"
+          : "0 0 12px rgba(239,68,68,0.7)",
+        animation: isAdminB ? "goldBadgePulse 2s ease-in-out infinite" : "modBadgeFlash 1.6s ease-in-out infinite",
+      }}>
+        {isAdminB ? "👑 ADMIN" : "🏴‍☠️ MODÉRATEUR"}
+      </span>
+    );
+  };
+
+  const headerRing = otherRole === "admin"
+    ? { boxShadow: "0 0 0 2px #ffd700, 0 0 16px rgba(255,215,0,0.65)", animation: "goldBadgePulse 2s ease-in-out infinite" }
+    : otherRole === "moderator"
+    ? { boxShadow: "0 0 0 2px #ef4444, 0 0 16px rgba(239,68,68,0.75)", animation: "modBadgeFlash 1.6s ease-in-out infinite" }
+    : {};
 
   return (
     <div style={{ minHeight: "100dvh", background: "oklch(0.129 0.042 264.695)", color: "#f0e8ff", display: "flex", flexDirection: "column" }}>
       <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(15,5,30,0.95)", borderBottom: "1px solid rgba(168,85,247,0.2)", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
         <Link to="/messages" style={{ color: "#c4a3f0", fontSize: 13, textDecoration: "none" }}>←</Link>
         <Link to="/profil/$userId" params={{ userId: otherId }} style={{ display: "flex", alignItems: "center", gap: 10, color: "#fff", textDecoration: "none", flex: 1 }}>
-          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(124,58,237,0.2)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(124,58,237,0.2)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", ...headerRing }}>
             {other?.avatar_url ? (
               <img src={other.avatar_url} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
               <span style={{ color: "#c4a3f0", fontWeight: 700 }}>{name[0]?.toUpperCase()}</span>
             )}
           </div>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>{name}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 15, fontWeight: 700 }}>{name}</span>
+              {roleBadge(otherRole, "md")}
+            </div>
             <div style={{ fontSize: 11, color: "#9a7dbd" }}>Message privé</div>
           </div>
         </Link>
