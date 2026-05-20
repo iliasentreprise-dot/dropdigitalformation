@@ -500,9 +500,10 @@
   100% { background-position: 0% 50%; }
 }
 .fire-progress {
-  background: linear-gradient(270deg, #ff4500, #ff8c00, #ffd700, #ff8c00, #ff4500);
-  background-size: 300% 100%;
-  animation: fireGradient 2s ease-in-out infinite;
+  /* Overridden by dropdigital.css — kept here as fallback */
+  background: linear-gradient(90deg, #7f1d1d, #dc2626, #ef4444, #b91c1c, #7f1d1d);
+  background-size: 250% 100%;
+  animation: fireGradient 1.6s linear infinite;
   border-radius: 4px;
   height: 100%;
   width: 100%;

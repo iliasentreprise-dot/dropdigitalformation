@@ -448,6 +448,112 @@ export type Database = {
         }
         Relationships: []
       }
+      result_comments: {
+        Row: {
+          body: string
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          result_id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          result_id: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          result_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "result_comments_result_id_fkey"
+            columns: ["result_id"]
+            isOneToOne: false
+            referencedRelation: "results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      result_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          result_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          result_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          result_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "result_reactions_result_id_fkey"
+            columns: ["result_id"]
+            isOneToOne: false
+            referencedRelation: "results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      results: {
+        Row: {
+          amount: number | null
+          content: string
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          photo_url: string | null
+          user_id: string
+          visible: boolean
+        }
+        Insert: {
+          amount?: number | null
+          content: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          photo_url?: string | null
+          user_id: string
+          visible?: boolean
+        }
+        Update: {
+          amount?: number | null
+          content?: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          photo_url?: string | null
+          user_id?: string
+          visible?: boolean
+        }
+        Relationships: []
+      }
       user_chapter_progress: {
         Row: {
           chapter_id: string

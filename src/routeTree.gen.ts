@@ -19,8 +19,8 @@ import { Route as ProfilUserIdRouteImport } from './routes/profil.$userId'
 import { Route as PlayerChapterIdRouteImport } from './routes/player.$chapterId'
 import { Route as ModuleModuleIdRouteImport } from './routes/module.$moduleId'
 import { Route as MessagesUserIdRouteImport } from './routes/messages.$userId'
-import { Route as AdminStudentUserIdRouteImport } from './routes/admin.student.$userId'
-import { Route as AdminStudentUserIdDmsRouteImport } from './routes/admin.student.$userId.dms'
+import { Route as AdminStudentUserIdRouteImport } from './routes/admin_.student.$userId'
+import { Route as AdminStudentUserIdDmsRouteImport } from './routes/admin_.student.$userId.dms'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -73,9 +73,9 @@ const MessagesUserIdRoute = MessagesUserIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminStudentUserIdRoute = AdminStudentUserIdRouteImport.update({
-  id: '/student/$userId',
-  path: '/student/$userId',
-  getParentRoute: () => AdminRoute,
+  id: '/admin_/student/$userId',
+  path: '/admin/student/$userId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminStudentUserIdDmsRoute = AdminStudentUserIdDmsRouteImport.update({
   id: '/dms',
@@ -85,7 +85,7 @@ const AdminStudentUserIdDmsRoute = AdminStudentUserIdDmsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
+  '/admin': typeof AdminRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -99,7 +99,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
+  '/admin': typeof AdminRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -114,7 +114,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
+  '/admin': typeof AdminRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -123,8 +123,8 @@ export interface FileRoutesById {
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
   '/profil/$userId': typeof ProfilUserIdRoute
-  '/admin/student/$userId': typeof AdminStudentUserIdRouteWithChildren
-  '/admin/student/$userId/dms': typeof AdminStudentUserIdDmsRoute
+  '/admin_/student/$userId': typeof AdminStudentUserIdRouteWithChildren
+  '/admin_/student/$userId/dms': typeof AdminStudentUserIdDmsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -167,13 +167,13 @@ export interface FileRouteTypes {
     | '/module/$moduleId'
     | '/player/$chapterId'
     | '/profil/$userId'
-    | '/admin/student/$userId'
-    | '/admin/student/$userId/dms'
+    | '/admin_/student/$userId'
+    | '/admin_/student/$userId/dms'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRouteWithChildren
+  AdminRoute: typeof AdminRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -182,6 +182,7 @@ export interface RootRouteChildren {
   ModuleModuleIdRoute: typeof ModuleModuleIdRoute
   PlayerChapterIdRoute: typeof PlayerChapterIdRoute
   ProfilUserIdRoute: typeof ProfilUserIdRoute
+  AdminStudentUserIdRoute: typeof AdminStudentUserIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -256,15 +257,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MessagesUserIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/student/$userId': {
-      id: '/admin/student/$userId'
-      path: '/student/$userId'
+    '/admin_/student/$userId': {
+      id: '/admin_/student/$userId'
+      path: '/admin/student/$userId'
       fullPath: '/admin/student/$userId'
       preLoaderRoute: typeof AdminStudentUserIdRouteImport
-      parentRoute: typeof AdminRoute
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/student/$userId/dms': {
-      id: '/admin/student/$userId/dms'
+    '/admin_/student/$userId/dms': {
+      id: '/admin_/student/$userId/dms'
       path: '/dms'
       fullPath: '/admin/student/$userId/dms'
       preLoaderRoute: typeof AdminStudentUserIdDmsRouteImport
@@ -284,19 +285,9 @@ const AdminStudentUserIdRouteChildren: AdminStudentUserIdRouteChildren = {
 const AdminStudentUserIdRouteWithChildren =
   AdminStudentUserIdRoute._addFileChildren(AdminStudentUserIdRouteChildren)
 
-interface AdminRouteChildren {
-  AdminStudentUserIdRoute: typeof AdminStudentUserIdRouteWithChildren
-}
-
-const AdminRouteChildren: AdminRouteChildren = {
-  AdminStudentUserIdRoute: AdminStudentUserIdRouteWithChildren,
-}
-
-const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRouteWithChildren,
+  AdminRoute: AdminRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
@@ -305,6 +296,7 @@ const rootRouteChildren: RootRouteChildren = {
   ModuleModuleIdRoute: ModuleModuleIdRoute,
   PlayerChapterIdRoute: PlayerChapterIdRoute,
   ProfilUserIdRoute: ProfilUserIdRoute,
+  AdminStudentUserIdRoute: AdminStudentUserIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
