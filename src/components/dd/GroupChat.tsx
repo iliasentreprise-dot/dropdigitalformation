@@ -9,6 +9,8 @@ type GroupMessage = {
   visible: boolean;
   created_at: string;
   reply_to_id: string | null;
+  deleted_at: string | null;
+  deleted_by: string | null;
 };
 
 type GProfile = {
@@ -159,9 +161,15 @@ export function GroupChat({
   }, [messages]);
 
   const deleteMessage = async (id: string) => {
+    // Soft-delete: admin still sees it in red, others see "Message supprimé"
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("group_messages").delete().eq("id", id);
-    setMessages((prev) => prev.filter((m) => m.id !== id));
+    await (supabase as any)
+      .from("group_messages")
+      .update({ deleted_at: new Date().toISOString(), deleted_by: userId })
+      .eq("id", id);
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, deleted_at: new Date().toISOString(), deleted_by: userId } : m)),
+    );
   };
 
   const toggleReaction = async (messageId: string, emoji: string) => {
@@ -279,7 +287,32 @@ export function GroupChat({
                   </div>
                 )}
 
-                <div className={`chat-bubble${isOwn ? " own" : ""}`}>{msg.content}</div>
+                {msg.deleted_at ? (
+                  isAdmin ? (
+                    <div
+                      className={`chat-bubble${isOwn ? " own" : ""}`}
+                      style={{
+                        background: "rgba(220,38,38,0.22)",
+                        border: "1px solid rgba(239,68,68,0.55)",
+                        color: "#fecaca",
+                      }}
+                    >
+                      {msg.content}
+                      <div style={{ fontSize: 11, marginTop: 6, color: "#fca5a5", fontStyle: "italic" }}>
+                        (message supprimé à {new Date(msg.deleted_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })})
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className={`chat-bubble${isOwn ? " own" : ""}`}
+                      style={{ background: "rgba(75,75,75,0.3)", color: "#7a7a7a", fontStyle: "italic" }}
+                    >
+                      Message supprimé
+                    </div>
+                  )
+                ) : (
+                  <div className={`chat-bubble${isOwn ? " own" : ""}`}>{msg.content}</div>
+                )}
 
                 {Object.keys(grouped).length > 0 && (
                   <div className="reactions-row">
@@ -391,7 +424,7 @@ export function GroupChat({
                   <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{name}</div>
                   <div style={{ marginBottom: 10 }}>
                     {role === "admin" && <span className="chat-mini-badge admin">👑 Admin</span>}
-                    {role === "moderator" && <span className="chat-mini-badge mod">⚡ Modérateur</span>}
+                    {role === "moderator" && <span className="chat-mini-badge mod">Modérateur</span>}
                     {role === "user" && <span style={{ fontSize: 11, color: "#9ca3af" }}>Élève</span>}
                   </div>
                   {p?.bio && <div style={{ fontSize: 13, color: "#c4a3f0", marginBottom: 12 }}>{p.bio}</div>}

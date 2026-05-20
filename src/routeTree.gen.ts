@@ -20,6 +20,7 @@ import { Route as PlayerChapterIdRouteImport } from './routes/player.$chapterId'
 import { Route as ModuleModuleIdRouteImport } from './routes/module.$moduleId'
 import { Route as MessagesUserIdRouteImport } from './routes/messages.$userId'
 import { Route as AdminStudentUserIdRouteImport } from './routes/admin.student.$userId'
+import { Route as AdminStudentUserIdDmsRouteImport } from './routes/admin.student.$userId.dms'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -76,6 +77,11 @@ const AdminStudentUserIdRoute = AdminStudentUserIdRouteImport.update({
   path: '/student/$userId',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminStudentUserIdDmsRoute = AdminStudentUserIdDmsRouteImport.update({
+  id: '/dms',
+  path: '/dms',
+  getParentRoute: () => AdminStudentUserIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -88,7 +94,8 @@ export interface FileRoutesByFullPath {
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
   '/profil/$userId': typeof ProfilUserIdRoute
-  '/admin/student/$userId': typeof AdminStudentUserIdRoute
+  '/admin/student/$userId': typeof AdminStudentUserIdRouteWithChildren
+  '/admin/student/$userId/dms': typeof AdminStudentUserIdDmsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -101,7 +108,8 @@ export interface FileRoutesByTo {
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
   '/profil/$userId': typeof ProfilUserIdRoute
-  '/admin/student/$userId': typeof AdminStudentUserIdRoute
+  '/admin/student/$userId': typeof AdminStudentUserIdRouteWithChildren
+  '/admin/student/$userId/dms': typeof AdminStudentUserIdDmsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -115,7 +123,8 @@ export interface FileRoutesById {
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
   '/profil/$userId': typeof ProfilUserIdRoute
-  '/admin/student/$userId': typeof AdminStudentUserIdRoute
+  '/admin/student/$userId': typeof AdminStudentUserIdRouteWithChildren
+  '/admin/student/$userId/dms': typeof AdminStudentUserIdDmsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/player/$chapterId'
     | '/profil/$userId'
     | '/admin/student/$userId'
+    | '/admin/student/$userId/dms'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/player/$chapterId'
     | '/profil/$userId'
     | '/admin/student/$userId'
+    | '/admin/student/$userId/dms'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/player/$chapterId'
     | '/profil/$userId'
     | '/admin/student/$userId'
+    | '/admin/student/$userId/dms'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -251,15 +263,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStudentUserIdRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/student/$userId/dms': {
+      id: '/admin/student/$userId/dms'
+      path: '/dms'
+      fullPath: '/admin/student/$userId/dms'
+      preLoaderRoute: typeof AdminStudentUserIdDmsRouteImport
+      parentRoute: typeof AdminStudentUserIdRoute
+    }
   }
 }
 
+interface AdminStudentUserIdRouteChildren {
+  AdminStudentUserIdDmsRoute: typeof AdminStudentUserIdDmsRoute
+}
+
+const AdminStudentUserIdRouteChildren: AdminStudentUserIdRouteChildren = {
+  AdminStudentUserIdDmsRoute: AdminStudentUserIdDmsRoute,
+}
+
+const AdminStudentUserIdRouteWithChildren =
+  AdminStudentUserIdRoute._addFileChildren(AdminStudentUserIdRouteChildren)
+
 interface AdminRouteChildren {
-  AdminStudentUserIdRoute: typeof AdminStudentUserIdRoute
+  AdminStudentUserIdRoute: typeof AdminStudentUserIdRouteWithChildren
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
-  AdminStudentUserIdRoute: AdminStudentUserIdRoute,
+  AdminStudentUserIdRoute: AdminStudentUserIdRouteWithChildren,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
