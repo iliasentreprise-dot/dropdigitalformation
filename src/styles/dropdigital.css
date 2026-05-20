@@ -1107,11 +1107,12 @@
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 16px;
+  padding: 28px 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
 }
+
 .chat-row {
   display: flex;
   gap: 10px;
