@@ -508,7 +508,22 @@
   width: 100%;
 }
 
-/* ── Student grid ── */
+@keyframes nitroSlide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes nitroPulse {
+  0%,100% { box-shadow: 0 0 10px rgba(255,80,0,0.7), 0 0 20px rgba(255,200,0,0.5) inset; }
+  50%     { box-shadow: 0 0 22px rgba(255,80,0,1),   0 0 32px rgba(255,255,0,0.8) inset; }
+}
+.nitro-progress {
+  background:
+    repeating-linear-gradient(115deg, rgba(255,255,255,0.25) 0 8px, transparent 8px 18px),
+    linear-gradient(90deg, #ff0040, #ff6a00, #ffd200, #ff6a00, #ff0040);
+  background-size: 60px 100%, 200% 100%;
+  animation: nitroSlide 1.2s linear infinite, nitroPulse 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
 .student-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
