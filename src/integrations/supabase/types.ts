@@ -541,6 +541,7 @@ export type Database = {
           amount: number | null
           content: string
           created_at: string
+          deleted: boolean | null
           deleted_at: string | null
           deleted_by: string | null
           id: string
@@ -552,6 +553,7 @@ export type Database = {
           amount?: number | null
           content: string
           created_at?: string
+          deleted?: boolean | null
           deleted_at?: string | null
           deleted_by?: string | null
           id?: string
@@ -563,6 +565,7 @@ export type Database = {
           amount?: number | null
           content?: string
           created_at?: string
+          deleted?: boolean | null
           deleted_at?: string | null
           deleted_by?: string | null
           id?: string
@@ -648,6 +651,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_roles_for_users: {
+        Args: { _user_ids: string[] }
+        Returns: {
+          role: string
+          user_id: string
+        }[]
+      }
+      get_top_role: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
