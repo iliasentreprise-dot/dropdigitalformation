@@ -993,9 +993,11 @@ function AdminPage() {
               {students.map((s) => {
                 const name = s.profile?.full_name || s.profile?.username || s.email.split("@")[0];
                 const isAdminUser = s.role === "admin";
-                const pct = isAdminUser ? 100 : totalChapters > 0
+                const isMod = s.role === "moderator";
+                const pct = totalChapters > 0
                   ? Math.round((s.completedChapters / totalChapters) * 100)
                   : 0;
+                const label = isAdminUser ? "⚡ 1000%" : isMod ? "🔥 100%" : `${pct}%`;
                 return (
                   <div key={s.id} className="student-card">
                     <div className="s-card-top">
@@ -1014,11 +1016,13 @@ function AdminPage() {
                     <div className="s-prog-row">
                       <div className="s-prog-bg">
                         {isAdminUser
-                          ? <div className="fire-progress" />
+                          ? <div className="nitro-progress" style={{ width: "100%", height: "100%", borderRadius: 6 }} />
+                          : isMod
+                          ? <div className="fire-progress" style={{ width: "100%", height: "100%", borderRadius: 6 }} />
                           : <div className="s-prog-fill" style={{ width: `${pct}%` }} />
                         }
                       </div>
-                      <span className="s-prog-pct">{pct}%</span>
+                      <span className="s-prog-pct" style={isAdminUser || isMod ? { color: "#ff6a00", textShadow: "0 0 6px rgba(255,106,0,0.6)", fontWeight: 800 } : undefined}>{label}</span>
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
                       <button
