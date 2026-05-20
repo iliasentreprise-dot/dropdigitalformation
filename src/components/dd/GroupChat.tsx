@@ -9,6 +9,8 @@ type GroupMessage = {
   visible: boolean;
   created_at: string;
   reply_to_id: string | null;
+  deleted_at: string | null;
+  deleted_by: string | null;
 };
 
 type GProfile = {
