@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import "../styles/player.css";
@@ -69,6 +69,9 @@ function PlayerPage() {
   const [validating, setValidating] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [dataLoading, setDataLoading] = useState(!loaderData.chapter);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const videoUploadRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
@@ -108,8 +111,7 @@ function PlayerPage() {
       const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
       const rolePriority: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
       const topRole = (roleRows ?? []).reduce<string>((best, r: { role: string }) => (rolePriority[r.role] ?? 0) > (rolePriority[best] ?? 0) ? r.role : best, "user");
-      // isPrivileged reserved for future lock bypasses — currently no locks in player
-      void topRole;
+      setIsAdmin(topRole === "admin" || topRole === "moderator");
 
       // Load user progress
       if (currentAllChapters.length > 0) {
@@ -125,6 +127,26 @@ function PlayerPage() {
       setDataLoading(false);
     })();
   }, [user, chapterId]);
+
+  const deleteChapterVideo = async () => {
+    if (!chapter || !confirm("Supprimer la vidéo de ce chapitre ? Cette action est irréversible.")) return;
+    await supabase.from("chapters").update({ video_url: "" }).eq("id", chapter.id);
+    setChapter((c) => c ? { ...c, video_url: "" } : c);
+  };
+
+  const uploadVideoForChapter = async (file: File) => {
+    if (!chapter || videoUploading) return;
+    setVideoUploading(true);
+    const ext = file.name.split(".").pop() || "mp4";
+    const path = `${chapter.module_id}/${chapter.id}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("course-videos").upload(path, file, { upsert: true, contentType: file.type });
+    if (!error) {
+      const { data: urlData } = supabase.storage.from("course-videos").getPublicUrl(path);
+      await supabase.from("chapters").update({ video_url: urlData.publicUrl }).eq("id", chapter.id);
+      setChapter((c) => c ? { ...c, video_url: urlData.publicUrl } : c);
+    }
+    setVideoUploading(false);
+  };
 
   const validateChapter = async () => {
     if (!user || !chapter || completed.has(chapter.id) || validating) return;
@@ -183,7 +205,17 @@ function PlayerPage() {
 
       <div className="player-layout">
         <div className="player-main">
-          <h1 className="player-title" style={{ marginBottom: 12 }}>{chapter?.title}</h1>
+          <div className="player-title-row" style={{ marginBottom: 12 }}>
+            <h1 className="player-title" style={{ margin: 0 }}>{chapter?.title}</h1>
+            {isAdmin && chapter?.video_url && (
+              <button
+                className="player-edit-ghost"
+                onClick={() => void deleteChapterVideo()}
+                style={{ color: "#fca5a5", borderColor: "rgba(239,68,68,0.3)" }}
+                title="Supprimer la vidéo"
+              >🗑 Vidéo</button>
+            )}
+          </div>
           <div className="player-video-wrap">
             {embedUrl ? (
               <iframe
@@ -198,6 +230,30 @@ function PlayerPage() {
               <div className="player-no-video">
                 <span>📹</span>
                 <p>Vidéo bientôt disponible</p>
+                {isAdmin && (
+                  <>
+                    {videoUploading ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#10b981", fontSize: 13 }}>
+                        <div style={{ width: 16, height: 16, border: "2px solid rgba(16,185,129,0.3)", borderTopColor: "#10b981", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                        Upload en cours…
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => videoUploadRef.current?.click()}
+                        style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", border: "none", color: "#fff", borderRadius: 10, padding: "10px 22px", fontWeight: 700, fontSize: 14, cursor: "pointer", marginTop: 4 }}
+                      >
+                        ⬆ Uploader une vidéo
+                      </button>
+                    )}
+                    <input
+                      ref={videoUploadRef}
+                      type="file"
+                      accept="video/*"
+                      hidden
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadVideoForChapter(f); e.target.value = ""; }}
+                    />
+                  </>
+                )}
               </div>
             )}
           </div>

@@ -102,6 +102,16 @@ export function ReactionsRow({ chapterId }: { chapterId: string }) {
                 );
               })}
             </div>
+            {user && popup.users.some((u) => u.id === user.id) && (
+              <div style={{ padding: "10px 16px", borderTop: "1px solid rgba(168,85,247,0.15)" }}>
+                <button
+                  onClick={async () => { setPopup(null); await toggle(popup.key); }}
+                  style={{ width: "100%", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 8, color: "#fca5a5", fontSize: 13, fontWeight: 700, padding: "8px 0", cursor: "pointer" }}
+                >
+                  ✕ Retirer ma réaction
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

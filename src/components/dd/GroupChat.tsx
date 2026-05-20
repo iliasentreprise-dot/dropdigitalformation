@@ -52,6 +52,7 @@ export function GroupChat({
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<GroupMessage | null>(null);
   const [reactionPopup, setReactionPopup] = useState<{ list: Reaction[]; emoji: string; msgId: string } | null>(null);
+  const [onlineCount, setOnlineCount] = useState(0);
   // profile click navigates directly to /profil/$userId
   const navigate = useNavigate();
   const goToProfile = (uid: string) => { void navigate({ to: "/profil/$userId", params: { userId: uid } }); };
@@ -272,6 +273,25 @@ export function GroupChat({
     setSending(false);
   };
 
+  useEffect(() => {
+    const fetchOnline = async () => {
+      const twoMinsAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { count } = await (supabase as any)
+        .from("user_presence")
+        .select("*", { count: "exact", head: true })
+        .eq("is_online", true)
+        .gte("last_seen", twoMinsAgo);
+      setOnlineCount(count ?? 0);
+    };
+    void fetchOnline();
+    const ch = supabase
+      .channel("presence_online_count")
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_presence" }, () => void fetchOnline())
+      .subscribe();
+    return () => { void supabase.removeChannel(ch); };
+  }, []);
+
   const messagesById = useMemo(() => Object.fromEntries(messages.map((m) => [m.id, m])), [messages]);
 
   const nameOf = (uid: string) => {
@@ -290,6 +310,12 @@ export function GroupChat({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 220px)", minHeight: 380 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", background: "rgba(16,185,129,0.07)", borderBottom: "1px solid rgba(16,185,129,0.15)", flexShrink: 0 }}>
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 6px #10b981", display: "inline-block", animation: "onlinePulse 2s ease-in-out infinite" }} />
+        <span style={{ fontSize: 12, color: "#10b981", fontWeight: 700 }}>
+          {onlineCount} personne{onlineCount !== 1 ? "s" : ""} en ligne
+        </span>
+      </div>
       <div className="chat-messages">
         {messages.length === 0 && (
           <div style={{ textAlign: "center", color: "#6b4fa0", paddingTop: 60, fontSize: 14 }}>

@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { createServerFn } from "@tanstack/react-start";
 import { ThumbnailUploader } from "@/components/dd/ThumbnailUploader";
+import { ThumbnailCropModal } from "@/components/dd/ThumbnailCropModal";
 import { ChapterResourcesAdmin } from "@/components/dd/ChapterResourcesAdmin";
 import { AdminDashboard } from "@/components/dd/AdminDashboard";
 import "../styles/admin.css";
@@ -167,15 +168,19 @@ const listStudentsFn = createServerFn({ method: "GET" })
       { data: roles },
       { data: progress },
       { count: totalChapters },
+      { data: presenceRows },
     ] = await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabaseAdmin as any).from("profiles").select("id, username, full_name, avatar_url, bio, has_software_access, temp_password"),
       supabaseAdmin.from("user_roles").select("user_id, role"),
       supabaseAdmin.from("user_chapter_progress").select("user_id"),
       supabaseAdmin.from("chapters").select("id", { count: "exact", head: true }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabaseAdmin as any).from("user_presence").select("user_id, last_seen, is_online"),
     ]);
 
     const profileMap = Object.fromEntries(((profiles ?? []) as { id: string }[]).map((p) => [p.id, p]));
+    const presenceMap = Object.fromEntries(((presenceRows ?? []) as { user_id: string; last_seen: string | null; is_online: boolean }[]).map((p) => [p.user_id, p]));
 
     const rolePriority: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
     const roleMap: Record<string, string> = {};
@@ -200,6 +205,8 @@ const listStudentsFn = createServerFn({ method: "GET" })
         completedChapters: completionMap[u.id] ?? 0,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         has_software_access: ((profileMap[u.id] as any)?.has_software_access) ?? false,
+        last_seen: presenceMap[u.id]?.last_seen ?? null,
+        is_online: !!(presenceMap[u.id]?.is_online && presenceMap[u.id]?.last_seen && (Date.now() - new Date(presenceMap[u.id].last_seen!).getTime()) < 2 * 60 * 1000),
       })),
       totalChapters: totalChapters ?? 0,
     };
@@ -408,6 +415,8 @@ type StudentUser = {
   role: string;
   completedChapters: number;
   has_software_access: boolean;
+  last_seen: string | null;
+  is_online: boolean;
 };
 
 type GroupMsgWithProfile = {
@@ -643,6 +652,11 @@ function AdminPage() {
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
+  const [thumbCropFile, setThumbCropFile] = useState<File | null>(null);
+  const [thumbCropModuleId, setThumbCropModuleId] = useState<string | null>(null);
+  const [thumbUploading, setThumbUploading] = useState<string | null>(null);
+  const thumbFileRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!user) return;
     const load = async () => {
@@ -710,6 +724,24 @@ function AdminPage() {
       .order("section")
       .order("position");
     setModules((data as Module[]) || []);
+  };
+
+  const uploadModuleThumbnail = async (moduleId: string, blob: Blob) => {
+    setThumbCropFile(null);
+    setThumbCropModuleId(null);
+    setThumbUploading(moduleId);
+    const path = `module-${moduleId}-${Date.now()}.jpg`;
+    const file = new File([blob], path, { type: "image/jpeg" });
+    const { error } = await supabase.storage.from("module-thumbnails").upload(path, file, { upsert: true });
+    if (!error) {
+      const { data: urlData } = supabase.storage.from("module-thumbnails").getPublicUrl(path);
+      const url = `${urlData.publicUrl}?t=${Date.now()}`;
+      await supabase.from("modules").update({ thumbnail_url: url }).eq("id", moduleId);
+      setModules((prev) => prev.map((m) => m.id === moduleId ? { ...m, thumbnail_url: url } : m));
+      if (editingModule?.id === moduleId) setModuleForm((f) => ({ ...f, thumbnail_url: url }));
+      flash("Miniature mise à jour ✓");
+    }
+    setThumbUploading(null);
   };
 
   const loadChapters = async (moduleId: string) => {
@@ -1019,7 +1051,7 @@ function AdminPage() {
                   <div key={n.id} style={{ padding: "10px 16px", borderBottom: "1px solid rgba(168,85,247,0.1)", background: n.read ? "transparent" : "rgba(168,85,247,0.07)", display: "flex", gap: 10, alignItems: "flex-start" }}>
                     {!n.read && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#a855f7", flexShrink: 0, marginTop: 5 }} />}
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, color: "#e0d0ff" }}>{n.message}</div>
+                      <div style={{ fontSize: 13, color: n.message.startsWith("[DM]") ? "#10b981" : "#e0d0ff" }}>{n.message}</div>
                       <div style={{ fontSize: 11, color: "#7c5c9a", marginTop: 2 }}>
                         {new Date(n.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                       </div>
@@ -1073,8 +1105,14 @@ function AdminPage() {
                         }
                       </div>
                       <div className="s-info">
-                        <div className="s-name">{name}</div>
+                        <div className="s-name" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          {name}
+                          <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.is_online ? "#10b981" : "#6b7280", boxShadow: s.is_online ? "0 0 5px #10b981" : "none", display: "inline-block", flexShrink: 0 }} />
+                        </div>
                         <div className="s-email">{s.email}</div>
+                        <div style={{ fontSize: 10, color: "#6b4fa0", marginTop: 1 }}>
+                          {s.is_online ? "En ligne" : s.last_seen ? `Vu ${(() => { const d = new Date(s.last_seen); const h = Math.floor((Date.now() - d.getTime()) / 3600000); return h < 1 ? "< 1h" : h < 24 ? `il y a ${h}h` : `le ${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`; })()}` : "Jamais connecté"}
+                        </div>
                       </div>
                       <RoleBadge role={s.role} />
                     </div>
@@ -1457,13 +1495,27 @@ function AdminPage() {
               onClick={() => toggleModule(m.id)}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                {m.thumbnail_url && (
-                  <img
-                    src={m.thumbnail_url}
-                    alt=""
-                    style={{ width: 48, height: 32, objectFit: "cover", borderRadius: 4, flexShrink: 0, border: "1px solid rgba(168,85,247,0.2)" }}
-                  />
-                )}
+                <div
+                  style={{ position: "relative", flexShrink: 0, cursor: "pointer" }}
+                  title="Changer la miniature"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setThumbCropModuleId(m.id);
+                    thumbFileRef.current?.click();
+                  }}
+                >
+                  {m.thumbnail_url ? (
+                    <img src={m.thumbnail_url} alt="" style={{ width: 48, height: 32, objectFit: "cover", borderRadius: 4, display: "block", border: "1px solid rgba(168,85,247,0.2)" }} />
+                  ) : (
+                    <div style={{ width: 48, height: 32, borderRadius: 4, background: "rgba(124,58,237,0.15)", border: "1px dashed rgba(168,85,247,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🖼️</div>
+                  )}
+                  <div className="thumb-hover-overlay">📷</div>
+                  {thumbUploading === m.id && (
+                    <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <div style={{ width: 14, height: 14, border: "2px solid rgba(168,85,247,0.3)", borderTopColor: "#a855f7", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                    </div>
+                  )}
+                </div>
                 <div>
                   <span className="admin-module-section">
                     {SECTIONS.find((s) => s.value === m.section)?.label ||
@@ -1663,6 +1715,26 @@ function AdminPage() {
         ))}
 
       </div>}
+
+      {/* Hidden file input for thumbnail crop */}
+      <input
+        ref={thumbFileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f && thumbCropModuleId) setThumbCropFile(f);
+          e.target.value = "";
+        }}
+      />
+      {thumbCropFile && thumbCropModuleId && (
+        <ThumbnailCropModal
+          file={thumbCropFile}
+          onCrop={(blob) => void uploadModuleThumbnail(thumbCropModuleId, blob)}
+          onCancel={() => { setThumbCropFile(null); setThumbCropModuleId(null); }}
+        />
+      )}
     </div>
   );
 }

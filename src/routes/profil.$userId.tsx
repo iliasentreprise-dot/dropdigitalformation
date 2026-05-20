@@ -45,6 +45,8 @@ function ProfilPage() {
   const [groupMsgs, setGroupMsgs] = useState<{ id: string; content: string; created_at: string }[]>([]);
   const [groupMsgsLoading, setGroupMsgsLoading] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [presence, setPresence] = useState<{ is_online: boolean; last_seen: string | null } | null>(null);
+  const [myRole, setMyRole] = useState<string>("user");
 
   const openList = async (kind: "followers" | "following") => {
     setListOpen(kind);
@@ -89,6 +91,17 @@ function ProfilPage() {
         supabase.from("user_chapter_progress").select("chapter_id").eq("user_id", userId),
       ]);
       setProfile(p as PublicProfile | null);
+
+      // Presence
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: pres } = await (supabase as any).from("user_presence").select("is_online, last_seen").eq("user_id", userId).maybeSingle();
+      setPresence(pres as { is_online: boolean; last_seen: string | null } | null);
+
+      // My role (for admin-only last_seen display)
+      const { data: myRoleRows } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+      const pri: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
+      const topMyRole = ((myRoleRows ?? []) as { role: string }[]).reduce<string>((b, r) => ((pri[r.role] ?? 0) > (pri[b] ?? 0) ? r.role : b), "user");
+      setMyRole(topMyRole);
 
       // Use SECURITY DEFINER RPC — bypasses RLS so regular users can read others' roles
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -172,13 +185,35 @@ function ProfilPage() {
             <div style={{ fontSize: 14, color: "#9a7dbd", marginBottom: 10 }}>@{profile.username}</div>
           )}
 
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 10 }}>
             {role === "admin" && <span className="chat-mini-badge admin" style={{ fontSize: 13, padding: "5px 14px", borderRadius: 8 }}>👑 Admin</span>}
             {role === "moderator" && (
               <span className="chat-mini-badge mod" style={{ fontSize: 13, padding: "5px 14px", borderRadius: 8, overflow: "hidden", display: "inline-flex", alignItems: "center" }}>🏴‍☠️ Modérateur</span>
             )}
             {role !== "admin" && role !== "moderator" && <span className="chat-mini-badge eleve" style={{ fontSize: 13, padding: "5px 14px", borderRadius: 8 }}>🎓 Élève</span>}
           </div>
+
+          {(() => {
+            const isOnline = !!(presence?.is_online && presence.last_seen && (Date.now() - new Date(presence.last_seen).getTime()) < 2 * 60 * 1000);
+            const fmtLastSeen = (iso: string) => {
+              const d = new Date(iso);
+              const diffMs = Date.now() - d.getTime();
+              const diffMins = Math.floor(diffMs / 60000);
+              const diffH = Math.floor(diffMs / 3600000);
+              if (diffMins < 1) return "à l'instant";
+              if (diffMins < 60) return `il y a ${diffMins}min`;
+              return `il y a ${diffH}h le ${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} à ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+            };
+            return (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 14 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: isOnline ? "#10b981" : "#6b7280", boxShadow: isOnline ? "0 0 6px #10b981" : "none", display: "inline-block", animation: isOnline ? "onlinePulse 2s ease-in-out infinite" : "none" }} />
+                <span style={{ fontSize: 12, color: isOnline ? "#10b981" : "#6b7280", fontWeight: 600 }}>{isOnline ? "En ligne" : "Hors ligne"}</span>
+                {!isOnline && myRole === "admin" && presence?.last_seen && (
+                  <span style={{ fontSize: 11, color: "#6b4fa0" }}>— Dernière connexion {fmtLastSeen(presence.last_seen)}</span>
+                )}
+              </div>
+            );
+          })()}
 
           <div style={{ display: "flex", justifyContent: "center", gap: 36, margin: "20px 0 24px" }}>
             <button onClick={() => void openList("followers")} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0, textAlign: "center" }}>

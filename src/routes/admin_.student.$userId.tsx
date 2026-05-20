@@ -41,6 +41,8 @@ type StudentData = {
   progress: ProgressEntry[];
   totalChapters: number;
   messages: StudentMessage[];
+  last_seen: string | null;
+  is_online: boolean;
 };
 
 type DmRow = { id: string; sender_id: string; recipient_id: string; content: string; created_at: string; deleted_at: string | null };
@@ -83,6 +85,13 @@ const getStudentFn = createServerFn({ method: "POST" })
       return (rolePriority[r.role] ?? 0) > (rolePriority[best] ?? 0) ? r.role : best;
     }, "user");
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: presRow } = await (supabaseAdmin as any)
+      .from("user_presence")
+      .select("last_seen, is_online")
+      .eq("user_id", userId)
+      .maybeSingle();
+
     return {
       email: authResult.data.user?.email ?? "",
       profile: profile as StudentProfile | null,
@@ -90,6 +99,8 @@ const getStudentFn = createServerFn({ method: "POST" })
       progress: (progress ?? []) as ProgressEntry[],
       totalChapters: (totalChapters ?? 0) as number,
       messages: (messages ?? []) as StudentMessage[],
+      last_seen: (presRow as { last_seen: string | null; is_online: boolean } | null)?.last_seen ?? null,
+      is_online: !!(presRow?.is_online && presRow?.last_seen && (Date.now() - new Date(presRow.last_seen).getTime()) < 2 * 60 * 1000),
     };
   });
 
@@ -575,6 +586,20 @@ function StudentProfilePage() {
             <div style={{ fontSize: 11, fontWeight: 600, color: "#7c5c9a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Email</div>
             <div style={{ fontSize: 14, color: "#e2d4f8", fontFamily: "monospace", background: "rgba(15,9,32,0.6)", padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(168,85,247,0.15)" }}>
               {email}
+            </div>
+          </div>
+
+          {/* Dernière connexion */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#7c5c9a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Dernière connexion</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#e2d4f8", background: "rgba(15,9,32,0.6)", padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(168,85,247,0.15)" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: (studentData as unknown as { is_online: boolean }).is_online ? "#10b981" : "#6b7280", boxShadow: (studentData as unknown as { is_online: boolean }).is_online ? "0 0 5px #10b981" : "none", flexShrink: 0 }} />
+              {(studentData as unknown as { is_online: boolean }).is_online ? "En ligne maintenant" : (studentData as unknown as { last_seen: string | null }).last_seen
+                ? (() => {
+                    const d = new Date((studentData as unknown as { last_seen: string }).last_seen);
+                    return d.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                  })()
+                : "Jamais connecté"}
             </div>
           </div>
 

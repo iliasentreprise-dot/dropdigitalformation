@@ -1,8 +1,38 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import "../styles/dropdigital.css";
+
+const sendDmFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { senderId, recipientId, content, senderName, recipientName } = (data as unknown) as { senderId: string; recipientId: string; content: string; senderName: string; recipientName: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sa = supabaseAdmin as any;
+    const { data: msg, error } = await sa
+      .from("private_messages")
+      .insert({ sender_id: senderId, recipient_id: recipientId, content })
+      .select()
+      .single();
+    if (error) throw new Error((error as { message: string }).message);
+    // Notify admin of all DMs
+    const { data: adminRow } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "admin")
+      .limit(1)
+      .maybeSingle();
+    if (adminRow?.user_id && adminRow.user_id !== senderId && adminRow.user_id !== recipientId) {
+      const preview = content.length > 50 ? content.slice(0, 50) + "…" : content;
+      await sa.from("notifications").insert({
+        user_id: adminRow.user_id,
+        message: `[DM] ${senderName} → ${recipientName} : ${preview}`,
+      });
+    }
+    return msg;
+  });
 
 type PMessage = {
   id: string;
@@ -115,14 +145,20 @@ function MessagesPage() {
     setSending(true);
     const content = input.trim();
     setInput("");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
-      .from("private_messages")
-      .insert({ sender_id: user.id, recipient_id: otherId, content })
-      .select()
-      .single();
-    if (error) alert(error.message);
-    if (data) setMessages((prev) => (prev.find((x) => x.id === data.id) ? prev : [...prev, data as PMessage]));
+    try {
+      const msg = await (sendDmFn as unknown as (args: { data: { senderId: string; recipientId: string; content: string; senderName: string; recipientName: string } }) => Promise<PMessage>)({
+        data: {
+          senderId: user.id,
+          recipientId: otherId,
+          content,
+          senderName: me?.full_name || me?.username || user.email || "Élève",
+          recipientName: other?.full_name || other?.username || "Élève",
+        },
+      });
+      if (msg) setMessages((prev) => (prev.find((x) => x.id === msg.id) ? prev : [...prev, msg]));
+    } catch (e) {
+      alert((e as Error).message);
+    }
     setSending(false);
   };
 

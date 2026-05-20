@@ -62,6 +62,12 @@ export function ResultsWall({
   const fileRef = useRef<HTMLInputElement>(null);
   const [roles, setRoles] = useState<Record<string, string>>({});
   const [reactionPopup, setReactionPopup] = useState<{ list: Reaction[]; emoji: string; resultId: string } | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [copyDone, setCopyDone] = useState(false);
+  const [dmOpen, setDmOpen] = useState(false);
+  const [dmUsers, setDmUsers] = useState<{ id: string; name: string; avatar: string | null }[]>([]);
+  const [dmLoading, setDmLoading] = useState(false);
+  const [dmSent, setDmSent] = useState(false);
 
   // Fetch current user's role
   useEffect(() => {
@@ -252,6 +258,54 @@ export function ResultsWall({
     setResults((prev) => prev.filter((r) => r.id !== resultId));
   };
 
+  const openDmPicker = async () => {
+    setDmOpen(true);
+    setDmLoading(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sa = supabase as any;
+    const { data: followRows } = await sa.from("follows").select("following_id").eq("follower_id", userId).limit(50);
+    const ids = ((followRows ?? []) as { following_id: string }[]).map((r) => r.following_id);
+    if (ids.length > 0) {
+      const { data: profs } = await supabase.from("profiles").select("id, full_name, username, avatar_url").in("id", ids);
+      setDmUsers(((profs ?? []) as { id: string; full_name: string | null; username: string | null; avatar_url: string | null }[]).map((p) => ({
+        id: p.id,
+        name: p.full_name || p.username || "Élève",
+        avatar: p.avatar_url,
+      })));
+    } else {
+      setDmUsers([]);
+    }
+    setDmLoading(false);
+  };
+
+  const sendDm = async (recipientId: string) => {
+    if (!lightboxSrc) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("private_messages").insert({ sender_id: userId, recipient_id: recipientId, content: lightboxSrc });
+    setDmSent(true);
+    window.setTimeout(() => { setDmSent(false); setDmOpen(false); }, 1500);
+  };
+
+  const copyLink = async () => {
+    if (!lightboxSrc) return;
+    await navigator.clipboard.writeText(lightboxSrc);
+    setCopyDone(true);
+    window.setTimeout(() => setCopyDone(false), 2000);
+  };
+
+  const downloadImage = () => {
+    if (!lightboxSrc) return;
+    const a = document.createElement("a");
+    a.href = lightboxSrc;
+    a.download = `résultat-${Date.now()}.jpg`;
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const closeLightbox = () => { setLightboxSrc(null); setDmOpen(false); setCopyDone(false); setDmSent(false); };
+
   const nameOf = (uid: string) => {
     if (uid === userId) return username || "Moi";
     const p = profiles[uid];
@@ -266,7 +320,21 @@ export function ResultsWall({
         <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 14, color: "#f0e8ff" }}>🚀 Partage ton résultat</h2>
         <textarea className="results-textarea" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Décris ton résultat… première vente, chiffre du mois, client signé…" maxLength={500} rows={3} />
         <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
-          <input className="results-amount-input" type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Montant gagné (€) — optionnel" />
+          <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+            <input
+              className="results-amount-input"
+              type="number"
+              min={0}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              onKeyDown={(e) => {
+                if (["e","E","+","-","."].includes(e.key)) e.preventDefault();
+              }}
+              placeholder="Montant gagné"
+              style={{ paddingRight: 28 }}
+            />
+            <span style={{ position: "absolute", right: 10, color: "#10b981", fontWeight: 700, fontSize: 15, pointerEvents: "none" }}>€</span>
+          </div>
           <button type="button" className="admin-btn-ghost sm" onClick={() => fileRef.current?.click()}>
             📷 {photoFile ? "Photo ajoutée ✓" : "Ajouter une photo"}
           </button>
@@ -354,11 +422,6 @@ export function ResultsWall({
                     {new Date(r.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
                   </div>
                 </div>
-                {r.amount != null && (
-                  <div style={{ background: "linear-gradient(135deg, #059669, #10b981)", color: "#fff", fontWeight: 800, fontSize: 14, padding: "4px 14px", borderRadius: 20, whiteSpace: "nowrap" }}>
-                    +{r.amount.toLocaleString("fr-FR")}€
-                  </div>
-                )}
                 {!isDeleted && (r.user_id === userId || myRole === "admin") && (
                   <button
                     onClick={() => void softDeleteResult(r.id)}
@@ -371,10 +434,20 @@ export function ResultsWall({
                   </button>
                 )}
               </div>
-              <p style={{ color: "#c4a3f0", fontSize: 14, lineHeight: 1.6, margin: 0 }}>{r.content}</p>
-              {r.photo_url && (
-                <img src={r.photo_url} alt="résultat" style={{ marginTop: 12, width: "100%", maxHeight: 260, objectFit: "cover", borderRadius: 10 }} />
+              {r.amount != null && (
+                <div style={{ fontSize: 32, fontWeight: 900, color: "#10b981", letterSpacing: -0.5, marginBottom: 8, textShadow: "0 0 20px rgba(16,185,129,0.4)" }}>
+                  +{r.amount.toLocaleString("fr-FR")} €
+                </div>
               )}
+              {r.photo_url && (
+                <img
+                  src={r.photo_url}
+                  alt="résultat"
+                  className="result-photo"
+                  onClick={() => setLightboxSrc(r.photo_url!)}
+                />
+              )}
+              <p style={{ color: "#c4a3f0", fontSize: 14, lineHeight: 1.6, margin: "8px 0 0" }}>{r.content}</p>
 
               {/* Reactions */}
               <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
@@ -457,6 +530,58 @@ export function ResultsWall({
           );
         })}
       </div>
+
+      {lightboxSrc && (
+        <div
+          onClick={closeLightbox}
+          style={{ position: "fixed", inset: 0, zIndex: 4000, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(10px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, width: "100%", maxWidth: 700 }}>
+            <img src={lightboxSrc} alt="résultat agrandi" className="lightbox-img-anim" style={{ maxWidth: "100%", maxHeight: "65vh", objectFit: "contain", borderRadius: 14 }} />
+            {!dmOpen ? (
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                <button onClick={() => void openDmPicker()} style={{ background: "rgba(124,58,237,0.35)", border: "1px solid rgba(168,85,247,0.5)", color: "#f0e8ff", borderRadius: 10, padding: "10px 18px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>💬 Partager en DM</button>
+                <button onClick={() => void copyLink()} style={{ background: copyDone ? "rgba(16,185,129,0.25)" : "rgba(124,58,237,0.15)", border: "1px solid rgba(168,85,247,0.35)", color: copyDone ? "#10b981" : "#c4a3f0", borderRadius: 10, padding: "10px 18px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>{copyDone ? "✓ Lien copié" : "🔗 Copier le lien"}</button>
+                <button onClick={downloadImage} style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(168,85,247,0.35)", color: "#c4a3f0", borderRadius: 10, padding: "10px 18px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>⬇ Télécharger</button>
+              </div>
+            ) : (
+              <div style={{ width: "100%", maxWidth: 420, background: "rgba(16,6,36,0.98)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 14, overflow: "hidden" }}>
+                {dmSent ? (
+                  <div style={{ padding: 24, textAlign: "center", color: "#10b981", fontWeight: 700, fontSize: 15 }}>✅ Message envoyé !</div>
+                ) : dmLoading ? (
+                  <div style={{ padding: 24, textAlign: "center", color: "#9a7dbd" }}>Chargement…</div>
+                ) : dmUsers.length === 0 ? (
+                  <div style={{ padding: 24, textAlign: "center", color: "#9a7dbd", fontSize: 13 }}>Tu ne suis personne pour l'instant.</div>
+                ) : (
+                  <>
+                    <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(168,85,247,0.15)", fontSize: 13, fontWeight: 700, color: "#c4a3f0" }}>Envoyer l'image à…</div>
+                    <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                      {dmUsers.map((u) => (
+                        <div
+                          key={u.id}
+                          onClick={() => void sendDm(u.id)}
+                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", cursor: "pointer" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(168,85,247,0.12)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(124,58,237,0.3)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            {u.avatar ? <img src={u.avatar} alt={u.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#c4a3f0", fontSize: 12, fontWeight: 700 }}>{u.name[0]?.toUpperCase()}</span>}
+                          </div>
+                          <span style={{ color: "#f0e8ff", fontSize: 13, fontWeight: 600 }}>{u.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+                <div style={{ padding: "10px 16px", borderTop: "1px solid rgba(168,85,247,0.15)" }}>
+                  <button onClick={() => setDmOpen(false)} style={{ background: "none", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 8, color: "#9a7dbd", fontSize: 12, padding: "6px 14px", cursor: "pointer", width: "100%" }}>← Retour</button>
+                </div>
+              </div>
+            )}
+            <button onClick={closeLightbox} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.55)", fontSize: 36, cursor: "pointer", lineHeight: 1, marginTop: 4 }}>×</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

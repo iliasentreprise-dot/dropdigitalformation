@@ -101,6 +101,8 @@ function ModulePage() {
   const [addingChapterUploading, setAddingChapterUploading] = useState(false);
   const [addChapterDragging, setAddChapterDragging] = useState(false);
   const addChapterFileRef = useRef<HTMLInputElement>(null);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const videoUploadRef = useRef<HTMLInputElement>(null);
 
   const resetAddChapter = () => {
     setShowAddChapter(false);
@@ -276,6 +278,27 @@ function ModulePage() {
     flashMsg("✓ Sauvegardé");
   };
 
+  const deleteChapterVideo = async () => {
+    if (!selectedId || !confirm("Supprimer la vidéo de ce chapitre ? Cette action est irréversible.")) return;
+    await supabase.from("chapters").update({ video_url: "" }).eq("id", selectedId);
+    setChapters((prev) => prev.map((c) => c.id === selectedId ? { ...c, video_url: "" } : c));
+  };
+
+  const uploadVideoForChapter = async (file: File) => {
+    if (!selectedId || !moduleId || videoUploading) return;
+    setVideoUploading(true);
+    const ext = file.name.split(".").pop() || "mp4";
+    const path = `${moduleId}/${selectedId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("course-videos").upload(path, file, { upsert: true, contentType: file.type });
+    if (!error) {
+      const { data: urlData } = supabase.storage.from("course-videos").getPublicUrl(path);
+      const url = urlData.publicUrl;
+      await supabase.from("chapters").update({ video_url: url }).eq("id", selectedId);
+      setChapters((prev) => prev.map((c) => c.id === selectedId ? { ...c, video_url: url } : c));
+    }
+    setVideoUploading(false);
+  };
+
   const prepareFile = (file: File) => {
     if (!file.type.startsWith("video/")) return;
     setPendingFile(file);
@@ -400,6 +423,14 @@ function ModulePage() {
                       title="Modifier le titre"
                     >✏️</button>
                   )}
+                  {isAdmin && selected?.video_url && (
+                    <button
+                      className="player-edit-ghost"
+                      onClick={() => void deleteChapterVideo()}
+                      title="Supprimer la vidéo"
+                      style={{ color: "#fca5a5", borderColor: "rgba(239,68,68,0.3)" }}
+                    >🗑 Vidéo</button>
+                  )}
                 </div>
               )}
               <div className="player-video-wrap" style={{ position: "relative" }}>
@@ -420,6 +451,30 @@ function ModulePage() {
                   <div className="player-no-video">
                     <span>📹</span>
                     <p>Vidéo bientôt disponible</p>
+                    {isAdmin && (
+                      <>
+                        {videoUploading ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#10b981", fontSize: 13 }}>
+                            <div style={{ width: 16, height: 16, border: "2px solid rgba(16,185,129,0.3)", borderTopColor: "#10b981", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                            Upload en cours…
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => videoUploadRef.current?.click()}
+                            style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)", border: "none", color: "#fff", borderRadius: 10, padding: "10px 22px", fontWeight: 700, fontSize: 14, cursor: "pointer", marginTop: 4 }}
+                          >
+                            ⬆ Uploader une vidéo
+                          </button>
+                        )}
+                        <input
+                          ref={videoUploadRef}
+                          type="file"
+                          accept="video/*"
+                          hidden
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadVideoForChapter(f); e.target.value = ""; }}
+                        />
+                      </>
+                    )}
                   </div>
                 )}
                 <NextChapterCountdown
