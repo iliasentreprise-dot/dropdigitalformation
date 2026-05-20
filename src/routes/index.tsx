@@ -344,6 +344,68 @@ function HomePage() {
     </div>
   );
 
+  const renderModulesContent = () => {
+    const lock = getSectionLock(activeSection);
+    if (lock.locked) {
+      return (
+        <div style={{ textAlign: "center", padding: "60px 20px" }}>
+          <div style={{ fontSize: 64, marginBottom: 20 }}>🔒</div>
+          <p style={{ color: "#c4a3f0", fontSize: 18, fontWeight: 600, lineHeight: 1.7, margin: 0 }}>
+            {lock.unlockAt ? <SectionCountdown unlockAt={lock.unlockAt} /> : lock.message}
+          </p>
+        </div>
+      );
+    }
+
+    if (activeSection === "ultime") {
+      if (!hasSoftwareAccess && !isAdmin && userRole !== "moderator") {
+        return (
+          <div style={{ position: "relative", minHeight: 320 }}>
+            <div className="modules-grid" style={{ filter: "blur(5px)", pointerEvents: "none", userSelect: "none", opacity: 0.5 }}>
+              {visibleModules.map((m, i) => (
+                <div key={m.id} className="module-card">
+                  <div className="module-thumb">
+                    {m.thumbnail_url ? <img src={m.thumbnail_url} alt={m.title} /> : <div style={{ fontSize: 48, opacity: 0.4 }}>🎬</div>}
+                    <div className="play-btn" />
+                  </div>
+                  <div className="module-info">
+                    <div className="module-num">Module {String(i + 1).padStart(2, "0")}</div>
+                    <div className="module-title">{m.title}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="software-lock-overlay">
+              <div style={{ fontSize: 52, marginBottom: 16 }}>🔒</div>
+              <p style={{ color: "#e2d4f8", fontSize: 15, lineHeight: 1.7, marginBottom: 28, textAlign: "center", maxWidth: 400 }}>
+                Tu n'as pas accès au logiciel d'automatisation car tu as pris l'offre Formation à 97€
+              </p>
+              <a
+                href="https://revolut.me/ilias_business?currency=EUR&amount=4700&note=Logiciel%20d%27automatisation%20TikTok"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="software-cta-btn"
+              >
+                ⚡ Accéder à l'ensemble des logiciels pour automatiser ton système
+              </a>
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div>
+          <div className="software-coming-soon">
+            <span className="hourglass-spin">⏳</span>
+            <span>Tu auras accès aux logiciels d'automatisation bientôt…</span>
+          </div>
+          <ModulesGrid mods={visibleModules} />
+        </div>
+      );
+    }
+
+    return <ModulesGrid mods={visibleModules} />;
+  };
+
   return (
     <div className="dd-root">
       <div className="topbar">
@@ -436,67 +498,7 @@ function HomePage() {
                   <span className="pg-pct">{globalPct}%</span>
                 </div>
 
-                {(() => {
-                  const lock = getSectionLock(activeSection);
-                  if (lock.locked) {
-                    return (
-                      <div style={{ textAlign: "center", padding: "60px 20px" }}>
-                        <div style={{ fontSize: 64, marginBottom: 20 }}>🔒</div>
-                        <p style={{ color: "#c4a3f0", fontSize: 18, fontWeight: 600, lineHeight: 1.7, margin: 0 }}>
-                          {lock.unlockAt ? <SectionCountdown unlockAt={lock.unlockAt} /> : lock.message}
-                        </p>
-                      </div>
-                    );
-                  }
-
-                  if (activeSection === "ultime") {
-                    if (!hasSoftwareAccess && !isAdmin && userRole !== "moderator") {
-                      return (
-                        <div style={{ position: "relative", minHeight: 320 }}>
-                          <div className="modules-grid" style={{ filter: "blur(5px)", pointerEvents: "none", userSelect: "none", opacity: 0.5 }}>
-                            {visibleModules.map((m, i) => (
-                              <div key={m.id} className="module-card">
-                                <div className="module-thumb">
-                                  {m.thumbnail_url ? <img src={m.thumbnail_url} alt={m.title} /> : <div style={{ fontSize: 48, opacity: 0.4 }}>🎬</div>}
-                                  <div className="play-btn" />
-                                </div>
-                                <div className="module-info">
-                                  <div className="module-num">Module {String(i + 1).padStart(2, "0")}</div>
-                                  <div className="module-title">{m.title}</div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="software-lock-overlay">
-                            <div style={{ fontSize: 52, marginBottom: 16 }}>🔒</div>
-                            <p style={{ color: "#e2d4f8", fontSize: 15, lineHeight: 1.7, marginBottom: 28, textAlign: "center", maxWidth: 400 }}>
-                              Tu n'as pas accès au logiciel d'automatisation car tu as pris l'offre Formation à 97€
-                            </p>
-                            <a
-                              href="https://revolut.me/ilias_business?currency=EUR&amount=4700&note=Logiciel%20d%27automatisation%20TikTok"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="software-cta-btn"
-                            >
-                              ⚡ Accéder à l'ensemble des logiciels pour automatiser ton système
-                            </a>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div>
-                        <div className="software-coming-soon">
-                          <span className="hourglass-spin">⏳</span>
-                          <span>Tu auras accès aux logiciels d'automatisation bientôt…</span>
-                        </div>
-                        <ModulesGrid mods={visibleModules} />
-                      </div>
-                    );
-                  }
-
-                  return <ModulesGrid mods={visibleModules} />;
-                })()}
+                {renderModulesContent()}
               </>
             )}
 
