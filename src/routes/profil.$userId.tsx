@@ -33,6 +33,7 @@ function ProfilPage() {
   const [listOpen, setListOpen] = useState<null | "followers" | "following">(null);
   const [listData, setListData] = useState<FollowEntry[]>([]);
   const [listLoading, setListLoading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
 
   const openList = async (kind: "followers" | "following") => {
     setListOpen(kind);
