@@ -438,6 +438,10 @@ function HomePage() {
               <span>{t.label}</span>
             </div>
           ))}
+          <Link to="/messages" className="sidebar-item" style={{ textDecoration: "none" }} onClick={() => setSidebarOpen(false)}>
+            <span className="si-icon">💬</span>
+            <span>Message privé</span>
+          </Link>
           <div className="sidebar-section-label">COMPTE</div>
           {ACCOUNT_TABS.map((t) => (
             <div key={t.key} className={`sidebar-item ${tab === t.key ? "active" : ""}`} onClick={() => handleTabClick(t.key)}>
