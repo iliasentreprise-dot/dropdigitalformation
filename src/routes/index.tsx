@@ -420,14 +420,8 @@ function HomePage() {
           <div className="logo-icon"><img src={logo} alt="DropDigital" width={36} height={36} /></div>
           <div className="logo-text">Drop<span>Digital</span></div>
         </div>
-        <div className="topbar-right">
-          <div className="price-pill">
-            <span className="live-dot" />
-            <span className="old-price">997€</span>
-            <span className="new-price">297€</span>
-            <span className="badge-red">-70%</span>
-          </div>
-        </div>
+        <div className="topbar-right" />
+
       </div>
 
       <div className="layout">

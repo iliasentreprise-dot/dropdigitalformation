@@ -15,8 +15,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProfilUserIdRouteImport } from './routes/profil.$userId'
 import { Route as PlayerChapterIdRouteImport } from './routes/player.$chapterId'
 import { Route as ModuleModuleIdRouteImport } from './routes/module.$moduleId'
+import { Route as MessagesUserIdRouteImport } from './routes/messages.$userId'
 import { Route as AdminStudentUserIdRouteImport } from './routes/admin.student.$userId'
 
 const SignupRoute = SignupRouteImport.update({
@@ -49,6 +51,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfilUserIdRoute = ProfilUserIdRouteImport.update({
+  id: '/profil/$userId',
+  path: '/profil/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlayerChapterIdRoute = PlayerChapterIdRouteImport.update({
   id: '/player/$chapterId',
   path: '/player/$chapterId',
@@ -57,6 +64,11 @@ const PlayerChapterIdRoute = PlayerChapterIdRouteImport.update({
 const ModuleModuleIdRoute = ModuleModuleIdRouteImport.update({
   id: '/module/$moduleId',
   path: '/module/$moduleId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MessagesUserIdRoute = MessagesUserIdRouteImport.update({
+  id: '/messages/$userId',
+  path: '/messages/$userId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminStudentUserIdRoute = AdminStudentUserIdRouteImport.update({
@@ -72,8 +84,10 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/messages/$userId': typeof MessagesUserIdRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
+  '/profil/$userId': typeof ProfilUserIdRoute
   '/admin/student/$userId': typeof AdminStudentUserIdRoute
 }
 export interface FileRoutesByTo {
@@ -83,8 +97,10 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/messages/$userId': typeof MessagesUserIdRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
+  '/profil/$userId': typeof ProfilUserIdRoute
   '/admin/student/$userId': typeof AdminStudentUserIdRoute
 }
 export interface FileRoutesById {
@@ -95,8 +111,10 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/messages/$userId': typeof MessagesUserIdRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
+  '/profil/$userId': typeof ProfilUserIdRoute
   '/admin/student/$userId': typeof AdminStudentUserIdRoute
 }
 export interface FileRouteTypes {
@@ -108,8 +126,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/messages/$userId'
     | '/module/$moduleId'
     | '/player/$chapterId'
+    | '/profil/$userId'
     | '/admin/student/$userId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -119,8 +139,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/messages/$userId'
     | '/module/$moduleId'
     | '/player/$chapterId'
+    | '/profil/$userId'
     | '/admin/student/$userId'
   id:
     | '__root__'
@@ -130,8 +152,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/messages/$userId'
     | '/module/$moduleId'
     | '/player/$chapterId'
+    | '/profil/$userId'
     | '/admin/student/$userId'
   fileRoutesById: FileRoutesById
 }
@@ -142,8 +166,10 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  MessagesUserIdRoute: typeof MessagesUserIdRoute
   ModuleModuleIdRoute: typeof ModuleModuleIdRoute
   PlayerChapterIdRoute: typeof PlayerChapterIdRoute
+  ProfilUserIdRoute: typeof ProfilUserIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -190,6 +216,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profil/$userId': {
+      id: '/profil/$userId'
+      path: '/profil/$userId'
+      fullPath: '/profil/$userId'
+      preLoaderRoute: typeof ProfilUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/player/$chapterId': {
       id: '/player/$chapterId'
       path: '/player/$chapterId'
@@ -202,6 +235,13 @@ declare module '@tanstack/react-router' {
       path: '/module/$moduleId'
       fullPath: '/module/$moduleId'
       preLoaderRoute: typeof ModuleModuleIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/messages/$userId': {
+      id: '/messages/$userId'
+      path: '/messages/$userId'
+      fullPath: '/messages/$userId'
+      preLoaderRoute: typeof MessagesUserIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/student/$userId': {
@@ -231,8 +271,10 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  MessagesUserIdRoute: MessagesUserIdRoute,
   ModuleModuleIdRoute: ModuleModuleIdRoute,
   PlayerChapterIdRoute: PlayerChapterIdRoute,
+  ProfilUserIdRoute: ProfilUserIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 
 type GroupMessage = {
@@ -267,8 +268,9 @@ export function GroupChat({
                 <div className={`chat-msg-name ${nameClass}`}>
                   <span style={{ cursor: "pointer" }} onClick={() => setOpenProfile(msg.user_id)}>{name}</span>
                   {role === "admin" && <span className="chat-mini-badge admin">👑 Admin</span>}
-                  {role === "moderator" && <span className="chat-mini-badge mod">⚡ Modo</span>}
+                  {role === "moderator" && <span className="chat-mini-badge mod">Modo</span>}
                 </div>
+
 
                 {replied && (
                   <div className="msg-reply-quote">
@@ -395,12 +397,28 @@ export function GroupChat({
                   {p?.bio && <div style={{ fontSize: 13, color: "#c4a3f0", marginBottom: 12 }}>{p.bio}</div>}
                   <div className="mpc-actions">
                     {openProfile !== userId && (
-                      <button className="admin-btn-primary sm" onClick={() => alert("Messagerie privée : bientôt disponible 💬")}>
-                        💬 Message privé
-                      </button>
+                      <>
+                        <Link
+                          to="/messages/$userId"
+                          params={{ userId: openProfile! }}
+                          className="admin-btn-primary sm"
+                          style={{ textDecoration: "none", display: "inline-block" }}
+                        >
+                          💬 Message privé
+                        </Link>
+                        <Link
+                          to="/profil/$userId"
+                          params={{ userId: openProfile! }}
+                          className="admin-btn-ghost sm"
+                          style={{ textDecoration: "none", display: "inline-block" }}
+                        >
+                          Profil complet
+                        </Link>
+                      </>
                     )}
                     <button className="admin-btn-ghost sm" onClick={() => setOpenProfile(null)}>Fermer</button>
                   </div>
+
                 </>
               );
             })()}
