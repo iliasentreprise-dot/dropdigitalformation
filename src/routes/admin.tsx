@@ -545,10 +545,10 @@ function StudentModal({
         )}
 
         <div>
-          <div className="s-modal-prog-label">Progression — {pct}%</div>
+          <div className="s-modal-prog-label">Progression — {isAdminUser ? "⚡ 1000%" : `${pct}%`}</div>
           <div className="s-modal-prog-bg">
             {isAdminUser
-              ? <div className="fire-progress" style={{ borderRadius: 6 }} />
+              ? <div className="nitro-progress" style={{ borderRadius: 6, height: "100%", width: "100%" }} />
               : <div className="s-modal-prog-fill" style={{ width: `${pct}%` }} />
             }
           </div>
