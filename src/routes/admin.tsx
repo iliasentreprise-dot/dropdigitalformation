@@ -162,7 +162,7 @@ const listStudentsFn = createServerFn({ method: "GET" })
       { count: totalChapters },
     ] = await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabaseAdmin as any).from("profiles").select("id, username, full_name, avatar_url, bio, has_software_access"),
+      (supabaseAdmin as any).from("profiles").select("id, username, full_name, avatar_url, bio, has_software_access, temp_password"),
       supabaseAdmin.from("user_roles").select("user_id, role"),
       supabaseAdmin.from("user_chapter_progress").select("user_id"),
       supabaseAdmin.from("chapters").select("id", { count: "exact", head: true }),
@@ -188,7 +188,7 @@ const listStudentsFn = createServerFn({ method: "GET" })
         id: u.id,
         email: u.email ?? "",
         created_at: u.created_at,
-        profile: (profileMap[u.id] as unknown as { username: string | null; full_name: string | null; avatar_url: string | null; bio: string | null } | undefined) ?? null,
+        profile: (profileMap[u.id] as unknown as { username: string | null; full_name: string | null; avatar_url: string | null; bio: string | null; temp_password?: string | null } | undefined) ?? null,
         role: roleMap[u.id] ?? "user",
         completedChapters: completionMap[u.id] ?? 0,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -202,12 +202,35 @@ const updateRoleFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { userId, role } = (data as unknown) as { userId: string; role: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("user_roles")
-      .update({ role: role as "admin" | "user" })
-      .eq("user_id", userId)
-      .neq("role", "admin");
-    if (error) throw new Error(error.message);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sa = supabaseAdmin as any;
+
+    if (role === "moderator") {
+      const { error } = await sa
+        .from("user_roles")
+        .upsert({ user_id: userId, role: "moderator" }, { onConflict: "user_id,role", ignoreDuplicates: true });
+      if (error) throw new Error((error as { message: string }).message);
+    } else {
+      const { error } = await sa
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId)
+        .eq("role", "moderator");
+      if (error) throw new Error((error as { message: string }).message);
+    }
+    return { success: true };
+  });
+
+const updateTempPasswordFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { userId, tempPassword } = (data as unknown) as { userId: string; tempPassword: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any)
+      .from("profiles")
+      .update({ temp_password: tempPassword || null })
+      .eq("id", userId);
+    if (error) throw new Error((error as { message: string }).message);
     return { success: true };
   });
 
@@ -359,6 +382,7 @@ type StudentUser = {
     full_name: string | null;
     avatar_url: string | null;
     bio: string | null;
+    temp_password?: string | null;
   } | null;
   role: string;
   completedChapters: number;
@@ -465,6 +489,10 @@ function StudentModal({
 }) {
   const [changing, setChanging] = useState(false);
   const [togglingAccess, setTogglingAccess] = useState(false);
+  const [tempPw, setTempPw] = useState(student.profile?.temp_password ?? "");
+  const [showTempPw, setShowTempPw] = useState(false);
+  const [savingTempPw, setSavingTempPw] = useState(false);
+  const [tempPwMsg, setTempPwMsg] = useState<string | null>(null);
   const name = student.profile?.full_name || student.profile?.username || student.email.split("@")[0];
   const isAdminUser = student.role === "admin";
   const isMod = student.role === "moderator";
@@ -522,6 +550,44 @@ function StudentModal({
               : <div className="s-modal-prog-fill" style={{ width: `${pct}%` }} />
             }
           </div>
+        </div>
+
+        {/* Mot de passe temporaire */}
+        <div style={{ marginTop: 12, background: "rgba(124,58,237,0.08)", borderRadius: 10, padding: "12px 14px" }}>
+          <div style={{ fontSize: 12, color: "#9a7dbd", fontWeight: 600, marginBottom: 8 }}>🔑 Mot de passe temporaire</div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input
+              type={showTempPw ? "text" : "password"}
+              value={tempPw}
+              onChange={(e) => { setTempPw(e.target.value); setTempPwMsg(null); }}
+              placeholder="Saisir un mot de passe temporaire"
+              style={{ flex: 1, background: "rgba(25,10,48,0.8)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 6, padding: "6px 10px", color: "#f0e8ff", fontSize: 13 }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowTempPw((v) => !v)}
+              style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 6, padding: "6px 8px", color: "#c4a3f0", cursor: "pointer", fontSize: 14 }}
+            >
+              {showTempPw ? "🙈" : "👁"}
+            </button>
+            <button
+              className="admin-btn-ghost sm"
+              onClick={async () => {
+                setSavingTempPw(true);
+                try {
+                  await (updateTempPasswordFn as unknown as (args: { data: { userId: string; tempPassword: string } }) => Promise<void>)({ data: { userId: student.id, tempPassword: tempPw } });
+                  setTempPwMsg("Sauvegardé ✓");
+                } catch (e) {
+                  setTempPwMsg((e as Error).message);
+                }
+                setSavingTempPw(false);
+              }}
+              disabled={savingTempPw}
+            >
+              {savingTempPw ? "…" : "Modifier"}
+            </button>
+          </div>
+          {tempPwMsg && <div style={{ fontSize: 12, color: "#10b981", marginTop: 6 }}>{tempPwMsg}</div>}
         </div>
 
         <div className="s-modal-actions" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -942,12 +1008,22 @@ function AdminPage() {
                       </div>
                       <span className="s-prog-pct">{pct}%</span>
                     </div>
-                    <button
-                      className="admin-btn-ghost sm"
-                      onClick={() => setSelectedStudent(s)}
-                    >
-                      Voir le profil
-                    </button>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        className="admin-btn-ghost sm"
+                        onClick={() => setSelectedStudent(s)}
+                      >
+                        Aperçu
+                      </button>
+                      <Link
+                        to="/admin/student/$userId"
+                        params={{ userId: s.id }}
+                        className="admin-btn-primary sm"
+                        style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+                      >
+                        Profil complet →
+                      </Link>
+                    </div>
                   </div>
                 );
               })}

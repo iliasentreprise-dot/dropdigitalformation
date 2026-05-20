@@ -85,6 +85,15 @@ function HomePage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
+  // Password change
+  const [pwFormOpen, setPwFormOpen] = useState(false);
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwErr, setPwErr] = useState<string | null>(null);
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
+
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
   }, [user, loading, navigate]);
@@ -205,6 +214,35 @@ function HomePage() {
   const handleSignOut = async () => {
     await signOut();
     navigate({ to: "/login" });
+  };
+
+  const closePwForm = () => {
+    setPwFormOpen(false);
+    setCurrentPw("");
+    setNewPw("");
+    setConfirmPw("");
+    setPwErr(null);
+    setPwMsg(null);
+  };
+
+  const handlePasswordChange = async () => {
+    setPwErr(null);
+    setPwMsg(null);
+    if (!user?.email) return;
+    if (newPw !== confirmPw) { setPwErr("Les nouveaux mots de passe ne correspondent pas."); return; }
+    if (newPw.length < 6) { setPwErr("Le mot de passe doit faire au moins 6 caractères."); return; }
+    setPwSaving(true);
+    const { error: signInErr } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPw });
+    if (signInErr) { setPwErr("Mot de passe actuel incorrect."); setPwSaving(false); return; }
+    const { error: updateErr } = await supabase.auth.updateUser({ password: newPw });
+    if (updateErr) {
+      setPwErr(updateErr.message);
+    } else {
+      setPwMsg("Mot de passe mis à jour ✓");
+      setCurrentPw(""); setNewPw(""); setConfirmPw("");
+      setTimeout(closePwForm, 1500);
+    }
+    setPwSaving(false);
   };
 
   const handleTabClick = (k: TabKey) => {
@@ -604,12 +642,52 @@ function HomePage() {
                   </button>
                   <button
                     className="admin-btn-ghost"
-                    onClick={() => navigate({ to: "/forgot-password" })}
+                    onClick={() => { setPwFormOpen((o) => !o); setPwErr(null); setPwMsg(null); }}
                     style={{ textAlign: "left", padding: "14px 18px", fontSize: 14, display: "flex", alignItems: "center", gap: 12 }}
                   >
                     <span>🔐</span>
                     <span>Changer mon mot de passe</span>
                   </button>
+                  {pwFormOpen && (
+                    <div style={{ background: "rgba(25,10,48,0.85)", border: "1px solid rgba(168,85,247,0.25)", borderRadius: 12, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+                      <input
+                        className="profile-edit-input"
+                        type="password"
+                        placeholder="Mot de passe actuel"
+                        value={currentPw}
+                        onChange={(e) => setCurrentPw(e.target.value)}
+                        autoFocus
+                      />
+                      <input
+                        className="profile-edit-input"
+                        type="password"
+                        placeholder="Nouveau mot de passe"
+                        value={newPw}
+                        onChange={(e) => setNewPw(e.target.value)}
+                      />
+                      <input
+                        className="profile-edit-input"
+                        type="password"
+                        placeholder="Confirmer le nouveau mot de passe"
+                        value={confirmPw}
+                        onChange={(e) => setConfirmPw(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") void handlePasswordChange(); }}
+                      />
+                      {pwErr && <div style={{ color: "#ef4444", fontSize: 13, fontWeight: 600 }}>{pwErr}</div>}
+                      {pwMsg && <div style={{ color: "#10b981", fontSize: 13, fontWeight: 600 }}>{pwMsg}</div>}
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          className="admin-btn-primary"
+                          onClick={() => void handlePasswordChange()}
+                          disabled={pwSaving || !currentPw || !newPw || !confirmPw}
+                          style={{ flex: 1 }}
+                        >
+                          {pwSaving ? "…" : "Changer le mot de passe"}
+                        </button>
+                        <button className="admin-btn-ghost" onClick={closePwForm}>Annuler</button>
+                      </div>
+                    </div>
+                  )}
                   <button
                     className="admin-btn-danger"
                     onClick={handleSignOut}
