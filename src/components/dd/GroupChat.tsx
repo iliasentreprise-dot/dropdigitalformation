@@ -267,8 +267,9 @@ export function GroupChat({
                 <div className={`chat-msg-name ${nameClass}`}>
                   <span style={{ cursor: "pointer" }} onClick={() => setOpenProfile(msg.user_id)}>{name}</span>
                   {role === "admin" && <span className="chat-mini-badge admin">👑 Admin</span>}
-                  {role === "moderator" && <span className="chat-mini-badge mod">⚡ Modo</span>}
+                  {role === "moderator" && <span className="chat-mini-badge mod">Modo</span>}
                 </div>
+
 
                 {replied && (
                   <div className="msg-reply-quote">
