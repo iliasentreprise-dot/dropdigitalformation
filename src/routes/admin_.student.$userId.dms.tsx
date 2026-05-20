@@ -78,7 +78,7 @@ const getDmsFn = createServerFn({ method: "POST" })
     return { studentName, partners, messagesByPartner: map } as Payload;
   });
 
-export const Route = createFileRoute("/admin/student/$userId/dms")({
+export const Route = createFileRoute("/admin_/student/$userId/dms")({
   component: StudentDmsPage,
 });
 
