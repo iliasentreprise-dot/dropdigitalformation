@@ -229,6 +229,8 @@ function MessagesPage() {
         {messages.map((m) => {
           const own = m.sender_id === user.id;
           const isDeleted = !!m.deleted_at;
+          const senderName = own ? myName : name;
+          const senderRole = own ? myRole : otherRole;
           if (isDeleted && !isAdmin) {
             return (
               <div key={m.id} style={{ alignSelf: own ? "flex-end" : "flex-start", maxWidth: "75%", background: "rgba(75,75,75,0.3)", color: "#7a7a7a", fontStyle: "italic", padding: "8px 14px", borderRadius: 14, fontSize: 13 }}>
@@ -237,7 +239,11 @@ function MessagesPage() {
             );
           }
           return (
-            <div key={m.id} style={{ alignSelf: own ? "flex-end" : "flex-start", maxWidth: "75%" }}>
+            <div key={m.id} style={{ alignSelf: own ? "flex-end" : "flex-start", maxWidth: "75%", display: "flex", flexDirection: "column", alignItems: own ? "flex-end" : "flex-start" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3, paddingLeft: own ? 0 : 4, paddingRight: own ? 4 : 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#c4a3f0" }}>{senderName}</span>
+                {roleBadge(senderRole, "sm")}
+              </div>
               <div style={{
                 background: isDeleted
                   ? "rgba(220, 38, 38, 0.25)"
@@ -261,6 +267,11 @@ function MessagesPage() {
                 </span>
                 {!isDeleted && own && (
                   <button onClick={() => void softDelete(m.id)} title="Supprimer" style={{ background: "none", border: "none", color: "#6b4fa0", fontSize: 11, cursor: "pointer" }}>🗑</button>
+                )}
+                {isDeleted && isAdmin && (
+                  <button onClick={() => void restoreMessage(m.id)} title="Restaurer (rendre public)" style={{ background: "rgba(34,197,94,0.2)", border: "1px solid rgba(34,197,94,0.5)", color: "#86efac", fontSize: 11, padding: "2px 8px", borderRadius: 10, cursor: "pointer", fontWeight: 700 }}>
+                    ♻ Restaurer
+                  </button>
                 )}
               </div>
             </div>
