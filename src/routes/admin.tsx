@@ -554,43 +554,7 @@ function StudentModal({
           </div>
         </div>
 
-        {/* Mot de passe temporaire */}
-        <div style={{ marginTop: 12, background: "rgba(124,58,237,0.08)", borderRadius: 10, padding: "12px 14px" }}>
-          <div style={{ fontSize: 12, color: "#9a7dbd", fontWeight: 600, marginBottom: 8 }}>🔑 Mot de passe temporaire</div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input
-              type={showTempPw ? "text" : "password"}
-              value={tempPw}
-              onChange={(e) => { setTempPw(e.target.value); setTempPwMsg(null); }}
-              placeholder="Saisir un mot de passe temporaire"
-              style={{ flex: 1, background: "rgba(25,10,48,0.8)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 6, padding: "6px 10px", color: "#f0e8ff", fontSize: 13 }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowTempPw((v) => !v)}
-              style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 6, padding: "6px 8px", color: "#c4a3f0", cursor: "pointer", fontSize: 14 }}
-            >
-              {showTempPw ? "🙈" : "👁"}
-            </button>
-            <button
-              className="admin-btn-ghost sm"
-              onClick={async () => {
-                setSavingTempPw(true);
-                try {
-                  await (updateTempPasswordFn as unknown as (args: { data: { userId: string; tempPassword: string } }) => Promise<void>)({ data: { userId: student.id, tempPassword: tempPw } });
-                  setTempPwMsg("Sauvegardé ✓");
-                } catch (e) {
-                  setTempPwMsg((e as Error).message);
-                }
-                setSavingTempPw(false);
-              }}
-              disabled={savingTempPw}
-            >
-              {savingTempPw ? "…" : "Modifier"}
-            </button>
-          </div>
-          {tempPwMsg && <div style={{ fontSize: 12, color: "#10b981", marginTop: 6 }}>{tempPwMsg}</div>}
-        </div>
+        {/* Mot de passe temporaire déplacé dans Profil complet → Informations personnelles */}
 
         <div className="s-modal-actions" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <button
