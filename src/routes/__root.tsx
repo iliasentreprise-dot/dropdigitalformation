@@ -1,7 +1,7 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider, THEME_PRE_PAINT_SCRIPT } from "@/lib/theme-context";
-import { GlobalProgressBar } from "@/components/dd/GlobalProgressBar";
+
 
 import appCss from "../styles.css?url";
 
