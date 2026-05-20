@@ -163,6 +163,30 @@ export type Database = {
           },
         ]
       }
+      group_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          user_id: string
+          visible: boolean
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          user_id: string
+          visible?: boolean
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+          visible?: boolean
+        }
+        Relationships: []
+      }
       module_completions: {
         Row: {
           completed_at: string
@@ -257,34 +281,49 @@ export type Database = {
       }
       profiles: {
         Row: {
+          admin_notes: string | null
           avatar_url: string | null
           bio: string | null
           created_at: string
+          followers_count: number
+          following_count: number
           full_name: string | null
+          has_software_access: boolean
           id: string
           show_progression: boolean
+          temp_password: string | null
           updated_at: string
           username: string | null
           username_changed: boolean
         }
         Insert: {
+          admin_notes?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          followers_count?: number
+          following_count?: number
           full_name?: string | null
+          has_software_access?: boolean
           id: string
           show_progression?: boolean
+          temp_password?: string | null
           updated_at?: string
           username?: string | null
           username_changed?: boolean
         }
         Update: {
+          admin_notes?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          followers_count?: number
+          following_count?: number
           full_name?: string | null
+          has_software_access?: boolean
           id?: string
           show_progression?: boolean
+          temp_password?: string | null
           updated_at?: string
           username?: string | null
           username_changed?: boolean
@@ -376,7 +415,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "moderator"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -504,7 +543,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "moderator"],
     },
   },
 } as const
