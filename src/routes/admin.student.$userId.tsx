@@ -431,10 +431,53 @@ function StudentProfilePage() {
           </div>
 
           {/* Bio */}
-          {profile?.bio && (
+          {!editingProfile && profile?.bio && (
             <p style={{ color: "#c4a3f0", fontSize: 14, lineHeight: 1.6, margin: "0", maxWidth: 440 }}>{profile.bio}</p>
           )}
+
+          {/* Admin edit profile */}
+          {editingProfile ? (
+            <div style={{ width: "100%", maxWidth: 440, display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+              <input
+                className="profile-edit-input"
+                placeholder="Pseudo (@username)"
+                value={usernameDraft}
+                onChange={(e) => setUsernameDraft(e.target.value)}
+              />
+              <textarea
+                placeholder="Bio"
+                value={bioDraft}
+                onChange={(e) => setBioDraft(e.target.value)}
+                rows={3}
+                style={{ width: "100%", background: "rgba(15,9,32,0.8)", border: "1px solid rgba(168,85,247,0.25)", borderRadius: 8, padding: "10px 12px", color: "#f0e8ff", fontSize: 13, resize: "vertical", fontFamily: "inherit", boxSizing: "border-box", outline: "none" }}
+              />
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <button className="admin-btn-primary sm" disabled={profileSaving} onClick={() => void handleSaveProfile()}>{profileSaving ? "…" : "✓ Enregistrer"}</button>
+                <button className="admin-btn-ghost sm" onClick={() => setEditingProfile(false)}>Annuler</button>
+              </div>
+            </div>
+          ) : (
+            <button
+              className="admin-btn-ghost sm"
+              onClick={() => { setUsernameDraft(profile?.username ?? ""); setBioDraft(profile?.bio ?? ""); setEditingProfile(true); }}
+              style={{ marginTop: 4 }}
+            >
+              ✏️ Modifier pseudo & bio
+            </button>
+          )}
+
+          {/* Quick links */}
+          <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap", justifyContent: "center" }}>
+            <Link to="/profil/$userId" params={{ userId }} className="admin-btn-ghost sm" style={{ textDecoration: "none" }}>
+              👁 Vue publique
+            </Link>
+            <Link to="/admin/student/$userId/dms" params={{ userId }} className="admin-btn-ghost sm" style={{ textDecoration: "none" }}>
+              💬 Messages privés
+            </Link>
+          </div>
         </div>
+
+
 
         {/* ── Section 3 : Progression ── */}
         <div style={card}>
