@@ -116,15 +116,15 @@ function ProfilPage() {
           </div>
 
           <div style={{ display: "flex", justifyContent: "center", gap: 36, margin: "20px 0 24px" }}>
-            <div>
+            <button onClick={() => void openList("followers")} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0, textAlign: "center" }}>
               <div style={{ fontSize: 22, fontWeight: 800 }}>{profile.followers_count ?? 0}</div>
               <div style={{ fontSize: 12, color: "#9a7dbd", textTransform: "uppercase", letterSpacing: 0.5 }}>Abonnés</div>
-            </div>
+            </button>
             <div style={{ width: 1, background: "rgba(168,85,247,0.2)" }} />
-            <div>
+            <button onClick={() => void openList("following")} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0, textAlign: "center" }}>
               <div style={{ fontSize: 22, fontWeight: 800 }}>{profile.following_count ?? 0}</div>
               <div style={{ fontSize: 12, color: "#9a7dbd", textTransform: "uppercase", letterSpacing: 0.5 }}>Abonnements</div>
-            </div>
+            </button>
           </div>
 
           {profile.bio && (
