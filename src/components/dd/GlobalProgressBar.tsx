@@ -5,13 +5,25 @@ import { useAuth } from "@/lib/auth-context";
 export function GlobalProgressBar() {
   const { user } = useAuth();
   const [pct, setPct] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!user) {
       setPct(0);
+      setIsAdmin(false);
       return;
     }
     let alive = true;
+
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (alive) setIsAdmin(!!data);
+      });
 
     const refresh = async () => {
       const [{ count: totalCh }, { count: doneCh }] = await Promise.all([
@@ -43,20 +55,42 @@ export function GlobalProgressBar() {
         top: 0,
         left: 0,
         right: 0,
-        height: 3,
+        height: isAdmin ? 5 : 3,
         background: "rgba(0,0,0,0.15)",
         zIndex: 1000,
         pointerEvents: "none",
+        overflow: "hidden",
       }}
     >
-      <div
-        style={{
-          height: "100%",
-          width: `${pct}%`,
-          background: "linear-gradient(90deg, #7c3aed, #a855f7)",
-          transition: "width 0.5s ease",
-        }}
-      />
+      {isAdmin ? (
+        <div className="nitro-progress" style={{ height: "100%", width: "100%", position: "relative" }}>
+          <span
+            style={{
+              position: "absolute",
+              top: "50%",
+              right: 12,
+              transform: "translateY(-50%)",
+              color: "#fff",
+              fontWeight: 900,
+              fontSize: 10,
+              textShadow: "0 0 6px #ff0, 0 0 12px #f60",
+              letterSpacing: 1,
+              pointerEvents: "none",
+            }}
+          >
+            ⚡ 1000% ⚡
+          </span>
+        </div>
+      ) : (
+        <div
+          style={{
+            height: "100%",
+            width: `${pct}%`,
+            background: "linear-gradient(90deg, #7c3aed, #a855f7)",
+            transition: "width 0.5s ease",
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -38,6 +38,8 @@ type UserProfile = {
   avatar_url: string | null;
   bio: string | null;
   has_software_access: boolean;
+  followers_count: number;
+  following_count: number;
 };
 
 type TabKey = "modules" | "groupe" | "coaching" | "resultats" | "profil" | "parametres";
@@ -134,7 +136,7 @@ function HomePage() {
         supabase.from("chapters").select("id, module_id"),
         supabase.from("user_chapter_progress").select("chapter_id, completed_at").eq("user_id", user.id),
         supabase.from("user_roles").select("role").eq("user_id", user.id),
-        supabase.from("profiles").select("username, full_name, avatar_url, bio, has_software_access").eq("id", user.id).maybeSingle(),
+        supabase.from("profiles").select("username, full_name, avatar_url, bio, has_software_access, followers_count, following_count").eq("id", user.id).maybeSingle(),
       ]);
 
       setModules(mods ?? []);
@@ -597,10 +599,17 @@ function HomePage() {
                   )}
                 </div>
 
-                {/* Email */}
-                <div className="profile-field-row">
-                  <div className="profile-field-label">Email</div>
-                  <div className="profile-field-value">{user.email}</div>
+                {/* Followers / Following */}
+                <div style={{ display: "flex", justifyContent: "center", gap: 28, marginBottom: 24 }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#e2d4f8" }}>{profile?.followers_count ?? 0}</div>
+                    <div style={{ fontSize: 11, color: "#9a7dbd", textTransform: "uppercase", letterSpacing: 0.5 }}>Abonnés</div>
+                  </div>
+                  <div style={{ width: 1, background: "rgba(168,85,247,0.2)" }} />
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#e2d4f8" }}>{profile?.following_count ?? 0}</div>
+                    <div style={{ fontSize: 11, color: "#9a7dbd", textTransform: "uppercase", letterSpacing: 0.5 }}>Abonnements</div>
+                  </div>
                 </div>
 
                 {/* Username */}
@@ -643,13 +652,15 @@ function HomePage() {
                 <div className="profile-field-row" style={{ flexDirection: "column", gap: 10, alignItems: "stretch" }}>
                   <div className="profile-field-label">Progression globale</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ flex: 1, height: 10, background: "rgba(168,85,247,0.12)", borderRadius: 6, overflow: "hidden" }}>
+                    <div style={{ flex: 1, height: 14, background: "rgba(168,85,247,0.12)", borderRadius: 8, overflow: "hidden" }}>
                       {isAdmin
-                        ? <div className="fire-progress" style={{ borderRadius: 6 }} />
-                        : <div style={{ height: "100%", width: `${globalPct}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 6, transition: "width 0.4s" }} />
+                        ? <div className="nitro-progress" style={{ borderRadius: 8, height: "100%", width: "100%" }} />
+                        : <div style={{ height: "100%", width: `${globalPct}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 8, transition: "width 0.4s" }} />
                       }
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#9a7dbd" }}>{isAdmin ? 100 : globalPct}%</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: isAdmin ? "#ff6a00" : "#9a7dbd", textShadow: isAdmin ? "0 0 6px rgba(255,106,0,0.6)" : undefined }}>
+                      {isAdmin ? "⚡ 1000%" : `${globalPct}%`}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -673,18 +684,24 @@ function HomePage() {
                     onClick={() => { setPwFormOpen((o) => !o); setPwErr(null); setPwMsg(null); }}
                     style={{ textAlign: "left", padding: "14px 18px", fontSize: 14, display: "flex", alignItems: "center", gap: 12 }}
                   >
-                    <span>🔐</span>
-                    <span>Changer mon mot de passe</span>
+                    <span>👤</span>
+                    <span>Informations personnelles</span>
+                    <span style={{ marginLeft: "auto", opacity: 0.6 }}>{pwFormOpen ? "▲" : "▼"}</span>
                   </button>
                   {pwFormOpen && (
-                    <div style={{ background: "rgba(25,10,48,0.85)", border: "1px solid rgba(168,85,247,0.25)", borderRadius: 12, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div style={{ background: "rgba(25,10,48,0.85)", border: "1px solid rgba(168,85,247,0.25)", borderRadius: 12, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: "#9a7dbd", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Email</div>
+                        <div style={{ fontSize: 14, color: "#e2d4f8", padding: "8px 12px", background: "rgba(15,5,30,0.6)", borderRadius: 8, border: "1px solid rgba(168,85,247,0.15)" }}>{user.email}</div>
+                      </div>
+                      <div style={{ height: 1, background: "rgba(168,85,247,0.15)", margin: "4px 0" }} />
+                      <div style={{ fontSize: 11, color: "#9a7dbd", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Changer mon mot de passe</div>
                       <input
                         className="profile-edit-input"
                         type="password"
                         placeholder="Mot de passe actuel"
                         value={currentPw}
                         onChange={(e) => setCurrentPw(e.target.value)}
-                        autoFocus
                       />
                       <input
                         className="profile-edit-input"
@@ -712,7 +729,6 @@ function HomePage() {
                         >
                           {pwSaving ? "…" : "Changer le mot de passe"}
                         </button>
-                        <button className="admin-btn-ghost" onClick={closePwForm}>Annuler</button>
                       </div>
                     </div>
                   )}

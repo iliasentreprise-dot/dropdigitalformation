@@ -1330,6 +1330,148 @@
   width: 100%;
 }
 
+/* ── Nitro / boost progress (admin) ── */
+@keyframes nitroSlide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes nitroPulse {
+  0%,100% { box-shadow: 0 0 12px rgba(255,80,0,0.7), 0 0 24px rgba(255,200,0,0.5) inset; }
+  50%     { box-shadow: 0 0 24px rgba(255,80,0,1),   0 0 36px rgba(255,255,0,0.8) inset; }
+}
+.nitro-progress {
+  background:
+    repeating-linear-gradient(115deg,
+      rgba(255,255,255,0.25) 0 8px,
+      transparent 8px 18px),
+    linear-gradient(90deg, #ff0040, #ff6a00, #ffd200, #ff6a00, #ff0040);
+  background-size: 60px 100%, 200% 100%;
+  animation: nitroSlide 1.2s linear infinite, nitroPulse 1.5s ease-in-out infinite;
+}
+
+/* ── Group chat reactions / reply ── */
+.msg-reply-quote {
+  border-left: 3px solid #a855f7;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  background: rgba(168,85,247,0.12);
+  border-radius: 6px;
+  font-size: 12px;
+  color: #c4a3f0;
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.msg-reply-quote .rq-name { font-weight: 700; color: #e2d4f8; margin-right: 6px; }
+
+.msg-actions {
+  display: flex; gap: 4px; margin-top: 2px;
+  opacity: 0; transition: opacity 0.15s;
+}
+.chat-bubble-wrap:hover .msg-actions { opacity: 1; }
+.msg-action-btn {
+  background: rgba(25,10,48,0.7);
+  border: 1px solid rgba(168,85,247,0.25);
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: #c4a3f0;
+  cursor: pointer;
+}
+.msg-action-btn:hover { background: rgba(168,85,247,0.25); color: #fff; }
+
+.reactions-row {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;
+}
+.reaction-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: rgba(168,85,247,0.18);
+  border: 1px solid rgba(168,85,247,0.3);
+  border-radius: 12px;
+  padding: 1px 7px;
+  font-size: 12px;
+  color: #e2d4f8;
+  cursor: pointer;
+  user-select: none;
+}
+.reaction-chip.mine { background: rgba(168,85,247,0.45); border-color: #a855f7; }
+.reaction-chip:hover { background: rgba(168,85,247,0.35); }
+
+.reaction-picker {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  background: rgba(20, 8, 40, 0.97);
+  border: 1px solid rgba(168,85,247,0.35);
+  border-radius: 22px;
+  padding: 6px 8px;
+  display: flex; gap: 4px;
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.reaction-picker button {
+  background: none; border: none; cursor: pointer;
+  font-size: 20px; padding: 4px 6px; border-radius: 50%;
+  transition: transform 0.12s, background 0.12s;
+}
+.reaction-picker button:hover { transform: scale(1.3); background: rgba(168,85,247,0.2); }
+
+.chat-bubble-wrap { position: relative; }
+
+.chat-msg-name {
+  font-size: 11px; font-weight: 700; margin-bottom: 2px;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.chat-msg-name-admin {
+  background: linear-gradient(135deg,#FFD700,#FFAA00);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+}
+.chat-msg-name-mod { color: #fca5a5; text-shadow: 0 0 4px rgba(239,68,68,0.4); }
+.chat-msg-name-user { color: #c4a3f0; }
+.chat-mini-badge {
+  font-size: 9px; font-weight: 800;
+  padding: 1px 6px; border-radius: 8px;
+  letter-spacing: 0.3px;
+}
+.chat-mini-badge.admin {
+  background: linear-gradient(135deg, #FFD700, #FFAA00);
+  color: #1a0800;
+  animation: adminGlow 2s ease-in-out infinite;
+}
+.chat-mini-badge.mod {
+  background: linear-gradient(135deg, #7f1d1d, #991b1b);
+  color: #fca5a5;
+  border: 1px solid #ef4444;
+}
+
+.chat-avatar { cursor: pointer; }
+.chat-avatar:hover { box-shadow: 0 0 0 2px #a855f7; }
+
+/* mini profile popover */
+.mini-profile-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2000; padding: 20px;
+}
+.mini-profile-card {
+  background: linear-gradient(180deg, #1a0a35, #0f0520);
+  border: 1px solid rgba(168,85,247,0.3);
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%; max-width: 340px;
+  text-align: center;
+  color: #f0e8ff;
+}
+.mini-profile-card img {
+  width: 88px; height: 88px; border-radius: 50%;
+  object-fit: cover; margin: 0 auto 12px;
+}
+.mini-profile-card .mpc-actions {
+  display: flex; gap: 8px; margin-top: 16px; justify-content: center;
+}
+
 @media (max-width: 640px) {
   .dd-root .modules-grid { grid-template-columns: 1fr !important; gap: 14px; }
   .dd-root .bonus-ultime-grid { grid-template-columns: 1fr; }

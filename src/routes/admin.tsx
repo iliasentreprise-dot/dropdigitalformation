@@ -200,22 +200,23 @@ const listStudentsFn = createServerFn({ method: "GET" })
 
 const updateRoleFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
-    const { userId, role } = (data as unknown) as { userId: string; role: string };
+    const { userId, role } = (data as unknown) as { userId: string; role: "admin" | "moderator" | "user" };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sa = supabaseAdmin as any;
 
-    if (role === "moderator") {
+    // Remove any non-target roles for this user, then add the target role (if not "user")
+    const { error: delErr } = await sa
+      .from("user_roles")
+      .delete()
+      .eq("user_id", userId)
+      .in("role", ["admin", "moderator"]);
+    if (delErr) throw new Error((delErr as { message: string }).message);
+
+    if (role === "admin" || role === "moderator") {
       const { error } = await sa
         .from("user_roles")
-        .upsert({ user_id: userId, role: "moderator" }, { onConflict: "user_id,role", ignoreDuplicates: true });
-      if (error) throw new Error((error as { message: string }).message);
-    } else {
-      const { error } = await sa
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId)
-        .eq("role", "moderator");
+        .upsert({ user_id: userId, role }, { onConflict: "user_id,role", ignoreDuplicates: true });
       if (error) throw new Error((error as { message: string }).message);
     }
     return { success: true };
@@ -502,8 +503,7 @@ function StudentModal({
     ? Math.round((student.completedChapters / totalChapters) * 100)
     : 0;
 
-  const handleRoleChange = async () => {
-    const newRole = isMod ? "user" : "moderator";
+  const handleSetRole = async (newRole: "admin" | "moderator" | "user") => {
     setChanging(true);
     await onRoleChange(student.id, newRole);
     setChanging(false);
@@ -545,10 +545,10 @@ function StudentModal({
         )}
 
         <div>
-          <div className="s-modal-prog-label">Progression — {pct}%</div>
+          <div className="s-modal-prog-label">Progression — {isAdminUser ? "⚡ 1000%" : `${pct}%`}</div>
           <div className="s-modal-prog-bg">
             {isAdminUser
-              ? <div className="fire-progress" style={{ borderRadius: 6 }} />
+              ? <div className="nitro-progress" style={{ borderRadius: 6, height: "100%", width: "100%" }} />
               : <div className="s-modal-prog-fill" style={{ width: `${pct}%` }} />
             }
           </div>
@@ -602,8 +602,18 @@ function StudentModal({
             {togglingAccess ? "…" : student.has_software_access ? "🔒 Révoquer logiciel" : "⚡ Donner accès logiciel"}
           </button>
           {!isAdminUser && (
-            <button className="admin-btn-ghost" onClick={handleRoleChange} disabled={changing} style={{ width: "100%" }}>
-              {changing ? "…" : isMod ? "↩ Repasser élève" : "⬆ Passer modérateur"}
+            <>
+              <button className="admin-btn-ghost" onClick={() => void handleSetRole(isMod ? "user" : "moderator")} disabled={changing} style={{ width: "100%" }}>
+                {changing ? "…" : isMod ? "↩ Rétrograder modérateur → élève" : "⬆ Passer modérateur"}
+              </button>
+              <button className="admin-btn-primary" onClick={() => void handleSetRole("admin")} disabled={changing} style={{ width: "100%", background: "linear-gradient(135deg, #FFD700, #FFAA00)", color: "#1a0800", fontWeight: 800 }}>
+                {changing ? "…" : "👑 Promouvoir admin"}
+              </button>
+            </>
+          )}
+          {isAdminUser && (
+            <button className="admin-btn-danger" onClick={() => void handleSetRole("user")} disabled={changing} style={{ width: "100%" }}>
+              {changing ? "…" : "↩ Rétrograder admin → élève"}
             </button>
           )}
         </div>
