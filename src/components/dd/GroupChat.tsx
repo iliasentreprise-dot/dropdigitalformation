@@ -287,7 +287,32 @@ export function GroupChat({
                   </div>
                 )}
 
-                <div className={`chat-bubble${isOwn ? " own" : ""}`}>{msg.content}</div>
+                {msg.deleted_at ? (
+                  isAdmin ? (
+                    <div
+                      className={`chat-bubble${isOwn ? " own" : ""}`}
+                      style={{
+                        background: "rgba(220,38,38,0.22)",
+                        border: "1px solid rgba(239,68,68,0.55)",
+                        color: "#fecaca",
+                      }}
+                    >
+                      {msg.content}
+                      <div style={{ fontSize: 11, marginTop: 6, color: "#fca5a5", fontStyle: "italic" }}>
+                        (message supprimé à {new Date(msg.deleted_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })})
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className={`chat-bubble${isOwn ? " own" : ""}`}
+                      style={{ background: "rgba(75,75,75,0.3)", color: "#7a7a7a", fontStyle: "italic" }}
+                    >
+                      Message supprimé
+                    </div>
+                  )
+                ) : (
+                  <div className={`chat-bubble${isOwn ? " own" : ""}`}>{msg.content}</div>
+                )}
 
                 {Object.keys(grouped).length > 0 && (
                   <div className="reactions-row">
