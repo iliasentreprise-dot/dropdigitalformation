@@ -6,6 +6,7 @@ import { useTheme } from "@/lib/theme-context";
 import logo from "@/assets/logo.png";
 import { GroupChat } from "@/components/dd/GroupChat";
 import { ResultsWall } from "@/components/dd/ResultsWall";
+import { toast } from "sonner";
 import "../styles/dropdigital.css";
 
 export const Route = createFileRoute("/")({
@@ -265,15 +266,33 @@ function HomePage() {
   const uploadAvatar = async (file: File) => {
     if (!user) return;
     setAvatarUploading(true);
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `${user.id}/avatar.${ext}`;
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (!error) {
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `${user.id}/avatar.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true, contentType: file.type || undefined, cacheControl: "3600" });
+      if (uploadError) {
+        toast.error("Échec de l'envoi de la photo : " + uploadError.message);
+        return;
+      }
       const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-      await supabase.from("profiles").update({ avatar_url: data.publicUrl }).eq("id", user.id);
-      setProfile((prev) => (prev ? { ...prev, avatar_url: data.publicUrl } : null));
+      const cacheBustedUrl = `${data.publicUrl}?v=${Date.now()}`;
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: cacheBustedUrl })
+        .eq("id", user.id);
+      if (updateError) {
+        toast.error("Échec de la sauvegarde : " + updateError.message);
+        return;
+      }
+      setProfile((prev) => (prev ? { ...prev, avatar_url: cacheBustedUrl } : null));
+      toast.success("Photo de profil mise à jour");
+    } catch (e: any) {
+      toast.error("Erreur : " + (e?.message ?? "inconnue"));
+    } finally {
+      setAvatarUploading(false);
     }
-    setAvatarUploading(false);
   };
 
   const displayName = profile?.full_name || profile?.username || user.email?.split("@")[0] || "Élève";
