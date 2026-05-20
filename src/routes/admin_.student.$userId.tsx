@@ -152,7 +152,7 @@ const setRoleFn = createServerFn({ method: "POST" })
 
 // ── Route ────────────────────────────────────────────────────────────────────
 
-export const Route = createFileRoute("/admin/student/$userId")({
+export const Route = createFileRoute("/admin_/student/$userId")({
   component: StudentProfilePage,
 });
 
