@@ -421,61 +421,6 @@ export function GroupChat({
         </button>
       </div>
 
-      {openProfile && (
-        <div className="mini-profile-backdrop" onClick={() => setOpenProfile(null)}>
-          <div className="mini-profile-card" onClick={(e) => e.stopPropagation()}>
-            {(() => {
-              const p = openProfile === userId
-                ? { id: userId, username, full_name: null, avatar_url: avatarUrl, bio: null }
-                : profiles[openProfile];
-              const role = roleOf(openProfile);
-              const name = p?.full_name || p?.username || "Élève";
-              return (
-                <>
-                  {p?.avatar_url ? (
-                    <img src={p.avatar_url} alt={name} />
-                  ) : (
-                    <div style={{ width: 88, height: 88, borderRadius: "50%", margin: "0 auto 12px", background: "rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, color: "#c4a3f0" }}>
-                      {name[0]?.toUpperCase()}
-                    </div>
-                  )}
-                  <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{name}</div>
-                  <div style={{ marginBottom: 10 }}>
-                    {role === "admin" && <span className="chat-mini-badge admin">👑 Admin</span>}
-                    {role === "moderator" && <span className="chat-mini-badge mod">Modérateur</span>}
-                    {role === "user" && <span style={{ fontSize: 11, color: "#9ca3af" }}>Élève</span>}
-                  </div>
-                  {p?.bio && <div style={{ fontSize: 13, color: "#c4a3f0", marginBottom: 12 }}>{p.bio}</div>}
-                  <div className="mpc-actions">
-                    {openProfile !== userId && (
-                      <>
-                        <Link
-                          to="/messages/$userId"
-                          params={{ userId: openProfile! }}
-                          className="admin-btn-primary sm"
-                          style={{ textDecoration: "none", display: "inline-block" }}
-                        >
-                          💬 Message privé
-                        </Link>
-                        <Link
-                          to="/profil/$userId"
-                          params={{ userId: openProfile! }}
-                          className="admin-btn-ghost sm"
-                          style={{ textDecoration: "none", display: "inline-block" }}
-                        >
-                          Profil complet
-                        </Link>
-                      </>
-                    )}
-                    <button className="admin-btn-ghost sm" onClick={() => setOpenProfile(null)}>Fermer</button>
-                  </div>
-
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
