@@ -38,6 +38,8 @@ type UserProfile = {
   avatar_url: string | null;
   bio: string | null;
   has_software_access: boolean;
+  followers_count: number;
+  following_count: number;
 };
 
 type TabKey = "modules" | "groupe" | "coaching" | "resultats" | "profil" | "parametres";
