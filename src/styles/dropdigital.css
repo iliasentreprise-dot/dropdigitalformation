@@ -1442,10 +1442,32 @@
   animation: adminGlow 2s ease-in-out infinite;
 }
 .chat-mini-badge.mod {
-  background: linear-gradient(135deg, #7f1d1d, #991b1b);
-  color: #fca5a5;
+  position: relative;
+  background: linear-gradient(135deg, #450a0a, #7f1d1d, #b91c1c);
+  color: #fff;
   border: 1px solid #ef4444;
+  text-shadow: 0 0 4px #ff0000, 0 0 8px #ff4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6), 0 0 14px rgba(239, 68, 68, 0.4);
+  overflow: hidden;
+  animation: modRedPulse 1.6s ease-in-out infinite;
 }
+.chat-mini-badge.mod::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 80, 80, 0.85) 50%, transparent 70%);
+  animation: modRedLightning 2.2s linear infinite;
+  pointer-events: none;
+}
+@keyframes modRedPulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.6), 0 0 14px rgba(239, 68, 68, 0.4); }
+  50%      { box-shadow: 0 0 14px rgba(239, 68, 68, 1),   0 0 28px rgba(255, 0, 0, 0.7); }
+}
+@keyframes modRedLightning {
+  0%   { transform: translateX(-120%) skewX(-25deg); }
+  100% { transform: translateX(220%)  skewX(-25deg); }
+}
+
 
 .chat-avatar { cursor: pointer; }
 .chat-avatar:hover { box-shadow: 0 0 0 2px #a855f7; }
