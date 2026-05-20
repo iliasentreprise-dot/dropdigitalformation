@@ -136,7 +136,7 @@ function HomePage() {
         supabase.from("chapters").select("id, module_id"),
         supabase.from("user_chapter_progress").select("chapter_id, completed_at").eq("user_id", user.id),
         supabase.from("user_roles").select("role").eq("user_id", user.id),
-        supabase.from("profiles").select("username, full_name, avatar_url, bio, has_software_access").eq("id", user.id).maybeSingle(),
+        supabase.from("profiles").select("username, full_name, avatar_url, bio, has_software_access, followers_count, following_count").eq("id", user.id).maybeSingle(),
       ]);
 
       setModules(mods ?? []);
