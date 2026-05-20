@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import "../styles/admin.css";
+import "../styles/dropdigital.css";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
