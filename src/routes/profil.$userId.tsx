@@ -209,7 +209,8 @@ function ProfilPage() {
           </div>
 
           {(() => {
-            const isOnline = !!(presence?.is_online && presence.last_seen && (Date.now() - new Date(presence.last_seen).getTime()) < 2 * 60 * 1000);
+            const isSelf = user?.id === userId;
+            const isOnline = isSelf || !!(presence?.is_online && presence.last_seen && (Date.now() - new Date(presence.last_seen).getTime()) < 2 * 60 * 1000);
             const fmtLastSeen = (iso: string) => {
               const d = new Date(iso);
               const diffMs = Date.now() - d.getTime();

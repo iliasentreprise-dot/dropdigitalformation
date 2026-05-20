@@ -297,7 +297,7 @@ export function GroupChat({
         .select("user_id")
         .eq("is_online", true)
         .gte("last_seen", new Date(Date.now() - 2 * 60 * 1000).toISOString());
-      setOnlineCount(data?.length ?? 0);
+      setOnlineCount(Math.max(1, data?.length ?? 1));
     };
     void fetchOnline();
     const ch = supabase
@@ -308,7 +308,7 @@ export function GroupChat({
           .select("user_id")
           .eq("is_online", true)
           .gte("last_seen", new Date(Date.now() - 120000).toISOString());
-        setOnlineCount(data?.length ?? 0);
+        setOnlineCount(Math.max(1, data?.length ?? 1));
       })
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
@@ -332,14 +332,12 @@ export function GroupChat({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 220px)", minHeight: 380 }}>
-      {onlineCount > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", background: "rgba(16,185,129,0.07)", borderBottom: "1px solid rgba(16,185,129,0.15)", flexShrink: 0 }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 6px #10b981", display: "inline-block", animation: "onlinePulse 2s ease-in-out infinite" }} />
-          <span style={{ fontSize: 12, color: "#10b981", fontWeight: 700 }}>
-            {onlineCount} personne{onlineCount !== 1 ? "s" : ""} en ligne
-          </span>
-        </div>
-      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderBottom: "1px solid rgba(168,85,247,0.15)", flexShrink: 0 }}>
+        <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 8px #22c55e, 0 0 16px #22c55e", display: "inline-block", animation: "presencePulse 1s ease-in-out infinite", flexShrink: 0 }} />
+        <span style={{ fontSize: 13, color: "#9a7dbd" }}>
+          {onlineCount} personne{onlineCount !== 1 ? "s" : ""} en ligne
+        </span>
+      </div>
       <div className="chat-messages">
         {messages.length === 0 && (
           <div style={{ textAlign: "center", color: "#6b4fa0", paddingTop: 60, fontSize: 14 }}>

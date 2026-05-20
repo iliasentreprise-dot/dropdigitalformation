@@ -42,34 +42,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user?.id) return;
     const uid = user.id;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sa = supabase as any;
-    const goOnline = () => {
-      console.log("[presence] heartbeat uid=", uid);
-      return sa.from("user_presence").upsert(
-        { user_id: uid, last_seen: new Date().toISOString(), is_online: true },
-        { onConflict: "user_id" }
-      );
-    };
-    const goOffline = () =>
-      sa.from("user_presence").update({ is_online: false }).eq("user_id", uid);
 
-    void goOnline();
-    const interval = window.setInterval(() => void goOnline(), 30000);
+    const updatePresence = async () => {
+      try {
+        await supabase.from("user_presence").upsert(
+          { user_id: uid, last_seen: new Date().toISOString(), is_online: true },
+          { onConflict: "user_id" }
+        );
+        console.log("[presence] heartbeat ok", uid);
+      } catch (e) {
+        console.error("[presence] heartbeat error", e);
+      }
+    };
+
+    void updatePresence();
+    const interval = setInterval(() => void updatePresence(), 20000);
+
+    const onBeforeUnload = () => {
+      supabase.from("user_presence").update({ is_online: false }).eq("user_id", uid);
+    };
 
     const onVisibility = () => {
-      if (document.hidden) void goOffline();
-      else void goOnline();
+      if (document.hidden) {
+        supabase.from("user_presence").update({ is_online: false, last_seen: new Date().toISOString() }).eq("user_id", uid);
+      } else {
+        void updatePresence();
+      }
     };
-    const onUnload = () => void goOffline();
+
+    window.addEventListener("beforeunload", onBeforeUnload);
     document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("beforeunload", onUnload);
 
     return () => {
       clearInterval(interval);
+      window.removeEventListener("beforeunload", onBeforeUnload);
       document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("beforeunload", onUnload);
-      void goOffline();
     };
   }, [user?.id]);
 

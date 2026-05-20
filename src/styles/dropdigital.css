@@ -1587,3 +1587,8 @@ div[data-lovable],
   0%, 100% { color: #f87171; text-shadow: none; }
   50% { color: #fca5a5; text-shadow: 0 0 8px rgba(239,68,68,0.6); }
 }
+
+@keyframes presencePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
