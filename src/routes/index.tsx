@@ -652,17 +652,100 @@ function HomePage() {
                 <div className="profile-field-row" style={{ flexDirection: "column", gap: 10, alignItems: "stretch" }}>
                   <div className="profile-field-label">Progression globale</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ flex: 1, height: 10, background: "rgba(168,85,247,0.12)", borderRadius: 6, overflow: "hidden" }}>
+                    <div style={{ flex: 1, height: 14, background: "rgba(168,85,247,0.12)", borderRadius: 8, overflow: "hidden" }}>
                       {isAdmin
-                        ? <div className="fire-progress" style={{ borderRadius: 6 }} />
-                        : <div style={{ height: "100%", width: `${globalPct}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 6, transition: "width 0.4s" }} />
+                        ? <div className="nitro-progress" style={{ borderRadius: 8, height: "100%", width: "100%" }} />
+                        : <div style={{ height: "100%", width: `${globalPct}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 8, transition: "width 0.4s" }} />
                       }
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#9a7dbd" }}>{isAdmin ? 100 : globalPct}%</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: isAdmin ? "#ff6a00" : "#9a7dbd", textShadow: isAdmin ? "0 0 6px rgba(255,106,0,0.6)" : undefined }}>
+                      {isAdmin ? "⚡ 1000%" : `${globalPct}%`}
+                    </span>
                   </div>
                 </div>
               </div>
             )}
+
+            {/* ── PARAMÈTRES ── */}
+            {tab === "parametres" && (
+              <div style={{ maxWidth: 420, margin: "0 auto" }}>
+                <div className="section-header"><h1>⚙️ Paramètres</h1></div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <button
+                    className="admin-btn-ghost"
+                    onClick={toggle}
+                    style={{ textAlign: "left", padding: "14px 18px", fontSize: 14, display: "flex", alignItems: "center", gap: 12 }}
+                  >
+                    <span>{theme === "dark" ? "🌙" : "☀️"}</span>
+                    <span>Thème : <strong>{theme === "dark" ? "Sombre" : "Clair"}</strong> — Changer</span>
+                  </button>
+                  <button
+                    className="admin-btn-ghost"
+                    onClick={() => { setPwFormOpen((o) => !o); setPwErr(null); setPwMsg(null); }}
+                    style={{ textAlign: "left", padding: "14px 18px", fontSize: 14, display: "flex", alignItems: "center", gap: 12 }}
+                  >
+                    <span>👤</span>
+                    <span>Informations personnelles</span>
+                    <span style={{ marginLeft: "auto", opacity: 0.6 }}>{pwFormOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {pwFormOpen && (
+                    <div style={{ background: "rgba(25,10,48,0.85)", border: "1px solid rgba(168,85,247,0.25)", borderRadius: 12, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: "#9a7dbd", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Email</div>
+                        <div style={{ fontSize: 14, color: "#e2d4f8", padding: "8px 12px", background: "rgba(15,5,30,0.6)", borderRadius: 8, border: "1px solid rgba(168,85,247,0.15)" }}>{user.email}</div>
+                      </div>
+                      <div style={{ height: 1, background: "rgba(168,85,247,0.15)", margin: "4px 0" }} />
+                      <div style={{ fontSize: 11, color: "#9a7dbd", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Changer mon mot de passe</div>
+                      <input
+                        className="profile-edit-input"
+                        type="password"
+                        placeholder="Mot de passe actuel"
+                        value={currentPw}
+                        onChange={(e) => setCurrentPw(e.target.value)}
+                      />
+                      <input
+                        className="profile-edit-input"
+                        type="password"
+                        placeholder="Nouveau mot de passe"
+                        value={newPw}
+                        onChange={(e) => setNewPw(e.target.value)}
+                      />
+                      <input
+                        className="profile-edit-input"
+                        type="password"
+                        placeholder="Confirmer le nouveau mot de passe"
+                        value={confirmPw}
+                        onChange={(e) => setConfirmPw(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") void handlePasswordChange(); }}
+                      />
+                      {pwErr && <div style={{ color: "#ef4444", fontSize: 13, fontWeight: 600 }}>{pwErr}</div>}
+                      {pwMsg && <div style={{ color: "#10b981", fontSize: 13, fontWeight: 600 }}>{pwMsg}</div>}
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          className="admin-btn-primary"
+                          onClick={() => void handlePasswordChange()}
+                          disabled={pwSaving || !currentPw || !newPw || !confirmPw}
+                          style={{ flex: 1 }}
+                        >
+                          {pwSaving ? "…" : "Changer le mot de passe"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    className="admin-btn-danger"
+                    onClick={handleSignOut}
+                    style={{ textAlign: "left", padding: "14px 18px", fontSize: 14, display: "flex", alignItems: "center", gap: 12 }}
+                  >
+                    <span>🚪</span>
+                    <span>Se déconnecter</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            {false && (
+              <div style={{ display: "none" }}>
+                {/* old settings block kept hidden to avoid orphan JSX errors below */}
 
             {/* ── PARAMÈTRES ── */}
             {tab === "parametres" && (
