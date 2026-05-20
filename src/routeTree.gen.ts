@@ -14,10 +14,15 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AdminRouteImport } from './routes/admin'
-import { Route as AdminStudentUserIdRouteImport } from './routes/admin.student.$userId'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MessagesIndexRouteImport } from './routes/messages.index'
+import { Route as ProfilUserIdRouteImport } from './routes/profil.$userId'
 import { Route as PlayerChapterIdRouteImport } from './routes/player.$chapterId'
 import { Route as ModuleModuleIdRouteImport } from './routes/module.$moduleId'
+import { Route as MessagesUserIdRouteImport } from './routes/messages.$userId'
+import { Route as ProfilUserIdGroupeRouteImport } from './routes/profil.$userId.groupe'
+import { Route as AdminStudentUserIdRouteImport } from './routes/admin_.student.$userId'
+import { Route as AdminStudentUserIdDmsRouteImport } from './routes/admin_.student.$userId.dms'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -44,14 +49,19 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminStudentUserIdRoute = AdminStudentUserIdRouteImport.update({
-  id: '/admin/student/$userId',
-  path: '/admin/student/$userId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MessagesIndexRoute = MessagesIndexRouteImport.update({
+  id: '/messages/',
+  path: '/messages/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfilUserIdRoute = ProfilUserIdRouteImport.update({
+  id: '/profil/$userId',
+  path: '/profil/$userId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlayerChapterIdRoute = PlayerChapterIdRouteImport.update({
@@ -64,87 +74,140 @@ const ModuleModuleIdRoute = ModuleModuleIdRouteImport.update({
   path: '/module/$moduleId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MessagesUserIdRoute = MessagesUserIdRouteImport.update({
+  id: '/messages/$userId',
+  path: '/messages/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfilUserIdGroupeRoute = ProfilUserIdGroupeRouteImport.update({
+  id: '/groupe',
+  path: '/groupe',
+  getParentRoute: () => ProfilUserIdRoute,
+} as any)
+const AdminStudentUserIdRoute = AdminStudentUserIdRouteImport.update({
+  id: '/admin_/student/$userId',
+  path: '/admin/student/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminStudentUserIdDmsRoute = AdminStudentUserIdDmsRouteImport.update({
+  id: '/dms',
+  path: '/dms',
+  getParentRoute: () => AdminStudentUserIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/admin/student/$userId': typeof AdminStudentUserIdRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/messages/$userId': typeof MessagesUserIdRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
+  '/profil/$userId': typeof ProfilUserIdRouteWithChildren
+  '/messages/': typeof MessagesIndexRoute
+  '/admin/student/$userId': typeof AdminStudentUserIdRouteWithChildren
+  '/profil/$userId/groupe': typeof ProfilUserIdGroupeRoute
+  '/admin/student/$userId/dms': typeof AdminStudentUserIdDmsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/admin/student/$userId': typeof AdminStudentUserIdRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/messages/$userId': typeof MessagesUserIdRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
+  '/profil/$userId': typeof ProfilUserIdRouteWithChildren
+  '/messages': typeof MessagesIndexRoute
+  '/admin/student/$userId': typeof AdminStudentUserIdRouteWithChildren
+  '/profil/$userId/groupe': typeof ProfilUserIdGroupeRoute
+  '/admin/student/$userId/dms': typeof AdminStudentUserIdDmsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/admin/student/$userId': typeof AdminStudentUserIdRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/messages/$userId': typeof MessagesUserIdRoute
   '/module/$moduleId': typeof ModuleModuleIdRoute
   '/player/$chapterId': typeof PlayerChapterIdRoute
+  '/profil/$userId': typeof ProfilUserIdRouteWithChildren
+  '/messages/': typeof MessagesIndexRoute
+  '/admin_/student/$userId': typeof AdminStudentUserIdRouteWithChildren
+  '/profil/$userId/groupe': typeof ProfilUserIdGroupeRoute
+  '/admin_/student/$userId/dms': typeof AdminStudentUserIdDmsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/admin'
-    | '/admin/student/$userId'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/messages/$userId'
     | '/module/$moduleId'
     | '/player/$chapterId'
+    | '/profil/$userId'
+    | '/messages/'
+    | '/admin/student/$userId'
+    | '/profil/$userId/groupe'
+    | '/admin/student/$userId/dms'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
-    | '/admin/student/$userId'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/messages/$userId'
     | '/module/$moduleId'
     | '/player/$chapterId'
+    | '/profil/$userId'
+    | '/messages'
+    | '/admin/student/$userId'
+    | '/profil/$userId/groupe'
+    | '/admin/student/$userId/dms'
   id:
     | '__root__'
     | '/'
     | '/admin'
-    | '/admin/student/$userId'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/messages/$userId'
     | '/module/$moduleId'
     | '/player/$chapterId'
+    | '/profil/$userId'
+    | '/messages/'
+    | '/admin_/student/$userId'
+    | '/profil/$userId/groupe'
+    | '/admin_/student/$userId/dms'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
-  AdminStudentUserIdRoute: typeof AdminStudentUserIdRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  MessagesUserIdRoute: typeof MessagesUserIdRoute
   ModuleModuleIdRoute: typeof ModuleModuleIdRoute
   PlayerChapterIdRoute: typeof PlayerChapterIdRoute
+  ProfilUserIdRoute: typeof ProfilUserIdRouteWithChildren
+  MessagesIndexRoute: typeof MessagesIndexRoute
+  AdminStudentUserIdRoute: typeof AdminStudentUserIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -184,18 +247,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/student/$userId': {
-      id: '/admin/student/$userId'
-      path: '/admin/student/$userId'
-      fullPath: '/admin/student/$userId'
-      preLoaderRoute: typeof AdminStudentUserIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/messages/': {
+      id: '/messages/'
+      path: '/messages'
+      fullPath: '/messages/'
+      preLoaderRoute: typeof MessagesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profil/$userId': {
+      id: '/profil/$userId'
+      path: '/profil/$userId'
+      fullPath: '/profil/$userId'
+      preLoaderRoute: typeof ProfilUserIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/player/$chapterId': {
@@ -212,30 +282,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ModuleModuleIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/messages/$userId': {
+      id: '/messages/$userId'
+      path: '/messages/$userId'
+      fullPath: '/messages/$userId'
+      preLoaderRoute: typeof MessagesUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profil/$userId/groupe': {
+      id: '/profil/$userId/groupe'
+      path: '/groupe'
+      fullPath: '/profil/$userId/groupe'
+      preLoaderRoute: typeof ProfilUserIdGroupeRouteImport
+      parentRoute: typeof ProfilUserIdRoute
+    }
+    '/admin_/student/$userId': {
+      id: '/admin_/student/$userId'
+      path: '/admin/student/$userId'
+      fullPath: '/admin/student/$userId'
+      preLoaderRoute: typeof AdminStudentUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/student/$userId/dms': {
+      id: '/admin_/student/$userId/dms'
+      path: '/dms'
+      fullPath: '/admin/student/$userId/dms'
+      preLoaderRoute: typeof AdminStudentUserIdDmsRouteImport
+      parentRoute: typeof AdminStudentUserIdRoute
+    }
   }
 }
+
+interface ProfilUserIdRouteChildren {
+  ProfilUserIdGroupeRoute: typeof ProfilUserIdGroupeRoute
+}
+
+const ProfilUserIdRouteChildren: ProfilUserIdRouteChildren = {
+  ProfilUserIdGroupeRoute: ProfilUserIdGroupeRoute,
+}
+
+const ProfilUserIdRouteWithChildren = ProfilUserIdRoute._addFileChildren(
+  ProfilUserIdRouteChildren,
+)
+
+interface AdminStudentUserIdRouteChildren {
+  AdminStudentUserIdDmsRoute: typeof AdminStudentUserIdDmsRoute
+}
+
+const AdminStudentUserIdRouteChildren: AdminStudentUserIdRouteChildren = {
+  AdminStudentUserIdDmsRoute: AdminStudentUserIdDmsRoute,
+}
+
+const AdminStudentUserIdRouteWithChildren =
+  AdminStudentUserIdRoute._addFileChildren(AdminStudentUserIdRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
-  AdminStudentUserIdRoute: AdminStudentUserIdRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  MessagesUserIdRoute: MessagesUserIdRoute,
   ModuleModuleIdRoute: ModuleModuleIdRoute,
   PlayerChapterIdRoute: PlayerChapterIdRoute,
+  ProfilUserIdRoute: ProfilUserIdRouteWithChildren,
+  MessagesIndexRoute: MessagesIndexRoute,
+  AdminStudentUserIdRoute: AdminStudentUserIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

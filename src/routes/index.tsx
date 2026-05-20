@@ -6,6 +6,8 @@ import { useTheme } from "@/lib/theme-context";
 import logo from "@/assets/logo.png";
 import { GroupChat } from "@/components/dd/GroupChat";
 import { ResultsWall } from "@/components/dd/ResultsWall";
+import { NotificationBell } from "@/components/dd/NotificationBell";
+import { toast } from "sonner";
 import "../styles/dropdigital.css";
 
 export const Route = createFileRoute("/")({
@@ -37,6 +39,8 @@ type UserProfile = {
   avatar_url: string | null;
   bio: string | null;
   has_software_access: boolean;
+  followers_count: number;
+  following_count: number;
 };
 
 type TabKey = "modules" | "groupe" | "coaching" | "resultats" | "profil" | "parametres";
@@ -133,7 +137,7 @@ function HomePage() {
         supabase.from("chapters").select("id, module_id"),
         supabase.from("user_chapter_progress").select("chapter_id, completed_at").eq("user_id", user.id),
         supabase.from("user_roles").select("role").eq("user_id", user.id),
-        supabase.from("profiles").select("username, full_name, avatar_url, bio, has_software_access").eq("id", user.id).maybeSingle(),
+        supabase.from("profiles").select("username, full_name, avatar_url, bio, has_software_access, followers_count, following_count").eq("id", user.id).maybeSingle(),
       ]);
 
       setModules(mods ?? []);
@@ -265,15 +269,33 @@ function HomePage() {
   const uploadAvatar = async (file: File) => {
     if (!user) return;
     setAvatarUploading(true);
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `${user.id}/avatar.${ext}`;
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (!error) {
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `${user.id}/avatar.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true, contentType: file.type || undefined, cacheControl: "3600" });
+      if (uploadError) {
+        toast.error("Échec de l'envoi de la photo : " + uploadError.message);
+        return;
+      }
       const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-      await supabase.from("profiles").update({ avatar_url: data.publicUrl }).eq("id", user.id);
-      setProfile((prev) => (prev ? { ...prev, avatar_url: data.publicUrl } : null));
+      const cacheBustedUrl = `${data.publicUrl}?v=${Date.now()}`;
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: cacheBustedUrl })
+        .eq("id", user.id);
+      if (updateError) {
+        toast.error("Échec de la sauvegarde : " + updateError.message);
+        return;
+      }
+      setProfile((prev) => (prev ? { ...prev, avatar_url: cacheBustedUrl } : null));
+      toast.success("Photo de profil mise à jour");
+    } catch (e: any) {
+      toast.error("Erreur : " + (e?.message ?? "inconnue"));
+    } finally {
+      setAvatarUploading(false);
     }
-    setAvatarUploading(false);
   };
 
   const displayName = profile?.full_name || profile?.username || user.email?.split("@")[0] || "Élève";
@@ -323,6 +345,68 @@ function HomePage() {
     </div>
   );
 
+  const renderModulesContent = () => {
+    const lock = getSectionLock(activeSection);
+    if (lock.locked) {
+      return (
+        <div style={{ textAlign: "center", padding: "60px 20px" }}>
+          <div style={{ fontSize: 64, marginBottom: 20 }}>🔒</div>
+          <p style={{ color: "#c4a3f0", fontSize: 18, fontWeight: 600, lineHeight: 1.7, margin: 0 }}>
+            {lock.unlockAt ? <SectionCountdown unlockAt={lock.unlockAt} /> : lock.message}
+          </p>
+        </div>
+      );
+    }
+
+    if (activeSection === "ultime") {
+      if (!hasSoftwareAccess && !isAdmin && userRole !== "moderator") {
+        return (
+          <div style={{ position: "relative", minHeight: 320 }}>
+            <div className="modules-grid" style={{ filter: "blur(5px)", pointerEvents: "none", userSelect: "none", opacity: 0.5 }}>
+              {visibleModules.map((m, i) => (
+                <div key={m.id} className="module-card">
+                  <div className="module-thumb">
+                    {m.thumbnail_url ? <img src={m.thumbnail_url} alt={m.title} /> : <div style={{ fontSize: 48, opacity: 0.4 }}>🎬</div>}
+                    <div className="play-btn" />
+                  </div>
+                  <div className="module-info">
+                    <div className="module-num">Module {String(i + 1).padStart(2, "0")}</div>
+                    <div className="module-title">{m.title}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="software-lock-overlay">
+              <div style={{ fontSize: 52, marginBottom: 16 }}>🔒</div>
+              <p style={{ color: "#e2d4f8", fontSize: 15, lineHeight: 1.7, marginBottom: 28, textAlign: "center", maxWidth: 400 }}>
+                Tu n'as pas accès au logiciel d'automatisation car tu as pris l'offre Formation à 97€
+              </p>
+              <a
+                href="https://revolut.me/ilias_business?currency=EUR&amount=4700&note=Logiciel%20d%27automatisation%20TikTok"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="software-cta-btn"
+              >
+                ⚡ Accéder à l'ensemble des logiciels pour automatiser ton système
+              </a>
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div>
+          <div className="software-coming-soon">
+            <span className="hourglass-spin">⏳</span>
+            <span>Tu auras accès aux logiciels d'automatisation bientôt…</span>
+          </div>
+          <ModulesGrid mods={visibleModules} />
+        </div>
+      );
+    }
+
+    return <ModulesGrid mods={visibleModules} />;
+  };
+
   return (
     <div className="dd-root">
       <div className="topbar">
@@ -337,14 +421,11 @@ function HomePage() {
           <div className="logo-icon"><img src={logo} alt="DropDigital" width={36} height={36} /></div>
           <div className="logo-text">Drop<span>Digital</span></div>
         </div>
-        <div className="topbar-right">
-          <div className="price-pill">
-            <span className="live-dot" />
-            <span className="old-price">997€</span>
-            <span className="new-price">297€</span>
-            <span className="badge-red">-70%</span>
-          </div>
+        <div className="topbar-right" style={{ display: "flex", alignItems: "center", gap: 12, paddingRight: 8 }}>
+          <Link to="/messages" title="Messages privés" style={{ color: "#c4a3f0", textDecoration: "none", fontSize: 20, lineHeight: 1 }}>💬</Link>
+          <NotificationBell userId={user.id} />
         </div>
+
       </div>
 
       <div className="layout">
@@ -357,6 +438,10 @@ function HomePage() {
               <span>{t.label}</span>
             </div>
           ))}
+          <Link to="/messages" className="sidebar-item" style={{ textDecoration: "none" }} onClick={() => setSidebarOpen(false)}>
+            <span className="si-icon">💬</span>
+            <span>Message privé</span>
+          </Link>
           <div className="sidebar-section-label">COMPTE</div>
           {ACCOUNT_TABS.map((t) => (
             <div key={t.key} className={`sidebar-item ${tab === t.key ? "active" : ""}`} onClick={() => handleTabClick(t.key)}>
@@ -415,67 +500,7 @@ function HomePage() {
                   <span className="pg-pct">{globalPct}%</span>
                 </div>
 
-                {(() => {
-                  const lock = getSectionLock(activeSection);
-                  if (lock.locked) {
-                    return (
-                      <div style={{ textAlign: "center", padding: "60px 20px" }}>
-                        <div style={{ fontSize: 64, marginBottom: 20 }}>🔒</div>
-                        <p style={{ color: "#c4a3f0", fontSize: 18, fontWeight: 600, lineHeight: 1.7, margin: 0 }}>
-                          {lock.unlockAt ? <SectionCountdown unlockAt={lock.unlockAt} /> : lock.message}
-                        </p>
-                      </div>
-                    );
-                  }
-
-                  if (activeSection === "ultime") {
-                    if (!hasSoftwareAccess && !isAdmin && userRole !== "moderator") {
-                      return (
-                        <div style={{ position: "relative", minHeight: 320 }}>
-                          <div className="modules-grid" style={{ filter: "blur(5px)", pointerEvents: "none", userSelect: "none", opacity: 0.5 }}>
-                            {visibleModules.map((m, i) => (
-                              <div key={m.id} className="module-card">
-                                <div className="module-thumb">
-                                  {m.thumbnail_url ? <img src={m.thumbnail_url} alt={m.title} /> : <div style={{ fontSize: 48, opacity: 0.4 }}>🎬</div>}
-                                  <div className="play-btn" />
-                                </div>
-                                <div className="module-info">
-                                  <div className="module-num">Module {String(i + 1).padStart(2, "0")}</div>
-                                  <div className="module-title">{m.title}</div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="software-lock-overlay">
-                            <div style={{ fontSize: 52, marginBottom: 16 }}>🔒</div>
-                            <p style={{ color: "#e2d4f8", fontSize: 15, lineHeight: 1.7, marginBottom: 28, textAlign: "center", maxWidth: 400 }}>
-                              Tu n'as pas accès au logiciel d'automatisation car tu as pris l'offre Formation à 97€
-                            </p>
-                            <a
-                              href="https://revolut.me/ilias_business?currency=EUR&amount=4700&note=Logiciel%20d%27automatisation%20TikTok"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="software-cta-btn"
-                            >
-                              ⚡ Accéder à l'ensemble des logiciels pour automatiser ton système
-                            </a>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div>
-                        <div className="software-coming-soon">
-                          <span className="hourglass-spin">⏳</span>
-                          <span>Tu auras accès aux logiciels d'automatisation bientôt…</span>
-                        </div>
-                        <ModulesGrid mods={visibleModules} />
-                      </div>
-                    );
-                  }
-
-                  return <ModulesGrid mods={visibleModules} />;
-                })()}
+                {renderModulesContent()}
               </>
             )}
 
@@ -578,10 +603,17 @@ function HomePage() {
                   )}
                 </div>
 
-                {/* Email */}
-                <div className="profile-field-row">
-                  <div className="profile-field-label">Email</div>
-                  <div className="profile-field-value">{user.email}</div>
+                {/* Followers / Following */}
+                <div style={{ display: "flex", justifyContent: "center", gap: 28, marginBottom: 24 }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#e2d4f8" }}>{profile?.followers_count ?? 0}</div>
+                    <div style={{ fontSize: 11, color: "#9a7dbd", textTransform: "uppercase", letterSpacing: 0.5 }}>Abonnés</div>
+                  </div>
+                  <div style={{ width: 1, background: "rgba(168,85,247,0.2)" }} />
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#e2d4f8" }}>{profile?.following_count ?? 0}</div>
+                    <div style={{ fontSize: 11, color: "#9a7dbd", textTransform: "uppercase", letterSpacing: 0.5 }}>Abonnements</div>
+                  </div>
                 </div>
 
                 {/* Username */}
@@ -624,13 +656,15 @@ function HomePage() {
                 <div className="profile-field-row" style={{ flexDirection: "column", gap: 10, alignItems: "stretch" }}>
                   <div className="profile-field-label">Progression globale</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ flex: 1, height: 10, background: "rgba(168,85,247,0.12)", borderRadius: 6, overflow: "hidden" }}>
+                    <div style={{ flex: 1, height: 14, background: "rgba(168,85,247,0.12)", borderRadius: 8, overflow: "hidden" }}>
                       {isAdmin
-                        ? <div className="fire-progress" style={{ borderRadius: 6 }} />
-                        : <div style={{ height: "100%", width: `${globalPct}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 6, transition: "width 0.4s" }} />
+                        ? <div className="nitro-progress" style={{ borderRadius: 8, height: "100%", width: "100%" }} />
+                        : <div style={{ height: "100%", width: `${globalPct}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 8, transition: "width 0.4s" }} />
                       }
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#9a7dbd" }}>{isAdmin ? 100 : globalPct}%</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: isAdmin ? "#ff6a00" : "#9a7dbd", textShadow: isAdmin ? "0 0 6px rgba(255,106,0,0.6)" : undefined }}>
+                      {isAdmin ? "⚡ 1000%" : `${globalPct}%`}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -654,18 +688,24 @@ function HomePage() {
                     onClick={() => { setPwFormOpen((o) => !o); setPwErr(null); setPwMsg(null); }}
                     style={{ textAlign: "left", padding: "14px 18px", fontSize: 14, display: "flex", alignItems: "center", gap: 12 }}
                   >
-                    <span>🔐</span>
-                    <span>Changer mon mot de passe</span>
+                    <span>👤</span>
+                    <span>Informations personnelles</span>
+                    <span style={{ marginLeft: "auto", opacity: 0.6 }}>{pwFormOpen ? "▲" : "▼"}</span>
                   </button>
                   {pwFormOpen && (
-                    <div style={{ background: "rgba(25,10,48,0.85)", border: "1px solid rgba(168,85,247,0.25)", borderRadius: 12, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div style={{ background: "rgba(25,10,48,0.85)", border: "1px solid rgba(168,85,247,0.25)", borderRadius: 12, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: "#9a7dbd", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Email</div>
+                        <div style={{ fontSize: 14, color: "#e2d4f8", padding: "8px 12px", background: "rgba(15,5,30,0.6)", borderRadius: 8, border: "1px solid rgba(168,85,247,0.15)" }}>{user.email}</div>
+                      </div>
+                      <div style={{ height: 1, background: "rgba(168,85,247,0.15)", margin: "4px 0" }} />
+                      <div style={{ fontSize: 11, color: "#9a7dbd", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Changer mon mot de passe</div>
                       <input
                         className="profile-edit-input"
                         type="password"
                         placeholder="Mot de passe actuel"
                         value={currentPw}
                         onChange={(e) => setCurrentPw(e.target.value)}
-                        autoFocus
                       />
                       <input
                         className="profile-edit-input"
@@ -693,7 +733,6 @@ function HomePage() {
                         >
                           {pwSaving ? "…" : "Changer le mot de passe"}
                         </button>
-                        <button className="admin-btn-ghost" onClick={closePwForm}>Annuler</button>
                       </div>
                     </div>
                   )}
