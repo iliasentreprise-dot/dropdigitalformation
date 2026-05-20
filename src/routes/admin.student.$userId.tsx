@@ -278,6 +278,19 @@ function StudentProfilePage() {
     setRoleChanging(false);
   };
 
+  const handleSaveProfile = async () => {
+    setProfileSaving(true);
+    try {
+      await (saveProfileFn as unknown as (args: { data: { userId: string; username: string | null; bio: string | null } }) => Promise<void>)({ data: { userId, username: usernameDraft.trim(), bio: bioDraft.trim() } });
+      setStudentData((prev) => prev && prev.profile ? { ...prev, profile: { ...prev.profile, username: usernameDraft.trim() || null, bio: bioDraft.trim() || null } } : prev);
+      setEditingProfile(false);
+      showFlash("Profil mis à jour ✓");
+    } catch (e) {
+      showFlash((e as Error).message);
+    }
+    setProfileSaving(false);
+  };
+
   const deleteMessage = async (id: string) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any).from("group_messages").delete().eq("id", id);
