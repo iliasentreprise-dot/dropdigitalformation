@@ -119,6 +119,21 @@ function ProfilPage() {
       setProgress({ done: (done ?? []).length, total: (chapters ?? []).length });
       setLoaded(true);
     })();
+
+    // Realtime presence for this profile
+    const ch = supabase
+      .channel(`profile-presence-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_presence", filter: `user_id=eq.${userId}` },
+        (payload) => {
+          const row = payload.new as { is_online: boolean; last_seen: string } | null;
+          if (row) setPresence({ is_online: row.is_online, last_seen: row.last_seen });
+        }
+      )
+      .subscribe();
+
+    return () => { void supabase.removeChannel(ch); };
   }, [user, loading, userId, navigate]);
 
   const openGroupMessages = async () => {

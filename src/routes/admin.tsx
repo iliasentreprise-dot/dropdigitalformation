@@ -144,19 +144,23 @@ function VideoInput({
 
 function SimpleThumbnailPicker({ value, onChange, moduleId }: { value: string; onChange: (url: string) => void; moduleId?: string }) {
   const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const upload = async (file: File) => {
-    if (!file.type.startsWith("image/")) return;
+    setUploadErr(null);
     setUploading(true);
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = moduleId
-      ? `module-${moduleId}-${Date.now()}.${ext}`
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error } = await supabase.storage.from("module-thumbnails").upload(path, file, { upsert: true });
+    const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, "_").slice(0, 50);
+    const contentType = file.type || "image/webp";
+    const path = `${Date.now()}_${safeName}`;
+    console.log("[thumbnail] uploading", { name: file.name, safeName, type: file.type, size: file.size, path, contentType });
+    const { error } = await supabase.storage.from("module-thumbnails").upload(path, file, { upsert: true, contentType });
+    console.log("[thumbnail] upload result", { error });
     if (!error) {
       const { data } = supabase.storage.from("module-thumbnails").getPublicUrl(path);
       onChange(`${data.publicUrl}?t=${Date.now()}`);
+    } else {
+      setUploadErr(`Erreur upload : ${error.message}`);
     }
     setUploading(false);
   };
@@ -180,13 +184,14 @@ function SimpleThumbnailPicker({ value, onChange, moduleId }: { value: string; o
             <div style={{ fontSize: 12, marginTop: 4 }}>Ajouter une miniature</div>
           </div>
         )}
-        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
+        <input ref={fileRef} type="file" accept="image/*,image/webp,image/png,image/jpeg,image/jpg,image/gif,image/avif" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
       </div>
+      {uploadErr && <div style={{ color: "#fca5a5", fontSize: 11, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, padding: "4px 8px" }}>{uploadErr}</div>}
       <input
         className="dz-url-input"
         placeholder="ou coller une URL"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => { setUploadErr(null); onChange(e.target.value); }}
         style={{ fontSize: 12 }}
       />
     </div>
@@ -831,9 +836,12 @@ function AdminPage() {
 
   const uploadThumbnailDirect = async (moduleId: string, file: File) => {
     setThumbUploading(moduleId);
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `module-${moduleId}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("module-thumbnails").upload(path, file, { upsert: true });
+    const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, "_").slice(0, 50);
+    const contentType = file.type || "image/webp";
+    const path = `${Date.now()}_${safeName}`;
+    console.log("[thumbnail-card] uploading", { name: file.name, safeName, type: file.type, size: file.size, path, contentType });
+    const { error } = await supabase.storage.from("module-thumbnails").upload(path, file, { upsert: true, contentType });
+    console.log("[thumbnail-card] result", { error });
     if (!error) {
       const { data: urlData } = supabase.storage.from("module-thumbnails").getPublicUrl(path);
       const url = `${urlData.publicUrl}?t=${Date.now()}`;
@@ -841,6 +849,8 @@ function AdminPage() {
       setModules((prev) => prev.map((m) => m.id === moduleId ? { ...m, thumbnail_url: url } : m));
       if (editingModule?.id === moduleId) setModuleForm((f) => ({ ...f, thumbnail_url: url }));
       flash("Miniature mise à jour ✓");
+    } else {
+      flash(`Erreur upload miniature : ${error.message}`, true);
     }
     setThumbUploading(null);
   };
@@ -1904,7 +1914,7 @@ function AdminPage() {
       <input
         ref={thumbFileRef}
         type="file"
-        accept="image/*"
+        accept="image/*,image/webp,image/png,image/jpeg,image/jpg,image/gif,image/avif"
         hidden
         onChange={(e) => {
           const f = e.target.files?.[0];

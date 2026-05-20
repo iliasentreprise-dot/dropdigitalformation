@@ -292,19 +292,24 @@ export function GroupChat({
 
   useEffect(() => {
     const fetchOnline = async () => {
-      const twoMinsAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { count } = await (supabase as any)
+      const { data } = await supabase
         .from("user_presence")
-        .select("*", { count: "exact", head: true })
+        .select("user_id")
         .eq("is_online", true)
-        .gte("last_seen", twoMinsAgo);
-      setOnlineCount(count ?? 0);
+        .gte("last_seen", new Date(Date.now() - 2 * 60 * 1000).toISOString());
+      setOnlineCount(data?.length ?? 0);
     };
     void fetchOnline();
     const ch = supabase
-      .channel("presence_online_count")
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_presence" }, () => void fetchOnline())
+      .channel("online-count")
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_presence" }, async () => {
+        const { data } = await supabase
+          .from("user_presence")
+          .select("user_id")
+          .eq("is_online", true)
+          .gte("last_seen", new Date(Date.now() - 120000).toISOString());
+        setOnlineCount(data?.length ?? 0);
+      })
       .subscribe();
     return () => { void supabase.removeChannel(ch); };
   }, []);

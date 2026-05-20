@@ -44,11 +44,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const uid = user.id;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sa = supabase as any;
-    const goOnline = () =>
-      sa.from("user_presence").upsert(
+    const goOnline = () => {
+      console.log("[presence] heartbeat uid=", uid);
+      return sa.from("user_presence").upsert(
         { user_id: uid, last_seen: new Date().toISOString(), is_online: true },
         { onConflict: "user_id" }
       );
+    };
     const goOffline = () =>
       sa.from("user_presence").update({ is_online: false }).eq("user_id", uid);
 
