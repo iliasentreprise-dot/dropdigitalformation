@@ -79,7 +79,7 @@ function RootComponent() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <GlobalProgressBar />
+        
         <Outlet />
       </AuthProvider>
     </ThemeProvider>
