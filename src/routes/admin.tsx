@@ -632,7 +632,7 @@ function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"content" | "dashboard" | "students" | "groupe">("content");
+  const [activeTab, setActiveTab] = useState<"content" | "dashboard" | "students" | "groupe" | "ressources-assoc">("content");
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -656,6 +656,61 @@ function AdminPage() {
   const [thumbCropModuleId, setThumbCropModuleId] = useState<string | null>(null);
   const [thumbUploading, setThumbUploading] = useState<string | null>(null);
   const thumbFileRef = useRef<HTMLInputElement>(null);
+
+  // Resources modérateurs
+  type ResResource = { id: string; type: string; moderator_id: string | null; title: string | null; url: string };
+  type ResModerator = { user_id: string; username: string | null };
+  const [resResources, setResResources] = useState<ResResource[]>([]);
+  const [resModerators, setResModerators] = useState<ResModerator[]>([]);
+  const [resLoading, setResLoading] = useState(false);
+  const [resTiktokTitle, setResTiktokTitle] = useState("");
+  const [resTiktokUrl, setResTiktokUrl] = useState("");
+  const [resSelModo, setResSelModo] = useState("");
+  const [resMiroUrl, setResMiroUrl] = useState("");
+  const [resTunnelUrl, setResTunnelUrl] = useState("");
+  const [resSaving, setResSaving] = useState(false);
+
+  const loadResAssoc = async () => {
+    setResLoading(true);
+    const [{ data: rRows }, { data: rRoles }] = await Promise.all([
+      supabase.from("moderator_resources").select("id, type, moderator_id, title, url").order("created_at"),
+      supabase.from("user_roles").select("user_id").in("role", ["moderator"]),
+    ]);
+    setResResources((rRows as ResResource[]) ?? []);
+    if (rRoles && rRoles.length > 0) {
+      const ids = (rRoles as { user_id: string }[]).map((r) => r.user_id);
+      const { data: profs } = await supabase.from("profiles").select("id, username").in("id", ids);
+      setResModerators(((profs ?? []) as { id: string; username: string | null }[]).map((p) => ({ user_id: p.id, username: p.username })));
+    }
+    setResLoading(false);
+  };
+
+  const addTiktokLive = async () => {
+    if (!resTiktokUrl.trim()) return;
+    setResSaving(true);
+    await supabase.from("moderator_resources").insert({ type: "tiktok_live", moderator_id: null, title: resTiktokTitle.trim() || null, url: resTiktokUrl.trim() });
+    setResTiktokTitle(""); setResTiktokUrl("");
+    await loadResAssoc();
+    setResSaving(false);
+  };
+
+  const deleteResResource = async (id: string) => {
+    await supabase.from("moderator_resources").delete().eq("id", id);
+    setResResources((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const upsertModoLink = async (type: "miro" | "tunnel", modoId: string, url: string) => {
+    if (!modoId || !url.trim()) return;
+    setResSaving(true);
+    const existing = resResources.find((r) => r.type === type && r.moderator_id === modoId);
+    if (existing) {
+      await supabase.from("moderator_resources").update({ url: url.trim() }).eq("id", existing.id);
+    } else {
+      await supabase.from("moderator_resources").insert({ type, moderator_id: modoId, url: url.trim() });
+    }
+    await loadResAssoc();
+    setResSaving(false);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -1018,6 +1073,15 @@ function AdminPage() {
           >
             💬 Groupe
           </button>
+          <button
+            className={activeTab === "ressources-assoc" ? "admin-btn-primary sm" : "admin-btn-ghost sm"}
+            onClick={() => {
+              setActiveTab("ressources-assoc");
+              void loadResAssoc();
+            }}
+          >
+            🤝 Ressources Associés
+          </button>
         </div>
         {msg && <span className="admin-msg">{msg}</span>}
         {err && <span className="admin-err">{err}</span>}
@@ -1310,6 +1374,79 @@ function AdminPage() {
                 );
               })}
             </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "ressources-assoc" && (
+        <div className="admin-body">
+          <div className="admin-section-header"><h2>🤝 Ressources Associés</h2></div>
+          {resLoading ? (
+            <div style={{ color: "#9a7dbd", padding: 20 }}>Chargement…</div>
+          ) : (
+            <>
+              {/* TikTok Lives */}
+              <div style={{ marginBottom: 32 }}>
+                <h3 style={{ color: "#e2d4f8", marginBottom: 14 }}>📱 Rediffusions TikTok Live (communes)</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+                  {resResources.filter((r) => r.type === "tiktok_live").map((r) => (
+                    <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 14px" }}>
+                      <div style={{ flex: 1, color: "#e2d4f8", fontSize: 13 }}>{r.title ? `${r.title} — ` : ""}{r.url}</div>
+                      <button className="admin-btn-danger sm" onClick={() => void deleteResResource(r.id)}>✕</button>
+                    </div>
+                  ))}
+                  {resResources.filter((r) => r.type === "tiktok_live").length === 0 && (
+                    <div style={{ color: "#7c5c9a", fontSize: 13 }}>Aucune rediffusion ajoutée.</div>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <input className="dz-url-input" placeholder="Titre (optionnel)" value={resTiktokTitle} onChange={(e) => setResTiktokTitle(e.target.value)} style={{ flex: "0 0 180px" }} />
+                  <input className="dz-url-input" placeholder="https://tiktok.com/…" value={resTiktokUrl} onChange={(e) => setResTiktokUrl(e.target.value)} style={{ flex: 1 }} />
+                  <button className="admin-btn-primary sm" onClick={() => void addTiktokLive()} disabled={resSaving || !resTiktokUrl.trim()}>
+                    {resSaving ? "…" : "+ Ajouter"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Miro + Tunnel per moderator */}
+              <div>
+                <h3 style={{ color: "#e2d4f8", marginBottom: 14 }}>🖼️ Liens personnalisés par modérateur</h3>
+                <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+                  <select
+                    value={resSelModo}
+                    onChange={(e) => {
+                      setResSelModo(e.target.value);
+                      setResMiroUrl(resResources.find((r) => r.type === "miro" && r.moderator_id === e.target.value)?.url ?? "");
+                      setResTunnelUrl(resResources.find((r) => r.type === "tunnel" && r.moderator_id === e.target.value)?.url ?? "");
+                    }}
+                    style={{ background: "rgba(15,5,30,0.8)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 8, color: "#e2d4f8", padding: "8px 12px", fontSize: 13, cursor: "pointer" }}
+                  >
+                    <option value="">— Sélectionner un modérateur —</option>
+                    {resModerators.map((m) => (
+                      <option key={m.user_id} value={m.user_id}>{m.username ?? m.user_id}</option>
+                    ))}
+                  </select>
+                </div>
+                {resSelModo && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ color: "#9a7dbd", fontSize: 13, minWidth: 100 }}>Lien Miro :</span>
+                      <input className="dz-url-input" placeholder="https://miro.com/…" value={resMiroUrl} onChange={(e) => setResMiroUrl(e.target.value)} style={{ flex: 1 }} />
+                      <button className="admin-btn-primary sm" onClick={() => void upsertModoLink("miro", resSelModo, resMiroUrl)} disabled={resSaving || !resMiroUrl.trim()}>
+                        {resSaving ? "…" : "Sauvegarder"}
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ color: "#9a7dbd", fontSize: 13, minWidth: 100 }}>Tunnel vente :</span>
+                      <input className="dz-url-input" placeholder="https://…" value={resTunnelUrl} onChange={(e) => setResTunnelUrl(e.target.value)} style={{ flex: 1 }} />
+                      <button className="admin-btn-primary sm" onClick={() => void upsertModoLink("tunnel", resSelModo, resTunnelUrl)} disabled={resSaving || !resTunnelUrl.trim()}>
+                        {resSaving ? "…" : "Sauvegarder"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}

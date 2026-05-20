@@ -6,6 +6,7 @@ import { useTheme } from "@/lib/theme-context";
 import logo from "@/assets/logo.png";
 import { GroupChat } from "@/components/dd/GroupChat";
 import { ResultsWall } from "@/components/dd/ResultsWall";
+import { EspaceAssocies } from "@/components/dd/EspaceAssocies";
 import { NotificationBell } from "@/components/dd/NotificationBell";
 import { AvatarCropModal } from "@/components/dd/AvatarCropModal";
 import { toast } from "sonner";
@@ -44,7 +45,7 @@ type UserProfile = {
   following_count: number;
 };
 
-type TabKey = "modules" | "groupe" | "coaching" | "resultats" | "profil" | "parametres";
+type TabKey = "modules" | "groupe" | "coaching" | "resultats" | "associes" | "profil" | "parametres";
 
 function SectionCountdown({ unlockAt }: { unlockAt: Date }) {
   const [now, setNow] = useState(() => new Date());
@@ -447,6 +448,12 @@ function HomePage() {
             <span className="si-icon">💬</span>
             <span>Message privé</span>
           </Link>
+          {(userRole === "moderator" || userRole === "admin") && (
+            <div className={`sidebar-item ${tab === "associes" ? "active" : ""}`} onClick={() => handleTabClick("associes")}>
+              <span className="si-icon">🤝</span>
+              <span>Espace Associés</span>
+            </div>
+          )}
           <div className="sidebar-section-label">COMPTE</div>
           {ACCOUNT_TABS.map((t) => (
             <div key={t.key} className={`sidebar-item ${tab === t.key ? "active" : ""}`} onClick={() => handleTabClick(t.key)}>
@@ -571,6 +578,11 @@ function HomePage() {
                   avatarUrl={profile?.avatar_url ?? null}
                 />
               </div>
+            )}
+
+            {/* ── ESPACE ASSOCIÉS ── */}
+            {tab === "associes" && (userRole === "moderator" || userRole === "admin") && (
+              <EspaceAssocies userId={user.id} userRole={userRole} />
             )}
 
             {/* ── PROFIL ── */}
