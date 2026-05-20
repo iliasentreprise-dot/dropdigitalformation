@@ -268,7 +268,7 @@ export function GroupChat({
 
           return (
             <div key={msg.id} className={`chat-row${isOwn ? " own" : ""}`}>
-              <div className="chat-avatar" onClick={() => setOpenProfile(msg.user_id)} title={`Voir ${name}`}>
+              <div className="chat-avatar" onClick={() => goToProfile(msg.user_id)} title={`Voir le profil de ${name}`} style={{ cursor: "pointer" }}>
                 {avatar ? (
                   <img src={avatar} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
                 ) : (
@@ -277,7 +277,7 @@ export function GroupChat({
               </div>
               <div className="chat-bubble-wrap">
                 <div className={`chat-msg-name ${nameClass}`}>
-                  <span style={{ cursor: "pointer" }} onClick={() => setOpenProfile(msg.user_id)}>{name}</span>
+                  <span style={{ cursor: "pointer" }} onClick={() => goToProfile(msg.user_id)}>{name}</span>
                   {role === "admin" && <span className="chat-mini-badge admin">👑 Admin</span>}
                   {role === "moderator" && <span className="chat-mini-badge mod">Modo</span>}
                 </div>
