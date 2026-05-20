@@ -359,7 +359,7 @@ function StudentProfilePage() {
       {/* ── Section 1 : Header sticky ── */}
       <div className="admin-topbar" style={{ position: "sticky", top: 0, zIndex: 100, display: "flex", alignItems: "center", gap: 12 }}>
         <Link to="/admin" className="admin-back" style={{ flexShrink: 0 }}>← Admin</Link>
-        <h1 className="admin-title" style={{ fontSize: 15, flex: 1, margin: 0 }}>👤 Profil élève</h1>
+        <h1 className="admin-title" style={{ fontSize: 15, flex: 1, margin: 0 }}>Le Profil de {displayName}</h1>
         {!isAdminStudent && (
           <button
             className={currentRole === "moderator" ? "admin-btn-danger" : "admin-btn-primary"}
