@@ -43,6 +43,7 @@ export function GroupChat({
   const [sending, setSending] = useState(false);
   const [myRole, setMyRole] = useState<string>("user");
   const [pickerFor, setPickerFor] = useState<string | null>(null);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<GroupMessage | null>(null);
   const [openProfile, setOpenProfile] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -288,7 +289,7 @@ export function GroupChat({
                 )}
 
                 {msg.deleted_at ? (
-                  isAdmin ? (
+                  canModerate ? (
                     <div
                       className={`chat-bubble${isOwn ? " own" : ""}`}
                       style={{
@@ -307,14 +308,14 @@ export function GroupChat({
                       className={`chat-bubble${isOwn ? " own" : ""}`}
                       style={{ background: "rgba(75,75,75,0.3)", color: "#7a7a7a", fontStyle: "italic" }}
                     >
-                      Message supprimé
+                      {name} a supprimé ce message
                     </div>
                   )
                 ) : (
                   <div className={`chat-bubble${isOwn ? " own" : ""}`}>{msg.content}</div>
                 )}
 
-                {Object.keys(grouped).length > 0 && (
+                {!msg.deleted_at && Object.keys(grouped).length > 0 && (
                   <div className="reactions-row">
                     {Object.entries(grouped).map(([emoji, list]) => {
                       const mine = list.some((r) => r.user_id === userId);
@@ -336,31 +337,46 @@ export function GroupChat({
                   <div className={`chat-time${isOwn ? " own" : ""}`}>
                     {new Date(msg.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                   </div>
-                  <div className="msg-actions" style={{ position: "relative" }}>
-                    <button className="msg-action-btn" onClick={() => setPickerFor(pickerFor === msg.id ? null : msg.id)}>
-                      😊
-                    </button>
-                    <button className="msg-action-btn" onClick={() => setReplyTo(msg)}>↩ Répondre</button>
-                    {canModerate && roleOf(msg.user_id) !== "admin" && msg.user_id !== userId && (
-                      <button className="msg-action-btn" onClick={() => void deleteMessage(msg.id)} title="Supprimer">
-                        🗑
+                  {!msg.deleted_at && (
+                    <div className="msg-actions" style={{ position: "relative" }}>
+                      <button className="msg-action-btn" onClick={() => setPickerFor(pickerFor === msg.id ? null : msg.id)}>
+                        😊
                       </button>
-                    )}
-                    {canModerate && roleOf(msg.user_id) !== "admin" && msg.user_id !== userId && (
-                      mutedSet.has(msg.user_id) ? (
-                        <button className="msg-action-btn" onClick={() => void unmuteUser(msg.user_id)}>🔊</button>
-                      ) : (
-                        <button className="msg-action-btn" onClick={() => void muteUser(msg.user_id)} title="Muter">🔇</button>
-                      )
-                    )}
-                    {pickerFor === msg.id && (
-                      <div className="reaction-picker" style={isOwn ? { right: 0 } : { left: 0 }}>
-                        {EMOJI_LIST.map((e) => (
-                          <button key={e} onClick={() => void toggleReaction(msg.id, e)}>{e}</button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                      <button className="msg-action-btn" onClick={() => setReplyTo(msg)}>↩ Répondre</button>
+                      {isOwn && (
+                        <button className="msg-action-btn" onClick={() => setMenuFor(menuFor === msg.id ? null : msg.id)} title="Plus">⋯</button>
+                      )}
+                      {canModerate && roleOf(msg.user_id) !== "admin" && msg.user_id !== userId && (
+                        <button className="msg-action-btn" onClick={() => void deleteMessage(msg.id)} title="Supprimer">
+                          🗑
+                        </button>
+                      )}
+                      {canModerate && roleOf(msg.user_id) !== "admin" && msg.user_id !== userId && (
+                        mutedSet.has(msg.user_id) ? (
+                          <button className="msg-action-btn" onClick={() => void unmuteUser(msg.user_id)}>🔊</button>
+                        ) : (
+                          <button className="msg-action-btn" onClick={() => void muteUser(msg.user_id)} title="Muter">🔇</button>
+                        )
+                      )}
+                      {pickerFor === msg.id && (
+                        <div className="reaction-picker" style={isOwn ? { right: 0 } : { left: 0 }}>
+                          {EMOJI_LIST.map((e) => (
+                            <button key={e} onClick={() => void toggleReaction(msg.id, e)}>{e}</button>
+                          ))}
+                        </div>
+                      )}
+                      {menuFor === msg.id && isOwn && (
+                        <div className="reaction-picker" style={{ ...(isOwn ? { right: 0 } : { left: 0 }), padding: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                          <button
+                            onClick={() => { setMenuFor(null); void deleteMessage(msg.id); }}
+                            style={{ background: "rgba(220,38,38,0.2)", border: "1px solid rgba(239,68,68,0.4)", color: "#fecaca", padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" }}
+                          >
+                            🗑 Supprimer
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
