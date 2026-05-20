@@ -46,6 +46,8 @@ export function GroupChat({
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<GroupMessage | null>(null);
   const [openProfile, setOpenProfile] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const goToProfile = (uid: string) => { void navigate({ to: "/profil/$userId", params: { userId: uid } }); };
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const canModerate = myRole === "admin" || myRole === "moderator";
