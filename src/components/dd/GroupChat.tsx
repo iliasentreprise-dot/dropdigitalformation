@@ -161,9 +161,15 @@ export function GroupChat({
   }, [messages]);
 
   const deleteMessage = async (id: string) => {
+    // Soft-delete: admin still sees it in red, others see "Message supprimé"
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("group_messages").delete().eq("id", id);
-    setMessages((prev) => prev.filter((m) => m.id !== id));
+    await (supabase as any)
+      .from("group_messages")
+      .update({ deleted_at: new Date().toISOString(), deleted_by: userId })
+      .eq("id", id);
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, deleted_at: new Date().toISOString(), deleted_by: userId } : m)),
+    );
   };
 
   const toggleReaction = async (messageId: string, emoji: string) => {
