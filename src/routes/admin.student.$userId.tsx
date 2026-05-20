@@ -409,15 +409,31 @@ function StudentProfilePage() {
         <div style={card}>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#c4a3f0", marginBottom: 14 }}>📊 Progression globale</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ flex: 1, height: 10, background: "rgba(168,85,247,0.12)", borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${progressPct}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 6, transition: "width 0.6s" }} />
+            <div style={{ flex: 1, height: 12, background: "rgba(168,85,247,0.12)", borderRadius: 6, overflow: "hidden" }}>
+              {currentRole === "admin" ? (
+                <div className="nitro-progress" style={{ borderRadius: 6, height: "100%", width: "100%" }} />
+              ) : currentRole === "moderator" ? (
+                <div className="fire-progress" style={{ borderRadius: 6, height: "100%", width: "100%" }} />
+              ) : (
+                <div style={{ height: "100%", width: `${progressPct}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 6, transition: "width 0.6s" }} />
+              )}
             </div>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#9a7dbd", minWidth: 44, textAlign: "right" }}>{progressPct}%</span>
+            <span style={{ fontSize: 14, fontWeight: 800, minWidth: 64, textAlign: "right", color: currentRole === "admin" ? "#ff6a00" : currentRole === "moderator" ? "#ff8c00" : "#9a7dbd", textShadow: currentRole === "admin" || currentRole === "moderator" ? "0 0 6px rgba(255,106,0,0.55)" : undefined }}>
+              {currentRole === "admin" ? "⚡ 1000%" : currentRole === "moderator" ? "🔥 100%" : `${progressPct}%`}
+            </span>
           </div>
-          <div style={{ fontSize: 12, color: "#6b4fa0", marginTop: 8 }}>
-            {completedCount} chapitre{completedCount !== 1 ? "s" : ""} validé{completedCount !== 1 ? "s" : ""} sur {studentData.totalChapters}
-          </div>
+          {currentRole === "user" && (
+            <div style={{ fontSize: 12, color: "#6b4fa0", marginTop: 8 }}>
+              {completedCount} chapitre{completedCount !== 1 ? "s" : ""} validé{completedCount !== 1 ? "s" : ""} sur {studentData.totalChapters}
+            </div>
+          )}
+          {currentRole === "moderator" && (
+            <div style={{ fontSize: 12, color: "#fca5a5", marginTop: 8 }}>
+              Accès total : tous les modules + tous les logiciels.
+            </div>
+          )}
         </div>
+
 
         {/* ── Section 4 : Informations admin ── */}
         <div style={card}>
