@@ -602,8 +602,18 @@ function StudentModal({
             {togglingAccess ? "…" : student.has_software_access ? "🔒 Révoquer logiciel" : "⚡ Donner accès logiciel"}
           </button>
           {!isAdminUser && (
-            <button className="admin-btn-ghost" onClick={handleRoleChange} disabled={changing} style={{ width: "100%" }}>
-              {changing ? "…" : isMod ? "↩ Repasser élève" : "⬆ Passer modérateur"}
+            <>
+              <button className="admin-btn-ghost" onClick={() => void handleSetRole(isMod ? "user" : "moderator")} disabled={changing} style={{ width: "100%" }}>
+                {changing ? "…" : isMod ? "↩ Rétrograder modérateur → élève" : "⬆ Passer modérateur"}
+              </button>
+              <button className="admin-btn-primary" onClick={() => void handleSetRole("admin")} disabled={changing} style={{ width: "100%", background: "linear-gradient(135deg, #FFD700, #FFAA00)", color: "#1a0800", fontWeight: 800 }}>
+                {changing ? "…" : "👑 Promouvoir admin"}
+              </button>
+            </>
+          )}
+          {isAdminUser && (
+            <button className="admin-btn-danger" onClick={() => void handleSetRole("user")} disabled={changing} style={{ width: "100%" }}>
+              {changing ? "…" : "↩ Rétrograder admin → élève"}
             </button>
           )}
         </div>
