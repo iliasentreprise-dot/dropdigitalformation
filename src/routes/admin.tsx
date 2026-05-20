@@ -492,14 +492,10 @@ function StudentModal({
 }) {
   const [changing, setChanging] = useState(false);
   const [togglingAccess, setTogglingAccess] = useState(false);
-  const [tempPw, setTempPw] = useState(student.profile?.temp_password ?? "");
-  const [showTempPw, setShowTempPw] = useState(false);
-  const [savingTempPw, setSavingTempPw] = useState(false);
-  const [tempPwMsg, setTempPwMsg] = useState<string | null>(null);
   const name = student.profile?.full_name || student.profile?.username || student.email.split("@")[0];
   const isAdminUser = student.role === "admin";
   const isMod = student.role === "moderator";
-  const pct = isAdminUser ? 100 : totalChapters > 0
+  const pct = totalChapters > 0
     ? Math.round((student.completedChapters / totalChapters) * 100)
     : 0;
 
