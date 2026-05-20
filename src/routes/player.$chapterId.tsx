@@ -104,6 +104,13 @@ function PlayerPage() {
         setAllChapters(currentAllChapters);
       }
 
+      // Fetch role for privilege check
+      const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+      const rolePriority: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
+      const topRole = (roleRows ?? []).reduce<string>((best, r: { role: string }) => (rolePriority[r.role] ?? 0) > (rolePriority[best] ?? 0) ? r.role : best, "user");
+      // isPrivileged reserved for future lock bypasses — currently no locks in player
+      void topRole;
+
       // Load user progress
       if (currentAllChapters.length > 0) {
         const ids = currentAllChapters.map((c) => c.id);

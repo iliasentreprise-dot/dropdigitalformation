@@ -183,10 +183,10 @@ function ModulePage() {
 
       // Always load user-specific data
       const currentChapters = chapters.length > 0 ? chapters : [];
-      const [{ data: roleData }] = await Promise.all([
-        supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle(),
-      ]);
-      setIsAdmin(!!roleData);
+      const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+      const rolePriority: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
+      const topRole = (roleRows ?? []).reduce<string>((best, r: { role: string }) => (rolePriority[r.role] ?? 0) > (rolePriority[best] ?? 0) ? r.role : best, "user");
+      setIsAdmin(topRole === "admin" || topRole === "moderator");
 
       if (currentChapters.length > 0) {
         const ids = currentChapters.map((c) => c.id);

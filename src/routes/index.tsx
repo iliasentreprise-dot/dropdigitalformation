@@ -197,6 +197,7 @@ function HomePage() {
   }
 
   const getSectionLock = (section: string): { locked: boolean; unlockAt: Date | null; message: string } => {
+    if (isAdmin || userRole === "moderator") return { locked: false, unlockAt: null, message: "" };
     if (section === "jour2") {
       const { jour2UnlocksAt } = dripUnlock;
       if (!jour2UnlocksAt) return { locked: true, unlockAt: null, message: "Termine tous les chapitres du Jour 1 pour débloquer le Jour 2." };
@@ -428,7 +429,7 @@ function HomePage() {
                   }
 
                   if (activeSection === "ultime") {
-                    if (!hasSoftwareAccess) {
+                    if (!hasSoftwareAccess && !isAdmin && userRole !== "moderator") {
                       return (
                         <div style={{ position: "relative", minHeight: 320 }}>
                           <div className="modules-grid" style={{ filter: "blur(5px)", pointerEvents: "none", userSelect: "none", opacity: 0.5 }}>
