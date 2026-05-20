@@ -1496,6 +1496,13 @@
   100% { transform: translateX(220%)  skewX(-25deg); }
 }
 
+.chat-mini-badge.eleve {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #fff;
+  border: 1px solid rgba(168,85,247,0.6);
+  box-shadow: 0 0 4px rgba(168,85,247,0.4);
+}
+
 
 .chat-avatar { cursor: pointer; }
 .chat-avatar:hover { box-shadow: 0 0 0 2px #a855f7; }
