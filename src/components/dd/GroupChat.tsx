@@ -280,6 +280,7 @@ export function GroupChat({
                   <span style={{ cursor: "pointer" }} onClick={() => goToProfile(msg.user_id)}>{name}</span>
                   {role === "admin" && <span className="chat-mini-badge admin">👑 Admin</span>}
                   {role === "moderator" && <span className="chat-mini-badge mod">Modo</span>}
+                  {role !== "admin" && role !== "moderator" && <span className="chat-mini-badge eleve">🎓 Élève</span>}
                 </div>
 
 

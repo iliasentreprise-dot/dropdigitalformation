@@ -118,6 +118,7 @@ function ProfilPage() {
           <div style={{ marginBottom: 16 }}>
             {role === "admin" && <span className="chat-mini-badge admin" style={{ fontSize: 13, padding: "5px 14px", borderRadius: 8 }}>👑 Admin</span>}
             {role === "moderator" && <span className="chat-mini-badge mod" style={{ fontSize: 13, padding: "5px 14px", borderRadius: 8 }}>Modérateur</span>}
+            {role !== "admin" && role !== "moderator" && <span className="chat-mini-badge eleve" style={{ fontSize: 13, padding: "5px 14px", borderRadius: 8 }}>🎓 Élève</span>}
           </div>
 
           <div style={{ display: "flex", justifyContent: "center", gap: 36, margin: "20px 0 24px" }}>
