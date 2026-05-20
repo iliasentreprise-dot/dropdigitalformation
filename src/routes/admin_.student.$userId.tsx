@@ -468,9 +468,6 @@ function StudentProfilePage() {
 
           {/* Quick links */}
           <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap", justifyContent: "center" }}>
-            <Link to="/profil/$userId" params={{ userId }} className="admin-btn-ghost sm" style={{ textDecoration: "none" }}>
-              👁 Vue publique
-            </Link>
             <Link to="/admin/student/$userId/dms" params={{ userId }} className="admin-btn-ghost sm" style={{ textDecoration: "none" }}>
               💬 Messages privés
             </Link>
