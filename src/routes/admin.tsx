@@ -503,8 +503,7 @@ function StudentModal({
     ? Math.round((student.completedChapters / totalChapters) * 100)
     : 0;
 
-  const handleRoleChange = async () => {
-    const newRole = isMod ? "user" : "moderator";
+  const handleSetRole = async (newRole: "admin" | "moderator" | "user") => {
     setChanging(true);
     await onRoleChange(student.id, newRole);
     setChanging(false);
