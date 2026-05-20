@@ -5,6 +5,28 @@ import { supabase } from "@/integrations/supabase/client";
 import "../styles/player.css";
 
 export const Route = createFileRoute("/player/$chapterId")({
+  loader: async ({ params }) => {
+    try {
+      const { data: ch } = await supabase.from("chapters").select("*").eq("id", params.chapterId).maybeSingle();
+      if (!ch) return { chapter: null, module: null, allChapters: [] as Chapter[] };
+      const [{ data: mod }, { data: chapList }] = await Promise.all([
+        supabase.from("modules").select("id, title, section").eq("id", (ch as Chapter).module_id).maybeSingle(),
+        supabase.from("chapters").select("*").eq("module_id", (ch as Chapter).module_id).order("position"),
+      ]);
+      return {
+        chapter: ch as Chapter,
+        module: mod as Module | null,
+        allChapters: (chapList as Chapter[]) ?? [],
+      };
+    } catch {
+      return { chapter: null, module: null, allChapters: [] as Chapter[] };
+    }
+  },
+  pendingComponent: () => (
+    <div className="player-root" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh", background: "oklch(0.129 0.042 264.695)" }}>
+      <div style={{ color: "#9a7dbd", fontSize: 14 }}>Chargement…</div>
+    </div>
+  ),
   component: PlayerPage,
 });
 
@@ -38,14 +60,15 @@ function PlayerPage() {
   const { chapterId } = Route.useParams();
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const loaderData = Route.useLoaderData();
 
-  const [chapter, setChapter] = useState<Chapter | null>(null);
-  const [module, setModule] = useState<Module | null>(null);
-  const [allChapters, setAllChapters] = useState<Chapter[]>([]);
+  const [chapter, setChapter] = useState<Chapter | null>(loaderData.chapter);
+  const [module, setModule] = useState<Module | null>(loaderData.module);
+  const [allChapters, setAllChapters] = useState<Chapter[]>(loaderData.allChapters);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [validating, setValidating] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [dataLoading, setDataLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(!loaderData.chapter);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
@@ -60,32 +83,30 @@ function PlayerPage() {
 
   useEffect(() => {
     if (!user || !chapterId) return;
-    setDataLoading(true);
-
     (async () => {
-      const { data: ch } = await supabase
-        .from("chapters")
-        .select("*")
-        .eq("id", chapterId)
-        .maybeSingle();
+      let currentChapter = chapter;
+      let currentAllChapters = allChapters;
 
-      if (!ch) {
-        navigate({ to: "/" });
-        return;
+      // If loader didn't get data, fetch now
+      if (!currentChapter) {
+        setDataLoading(true);
+        const { data: ch } = await supabase.from("chapters").select("*").eq("id", chapterId).maybeSingle();
+        if (!ch) { navigate({ to: "/" }); return; }
+        currentChapter = ch as Chapter;
+        setChapter(currentChapter);
+
+        const [{ data: mod }, { data: chapList }] = await Promise.all([
+          supabase.from("modules").select("id, title, section").eq("id", currentChapter.module_id).maybeSingle(),
+          supabase.from("chapters").select("*").eq("module_id", currentChapter.module_id).order("position"),
+        ]);
+        setModule(mod as Module);
+        currentAllChapters = (chapList as Chapter[]) || [];
+        setAllChapters(currentAllChapters);
       }
-      setChapter(ch as Chapter);
 
-      const [{ data: mod }, { data: chapList }] = await Promise.all([
-        supabase.from("modules").select("id, title, section").eq("id", ch.module_id).maybeSingle(),
-        supabase.from("chapters").select("*").eq("module_id", ch.module_id).order("position"),
-      ]);
-
-      setModule(mod as Module);
-      const chapters = (chapList as Chapter[]) || [];
-      setAllChapters(chapters);
-
-      if (chapters.length > 0) {
-        const ids = chapters.map((c) => c.id);
+      // Load user progress
+      if (currentAllChapters.length > 0) {
+        const ids = currentAllChapters.map((c) => c.id);
         const { data: progress } = await supabase
           .from("user_chapter_progress")
           .select("chapter_id")

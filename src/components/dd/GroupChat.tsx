@@ -29,6 +29,7 @@ export function GroupChat({
   const [profiles, setProfiles] = useState<Record<string, GProfile>>({});
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [canModerate, setCanModerate] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,6 +45,10 @@ export function GroupChat({
       setMessages((data as unknown as GroupMessage[]) ?? []);
     };
     void load();
+
+    supabase.from("user_roles").select("role").eq("user_id", userId).then(({ data: roleRows }) => {
+      setCanModerate(roleRows?.some((r: { role: string }) => r.role === "admin" || r.role === "moderator") ?? false);
+    });
 
     const channel = supabase
       .channel("group_chat")
@@ -86,6 +91,12 @@ export function GroupChat({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const deleteMessage = async (id: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("group_messages").delete().eq("id", id);
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+  };
 
   const send = async () => {
     const content = input.trim();
@@ -140,11 +151,24 @@ export function GroupChat({
                   <span>{name[0]?.toUpperCase()}</span>
                 )}
               </div>
-              <div className="chat-bubble-wrap">
+              <div className="chat-bubble-wrap" style={{ position: "relative" }}>
                 {!isOwn && <div className="chat-sender">{name}</div>}
                 <div className={`chat-bubble${isOwn ? " own" : ""}`}>{msg.content}</div>
-                <div className={`chat-time${isOwn ? " own" : ""}`}>
-                  {new Date(msg.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div className={`chat-time${isOwn ? " own" : ""}`}>
+                    {new Date(msg.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                  {canModerate && (
+                    <button
+                      onClick={() => void deleteMessage(msg.id)}
+                      title="Supprimer"
+                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#6b4fa0", padding: "0 2px", lineHeight: 1, opacity: 0.6 }}
+                      onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                      onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
+                    >
+                      🗑
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

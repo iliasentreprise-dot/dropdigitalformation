@@ -41,6 +41,20 @@ type UserProfile = {
 
 type TabKey = "modules" | "groupe" | "coaching" | "resultats" | "profil" | "parametres";
 
+function SectionCountdown({ unlockAt }: { unlockAt: Date }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const diff = unlockAt.getTime() - now.getTime();
+  if (diff <= 0) return <span>Disponible maintenant — actualise la page</span>;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  return <>{`Disponible dans ${h}h ${String(m).padStart(2, "0")}min ${String(s).padStart(2, "0")}s`}</>;
+}
+
 const SECTIONS: { key: string; label: string; sub?: string }[] = [
   { key: "mindset", label: "Mindset" },
   { key: "jour1", label: "Jour 1", sub: "Préparation" },
@@ -153,16 +167,10 @@ function HomePage() {
 
   const globalPct = useMemo(() => {
     if (!chapters.length) return 0;
-    return Math.round((completed.size / chapters.length) * 100);
+    return Math.min(100, Math.round((completed.size / chapters.length) * 100));
   }, [chapters, completed]);
 
   const visibleModules = modules.filter((m) => m.section === activeSection);
-
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   const dripUnlock = useMemo(() => {
     const jour1ModIds = new Set(modules.filter((m) => m.section === "jour1").map((m) => m.id));
@@ -188,27 +196,20 @@ function HomePage() {
     return <div className="dd-root" style={{ alignItems: "center", justifyContent: "center" }} />;
   }
 
-  const formatCountdown = (unlockAt: Date): string => {
-    const diff = unlockAt.getTime() - now.getTime();
-    if (diff <= 0) return "";
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
-    return `${h}h ${String(m).padStart(2, "0")}min ${String(s).padStart(2, "0")}s`;
-  };
-
-  const getSectionLock = (section: string): { locked: boolean; message: string } => {
+  const getSectionLock = (section: string): { locked: boolean; unlockAt: Date | null; message: string } => {
     if (section === "jour2") {
       const { jour2UnlocksAt } = dripUnlock;
-      if (!jour2UnlocksAt) return { locked: true, message: "Termine tous les chapitres du Jour 1 pour débloquer le Jour 2." };
-      if (jour2UnlocksAt > now) return { locked: true, message: `Disponible dans ${formatCountdown(jour2UnlocksAt)}` };
+      if (!jour2UnlocksAt) return { locked: true, unlockAt: null, message: "Termine tous les chapitres du Jour 1 pour débloquer le Jour 2." };
+      const locked = jour2UnlocksAt > new Date();
+      return { locked, unlockAt: locked ? jour2UnlocksAt : null, message: "" };
     }
     if (section === "jour3") {
       const { jour3UnlocksAt } = dripUnlock;
-      if (!jour3UnlocksAt) return { locked: true, message: "Termine tous les chapitres du Jour 2 pour débloquer le Jour 3." };
-      if (jour3UnlocksAt > now) return { locked: true, message: `Disponible dans ${formatCountdown(jour3UnlocksAt)}` };
+      if (!jour3UnlocksAt) return { locked: true, unlockAt: null, message: "Termine tous les chapitres du Jour 2 pour débloquer le Jour 3." };
+      const locked = jour3UnlocksAt > new Date();
+      return { locked, unlockAt: locked ? jour3UnlocksAt : null, message: "" };
     }
-    return { locked: false, message: "" };
+    return { locked: false, unlockAt: null, message: "" };
   };
 
   const handleSignOut = async () => {
@@ -285,6 +286,7 @@ function HomePage() {
             key={m.id}
             to="/module/$moduleId"
             params={{ moduleId: m.id }}
+            preload="intent"
             className="module-card"
             style={{ textDecoration: "none", color: "inherit" }}
           >
@@ -418,7 +420,9 @@ function HomePage() {
                     return (
                       <div style={{ textAlign: "center", padding: "60px 20px" }}>
                         <div style={{ fontSize: 64, marginBottom: 20 }}>🔒</div>
-                        <p style={{ color: "#c4a3f0", fontSize: 18, fontWeight: 600, lineHeight: 1.7, margin: 0 }}>{lock.message}</p>
+                        <p style={{ color: "#c4a3f0", fontSize: 18, fontWeight: 600, lineHeight: 1.7, margin: 0 }}>
+                          {lock.unlockAt ? <SectionCountdown unlockAt={lock.unlockAt} /> : lock.message}
+                        </p>
                       </div>
                     );
                   }
@@ -559,10 +563,14 @@ function HomePage() {
                 {/* Role badge */}
                 <div style={{ textAlign: "center", marginBottom: 24 }}>
                   {userRole === "admin" && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #b45309, #f59e0b, #fbbf24)", color: "#1a0800", fontWeight: 800, fontSize: 14, padding: "6px 16px", borderRadius: 8, animation: "adminGlow 2s ease-in-out infinite" }}>✨ Admin</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #FFD700, #FFC200, #FFAA00)", color: "#1a0800", fontWeight: 800, fontSize: 14, padding: "6px 16px", borderRadius: 8, animation: "adminGlow 2s ease-in-out infinite", position: "relative" }}>
+                      👑 Admin <span style={{ animation: "starPop 1.5s ease-in-out infinite" }}>✦</span><span style={{ animation: "starPop 1.5s ease-in-out 0.5s infinite" }}>✦</span>
+                    </span>
                   )}
                   {userRole === "moderator" && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#7f1d1d", color: "#fca5a5", fontWeight: 800, fontSize: 14, padding: "6px 16px", borderRadius: 8, border: "1px solid #ef4444", animation: "modGlow 2s ease-in-out infinite" }}>🔴 Modérateur</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #7f1d1d, #991b1b)", color: "#fca5a5", fontWeight: 800, fontSize: 14, padding: "6px 16px", borderRadius: 8, border: "1px solid #ef4444", animation: "modNeon 2s ease-in-out infinite", position: "relative" }}>
+                      🏴‍☠️ Modérateur <span style={{ animation: "lightning 5s ease-in-out infinite", display: "inline-block" }}>⚡</span><span style={{ animation: "lightning 5s ease-in-out 0.1s infinite", display: "inline-block" }}>⚡</span>
+                    </span>
                   )}
                   {userRole === "user" && (
                     <span style={{ display: "inline-flex", alignItems: "center", background: "rgba(55,65,81,0.6)", color: "#9ca3af", fontWeight: 600, fontSize: 14, padding: "6px 16px", borderRadius: 8 }}>Élève</span>

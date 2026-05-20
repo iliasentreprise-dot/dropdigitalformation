@@ -137,8 +137,16 @@
     border-color: var(--color-border);
   }
 
+  html {
+    background-color: oklch(0.129 0.042 264.695);
+    overscroll-behavior-y: none;
+  }
+
   body {
-    background-color: var(--color-background);
+    background-color: oklch(0.129 0.042 264.695);
     color: var(--color-foreground);
+    min-height: 100dvh;
+    overscroll-behavior-y: none;
+    margin: 0;
   }
 }

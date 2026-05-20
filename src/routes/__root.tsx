@@ -35,6 +35,7 @@ export const Route = createRootRoute({
       { title: "DropDigital — Système Pirate" },
       { name: "description", content: "Formation DropDigital — Vendre des produits digitaux sur TikTok en automatique, sans visage, sans audience, sans montage." },
       { name: "author", content: "DropDigital" },
+      { name: "theme-color", content: "#0d0a1a" },
       { property: "og:title", content: "DropDigital — Système Pirate" },
       { property: "og:description", content: "Formation DropDigital — Vendre des produits digitaux sur TikTok en automatique, sans visage, sans audience, sans montage." },
       { property: "og:type", content: "website" },
@@ -62,11 +63,11 @@ export const Route = createRootRoute({
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" style={{ backgroundColor: "oklch(0.129 0.042 264.695)" }}>
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body style={{ backgroundColor: "oklch(0.129 0.042 264.695)", margin: 0 }}>
         {children}
         <Scripts />
       </body>

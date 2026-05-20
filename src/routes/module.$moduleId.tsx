@@ -10,6 +10,22 @@ import { notifyProgressChanged } from "@/components/dd/GlobalProgressBar";
 import "../styles/player.css";
 
 export const Route = createFileRoute("/module/$moduleId")({
+  loader: async ({ params }) => {
+    try {
+      const [{ data: mod }, { data: chs }] = await Promise.all([
+        supabase.from("modules").select("*").eq("id", params.moduleId).maybeSingle(),
+        supabase.from("chapters").select("*").eq("module_id", params.moduleId).order("position"),
+      ]);
+      return { module: (mod as Module | null), chapters: ((chs as Chapter[]) ?? []) };
+    } catch {
+      return { module: null, chapters: [] as Chapter[] };
+    }
+  },
+  pendingComponent: () => (
+    <div className="dd-root" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh", background: "oklch(0.129 0.042 264.695)" }}>
+      <div style={{ color: "#9a7dbd", fontSize: 14 }}>Chargement…</div>
+    </div>
+  ),
   component: ModulePage,
 });
 
@@ -53,15 +69,16 @@ function ModulePage() {
   const { moduleId } = Route.useParams();
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const loaderData = Route.useLoaderData();
 
-  const [module, setModule] = useState<Module | null>(null);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [module, setModule] = useState<Module | null>(loaderData.module);
+  const [chapters, setChapters] = useState<Chapter[]>(loaderData.chapters);
+  const [selectedId, setSelectedId] = useState<string | null>(loaderData.chapters[0]?.id ?? null);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [validating, setValidating] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [dataLoading, setDataLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(!loaderData.module);
   const [countdownActive, setCountdownActive] = useState(false);
   const [showCertificate, setShowCertificate] = useState(false);
   const [userName, setUserName] = useState("");
@@ -149,37 +166,30 @@ function ModulePage() {
 
   useEffect(() => {
     if (!user || !moduleId) return;
-    setDataLoading(true);
     (async () => {
-      const [{ data: mod }, { data: chapList }, { data: roleData }] =
-        await Promise.all([
+      // If loader didn't get module (auth needed), fetch now
+      if (!module) {
+        setDataLoading(true);
+        const [{ data: mod }, { data: chapList }] = await Promise.all([
           supabase.from("modules").select("*").eq("id", moduleId).maybeSingle(),
-          supabase
-            .from("chapters")
-            .select("*")
-            .eq("module_id", moduleId)
-            .order("position"),
-          supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", user.id)
-            .eq("role", "admin")
-            .maybeSingle(),
+          supabase.from("chapters").select("*").eq("module_id", moduleId).order("position"),
         ]);
-
-      if (!mod) {
-        navigate({ to: "/" });
-        return;
+        if (!mod) { navigate({ to: "/" }); return; }
+        setModule(mod as Module);
+        const chaps = (chapList as Chapter[]) || [];
+        setChapters(chaps);
+        if (chaps.length > 0) setSelectedId(chaps[0].id);
       }
-      setModule(mod as Module);
+
+      // Always load user-specific data
+      const currentChapters = chapters.length > 0 ? chapters : [];
+      const [{ data: roleData }] = await Promise.all([
+        supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle(),
+      ]);
       setIsAdmin(!!roleData);
 
-      const chaps = (chapList as Chapter[]) || [];
-      setChapters(chaps);
-
-      if (chaps.length > 0) {
-        setSelectedId(chaps[0].id);
-        const ids = chaps.map((c) => c.id);
+      if (currentChapters.length > 0) {
+        const ids = currentChapters.map((c) => c.id);
         const { data: progress } = await supabase
           .from("user_chapter_progress")
           .select("chapter_id")

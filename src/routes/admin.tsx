@@ -442,25 +442,28 @@ function RoleBadge({ role }: { role: string }) {
     return (
       <span style={{
         display: "inline-flex", alignItems: "center", gap: 4,
-        background: "linear-gradient(135deg, #b45309, #f59e0b, #fbbf24)",
+        background: "linear-gradient(135deg, #FFD700, #FFC200, #FFAA00)",
         color: "#1a0800", fontWeight: 800, fontSize: 11,
         padding: "3px 10px", borderRadius: 6,
         animation: "adminGlow 2s ease-in-out infinite",
-        letterSpacing: 0.5,
-      }}>✨ Admin</span>
+        position: "relative",
+      }}>
+        👑 Admin <span style={{ animation: "starPop 1.5s ease-in-out infinite", fontSize: 9 }}>✦</span>
+      </span>
     );
   }
   if (role === "moderator") {
     return (
       <span style={{
         display: "inline-flex", alignItems: "center", gap: 4,
-        background: "#7f1d1d", color: "#fca5a5",
+        background: "linear-gradient(135deg, #7f1d1d, #991b1b)", color: "#fca5a5",
         fontWeight: 800, fontSize: 11,
         padding: "3px 10px", borderRadius: 6,
         border: "1px solid #ef4444",
-        animation: "modGlow 2s ease-in-out infinite",
-        letterSpacing: 0.5,
-      }}>🔴 Modérateur</span>
+        animation: "modNeon 2s ease-in-out infinite",
+      }}>
+        🏴‍☠️ Modérateur <span style={{ animation: "lightning 5s ease-in-out infinite", display: "inline-block", fontSize: 10 }}>⚡</span>
+      </span>
     );
   }
   return (
@@ -469,7 +472,6 @@ function RoleBadge({ role }: { role: string }) {
       background: "rgba(55, 65, 81, 0.6)", color: "#9ca3af",
       fontWeight: 600, fontSize: 11,
       padding: "3px 10px", borderRadius: 6,
-      letterSpacing: 0.5,
     }}>Élève</span>
   );
 }

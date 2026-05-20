@@ -105,15 +105,15 @@ type StudentData = {
 function RoleBadge({ role }: { role: string }) {
   if (role === "admin") {
     return (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "linear-gradient(135deg,#b45309,#f59e0b,#fbbf24)", color: "#1a0800", fontWeight: 800, fontSize: 12, padding: "4px 12px", borderRadius: 8, animation: "adminGlow 2s ease-in-out infinite" }}>
-        ✨ Admin
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #FFD700, #FFC200, #FFAA00)", color: "#1a0800", fontWeight: 800, fontSize: 12, padding: "4px 12px", borderRadius: 8, animation: "adminGlow 2s ease-in-out infinite", position: "relative" }}>
+        👑 Admin <span style={{ animation: "starPop 1.5s ease-in-out infinite" }}>✦</span><span style={{ animation: "starPop 1.5s ease-in-out 0.5s infinite" }}>✦</span>
       </span>
     );
   }
   if (role === "moderator") {
     return (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#7f1d1d", color: "#fca5a5", fontWeight: 800, fontSize: 12, padding: "4px 12px", borderRadius: 8, border: "1px solid #ef4444", animation: "modGlow 2s ease-in-out infinite" }}>
-        🔴 Modérateur
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #7f1d1d, #991b1b)", color: "#fca5a5", fontWeight: 800, fontSize: 12, padding: "4px 12px", borderRadius: 8, border: "1px solid #ef4444", animation: "modNeon 2s ease-in-out infinite", position: "relative" }}>
+        🏴‍☠️ Modérateur <span style={{ animation: "lightning 5s ease-in-out infinite", display: "inline-block" }}>⚡</span><span style={{ animation: "lightning 5s ease-in-out 0.1s infinite", display: "inline-block" }}>⚡</span>
       </span>
     );
   }
@@ -192,13 +192,17 @@ function StudentProfilePage() {
   };
 
   if (loading || dataLoading) {
-    return <div className="admin-loading">Chargement…</div>;
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "oklch(0.129 0.042 264.695)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ color: "#9a7dbd", fontSize: 14 }}>Chargement…</div>
+      </div>
+    );
   }
 
   if (!studentData) {
     return (
-      <div className="admin-root">
-        <div className="admin-topbar">
+      <div style={{ position: "fixed", inset: 0, background: "oklch(0.129 0.042 264.695)", zIndex: 1000, overflowY: "auto" }}>
+        <div className="admin-topbar" style={{ position: "sticky", top: 0 }}>
           <Link to="/admin" className="admin-back">← Admin</Link>
           <h1 className="admin-title">Profil élève</h1>
         </div>
@@ -214,8 +218,8 @@ function StudentProfilePage() {
   const isAdminStudent = currentRole === "admin";
 
   return (
-    <div className="admin-root">
-      <div className="admin-topbar">
+    <div style={{ position: "fixed", inset: 0, background: "oklch(0.129 0.042 264.695)", zIndex: 1000, overflowY: "auto" }}>
+      <div className="admin-topbar" style={{ position: "sticky", top: 0 }}>
         <Link to="/admin" className="admin-back">← Admin</Link>
         <h1 className="admin-title">👤 Profil élève</h1>
       </div>
