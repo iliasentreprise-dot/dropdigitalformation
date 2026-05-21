@@ -47,6 +47,7 @@ function ProfilPage() {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [presence, setPresence] = useState<{ is_online: boolean; last_seen: string | null } | null>(null);
   const [myRole, setMyRole] = useState<string>("user");
+  const [modTotalSales, setModTotalSales] = useState<number | null>(null);
 
   const openList = async (kind: "followers" | "following") => {
     setListOpen(kind);
@@ -106,14 +107,22 @@ function ProfilPage() {
       // Use SECURITY DEFINER RPC — bypasses RLS so regular users can read others' roles
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: rpcRole } = await (supabase as any).rpc("get_top_role", { _user_id: userId });
+      const topRole = (rpcRole as string) ?? "user";
       if (rpcRole) {
-        setRole(rpcRole as string);
+        setRole(topRole);
       } else {
         // Fallback: direct query (works if RLS policy allows it after migration)
         const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", userId);
         const priority: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
         const top = (roleRows ?? []).reduce<string>((b, r) => ((priority[r.role] ?? 0) > (priority[b] ?? 0) ? r.role : b), "user");
         setRole(top);
+      }
+      // Fetch total sales for moderator/admin profiles (visible to admin/modo visitors)
+      if (topRole === "moderator" || topRole === "admin") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: salesRows } = await (supabase as any).from("moderator_sales").select("sales_count").eq("moderator_id", userId);
+        const total = ((salesRows ?? []) as { sales_count: number }[]).reduce((s, r) => s + (r.sales_count ?? 0), 0);
+        setModTotalSales(total);
       }
       setIsFollowing(!!f);
       setProgress({ done: (done ?? []).length, total: (chapters ?? []).length });
@@ -229,6 +238,12 @@ function ProfilPage() {
                 {canSeeLastSeen && presence?.last_seen && (
                   <div style={{ fontSize: 12, color: "#7c5c9a", marginTop: 3 }}>
                     Dernière connexion : {fmtExact(presence.last_seen)}
+                  </div>
+                )}
+                {canSeeLastSeen && modTotalSales !== null && (role === "moderator" || role === "admin") && (
+                  <div style={{ fontSize: 13, marginTop: 6 }}>
+                    📦 Total ventes : <span style={{ color: "#22c55e", fontWeight: 800 }}>{modTotalSales}</span>
+                    {" — "}<span style={{ color: "#22c55e", fontWeight: 800 }}>{(modTotalSales * 97).toLocaleString("fr-FR")}€</span> générés
                   </div>
                 )}
               </div>

@@ -13,6 +13,7 @@ type GroupMessage = {
   deleted_by: string | null;
   edited?: boolean;
   edited_at?: string | null;
+  image_url?: string | null;
 };
 
 type GProfile = {
@@ -57,6 +58,9 @@ export function GroupChat({
   const [onlineCount, setOnlineCount] = useState(0);
   const [editingMsg, setEditingMsg] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  const imgRef = useRef<HTMLInputElement>(null);
   // profile click navigates directly to /profil/$userId
   const navigate = useNavigate();
   const goToProfile = (uid: string) => { void navigate({ to: "/profil/$userId", params: { userId: uid } }); };
@@ -290,6 +294,28 @@ export function GroupChat({
     setSending(false);
   };
 
+  const uploadGroupImage = async (file: File) => {
+    if (mutedSet.has(userId) && !isAdmin) return;
+    setImageUploading(true);
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `group/${userId}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("chat-images").upload(path, file, { upsert: true, contentType: file.type || undefined });
+      if (upErr) { alert("Erreur upload : " + upErr.message); return; }
+      const { data: urlData } = supabase.storage.from("chat-images").getPublicUrl(path);
+      const replyId = replyTo?.id ?? null;
+      setReplyTo(null);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from("group_messages")
+        .insert({ user_id: userId, content: "", reply_to_id: replyId, image_url: urlData.publicUrl })
+        .select().single();
+      if (error) { alert(error.message); return; }
+      if (data) setMessages((prev) => { const row = data as GroupMessage; return prev.find((m) => m.id === row.id) ? prev : [...prev, row]; });
+    } catch (e) { alert((e as Error).message); }
+    finally { setImageUploading(false); }
+  };
+
   useEffect(() => {
     const fetchOnline = async () => {
       const { data } = await supabase
@@ -380,7 +406,7 @@ export function GroupChat({
                 {replied && (
                   <div className="msg-reply-quote">
                     <span className="rq-name">{nameOf(replied.user_id)}</span>
-                    {replied.content.slice(0, 80)}
+                    {replied.image_url ? "📷 Image" : replied.content.slice(0, 80)}
                   </div>
                 )}
 
@@ -446,6 +472,14 @@ export function GroupChat({
                   <div className={`chat-bubble${isOwn ? " own" : ""}`}>
                     {msg.content}
                     {msg.edited && <span style={{ fontSize: 10, color: "#7c5c9a", marginLeft: 6, fontStyle: "italic" }}>(modifié)</span>}
+                    {msg.image_url && (
+                      <img
+                        src={msg.image_url}
+                        alt=""
+                        style={{ display: "block", maxWidth: 200, maxHeight: 200, objectFit: "cover", borderRadius: 12, cursor: "pointer", marginTop: msg.content ? 8 : 0 }}
+                        onClick={(e) => { e.stopPropagation(); setLightboxImg(msg.image_url!); }}
+                      />
+                    )}
                   </div>
                 )}
 
@@ -573,6 +607,14 @@ export function GroupChat({
       )}
 
       <div className="chat-input-row">
+        <button
+          type="button"
+          onClick={() => imgRef.current?.click()}
+          disabled={imageUploading || (mutedSet.has(userId) && !isAdmin)}
+          title="Envoyer une image"
+          style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#9a7dbd", padding: "0 4px", opacity: imageUploading ? 0.5 : 1, flexShrink: 0 }}
+        >{imageUploading ? "⏳" : "📎"}</button>
+        <input ref={imgRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadGroupImage(f); e.target.value = ""; }} />
         <input
           className="chat-input"
           value={input}
@@ -596,6 +638,13 @@ export function GroupChat({
           ➤
         </button>
       </div>
+
+      {lightboxImg && (
+        <div onClick={() => setLightboxImg(null)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <button onClick={() => setLightboxImg(null)} style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.15)", border: "none", color: "#fff", fontSize: 22, width: 40, height: 40, borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          <img src={lightboxImg} alt="" style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain", borderRadius: 12 }} onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
 
     </div>
   );

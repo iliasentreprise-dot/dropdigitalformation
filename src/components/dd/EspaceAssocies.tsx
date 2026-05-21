@@ -8,6 +8,8 @@ type ModeEntry = {
   role: string;
   salesId: string | null;
   salesCount: number;
+  totalSales: number;
+  pricePerSale: number;
 };
 
 type Resource = {
@@ -50,9 +52,11 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
   const isAdmin = userRole === "admin";
   const [subTab, setSubTab] = useState<"classement" | "ressources">("classement");
   const [entries, setEntries] = useState<ModeEntry[]>([]);
+  const [totalEntries, setTotalEntries] = useState<ModeEntry[]>([]);
   const [allModerators, setAllModerators] = useState<KnownModerator[]>([]);
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState("");
+  const [globalPrice, setGlobalPrice] = useState(97);
   const [resources, setResources] = useState<Resource[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [openResource, setOpenResource] = useState<"tiktok" | "miro" | "tunnel" | null>(null);
@@ -73,15 +77,16 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
       .select("user_id, role")
       .in("role", ["moderator", "admin"]);
 
-    if (!roleRows || roleRows.length === 0) { setEntries([]); setAllModerators([]); setLoading(false); return; }
+    if (!roleRows || roleRows.length === 0) { setEntries([]); setTotalEntries([]); setAllModerators([]); setLoading(false); return; }
 
     const userIds = (roleRows as { user_id: string; role: string }[]).map((r) => r.user_id);
     const weekStart = getWeekStart();
 
     const [{ data: profiles }, { data: salesRows }] = await Promise.all([
       supabase.from("profiles").select("id, username, avatar_url").in("id", userIds),
-      supabase.from("moderator_sales")
-        .select("id, moderator_id, sales_count, week_start")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any).from("moderator_sales")
+        .select("id, moderator_id, sales_count, week_start, price_per_sale, total_sales")
         .in("moderator_id", userIds),
     ]);
 
@@ -92,25 +97,42 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
     });
     setAllModerators(allMods);
 
-    // Only show entries that have a sales row for the current week
+    type SalesRow = { id: string; moderator_id: string; sales_count: number; week_start: string; price_per_sale: number; total_sales: number };
+    const allRows = ((salesRows ?? []) as SalesRow[]);
+
+    // Compute total per moderator: max total_sales across all their rows (monotonically updated)
+    const totalPerMod: Record<string, { total: number; price: number }> = {};
+    for (const r of allRows) {
+      const ex = totalPerMod[r.moderator_id];
+      if (!ex || (r.total_sales ?? 0) > ex.total) {
+        totalPerMod[r.moderator_id] = { total: r.total_sales ?? 0, price: r.price_per_sale ?? 97 };
+      }
+    }
+
     const currentEntries: ModeEntry[] = [];
+    const allEntries: ModeEntry[] = [];
+
     for (const { user_id, role } of (roleRows as { user_id: string; role: string }[])) {
       const profile = profileMap.get(user_id);
-      const userSales = ((salesRows ?? []) as { id: string; moderator_id: string; sales_count: number; week_start: string }[])
-        .filter((s) => s.moderator_id === user_id && new Date(s.week_start) >= weekStart);
-      if (userSales.length === 0) continue;
-      const latest = userSales[0];
-      currentEntries.push({
+      const tot = totalPerMod[user_id] ?? { total: 0, price: 97 };
+      const weekRows = allRows.filter((s) => s.moderator_id === user_id && new Date(s.week_start) >= weekStart);
+      const latest = weekRows[0];
+      const entry: ModeEntry = {
         userId: user_id,
         username: profile?.username ?? null,
         avatarUrl: profile?.avatar_url ?? null,
         role,
-        salesId: latest.id,
-        salesCount: latest.sales_count,
-      });
+        salesId: latest?.id ?? null,
+        salesCount: latest?.sales_count ?? 0,
+        totalSales: tot.total,
+        pricePerSale: tot.price,
+      };
+      if (weekRows.length > 0) currentEntries.push(entry);
+      allEntries.push(entry);
     }
 
     setEntries([...currentEntries].sort((a, b) => b.salesCount - a.salesCount));
+    setTotalEntries([...allEntries].sort((a, b) => b.totalSales - a.totalSales));
     setLoading(false);
   }, []);
 
@@ -143,10 +165,17 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
   const updateSales = async (entry: ModeEntry, newCount: number) => {
     if (newCount < 0) newCount = 0;
     if (!entry.salesId) return;
-    await supabase.from("moderator_sales").update({ sales_count: newCount, updated_at: new Date().toISOString() }).eq("id", entry.salesId);
+    const delta = newCount - entry.salesCount;
+    const newTotal = Math.max(0, entry.totalSales + delta);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("moderator_sales").update({ sales_count: newCount, total_sales: newTotal, updated_at: new Date().toISOString() }).eq("id", entry.salesId);
     setEntries((prev) =>
-      [...prev.map((e) => e.userId === entry.userId ? { ...e, salesCount: newCount } : e)]
+      [...prev.map((e) => e.userId === entry.userId ? { ...e, salesCount: newCount, totalSales: newTotal } : e)]
         .sort((a, b) => b.salesCount - a.salesCount)
+    );
+    setTotalEntries((prev) =>
+      [...prev.map((e) => e.userId === entry.userId ? { ...e, salesCount: newCount, totalSales: newTotal } : e)]
+        .sort((a, b) => b.totalSales - a.totalSales)
     );
   };
 
@@ -158,7 +187,9 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
       .insert({ moderator_id: addModoSel, sales_count: 0, week_start: getWeekStart().toISOString() })
       .select("id").single();
     if (data && mod) {
-      setEntries((prev) => [...prev, { ...mod, salesId: (data as { id: string }).id, salesCount: 0 }].sort((a, b) => b.salesCount - a.salesCount));
+      const newEntry: ModeEntry = { ...mod, salesId: (data as { id: string }).id, salesCount: 0, totalSales: 0, pricePerSale: 97 };
+      setEntries((prev) => [...prev, newEntry].sort((a, b) => b.salesCount - a.salesCount));
+      setTotalEntries((prev) => [...prev.filter((e) => e.userId !== mod.userId), newEntry].sort((a, b) => b.totalSales - a.totalSales));
     }
     setAddModoSel("");
     setAdding(false);
@@ -238,10 +269,10 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
       {subTab === "classement" && (
         <div>
           {/* Gift + title + countdown */}
-          <div style={{ marginBottom: 28, textAlign: "center" }}>
+          <div style={{ marginBottom: 24, textAlign: "center" }}>
             <div style={{ fontSize: 64, animation: "giftBounce 1.4s ease-in-out infinite", display: "inline-block", marginBottom: 8 }}>🎁</div>
             <div style={{ fontSize: 19, fontWeight: 800, color: "#fca5a5", marginBottom: 6 }}>
-              🏆 Classement Vendeurs — <span style={{ color: "#10b981" }}>Bonus 200€</span> pour le meilleur de la semaine
+              🏆 Meilleur vendeur de la semaine — <span style={{ color: "#10b981" }}>Bonus 200€</span>
             </div>
             <div style={{ fontSize: 12, color: "#f87171", marginBottom: 10 }}>Reset dimanche soir 00h00</div>
             <div style={{ fontSize: 32, fontWeight: 900, color: RED, fontVariantNumeric: "tabular-nums", letterSpacing: 3, fontFamily: "monospace", textShadow: `0 0 16px rgba(239,68,68,0.5)` }}>
@@ -249,6 +280,21 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
             </div>
             <div style={{ fontSize: 11, color: "#7c5c9a", marginTop: 4, letterSpacing: 2 }}>JJ : HH : MM : SS</div>
           </div>
+
+          {/* Admin: price per sale */}
+          {isAdmin && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: "#9a7dbd" }}>Prix unitaire :</span>
+              <input
+                type="number"
+                min={1}
+                value={globalPrice}
+                onChange={(e) => setGlobalPrice(Math.max(1, parseInt(e.target.value) || 97))}
+                style={{ width: 70, background: "rgba(15,5,30,0.8)", border: `1px solid rgba(239,68,68,0.35)`, borderRadius: 8, color: "#fca5a5", fontSize: 14, fontWeight: 800, padding: "4px 8px", textAlign: "center" }}
+              />
+              <span style={{ fontSize: 12, color: "#f87171", fontWeight: 700 }}>€ / vente</span>
+            </div>
+          )}
 
           {/* Admin: add moderator */}
           {isAdmin && missingMods.length > 0 && (
@@ -295,36 +341,41 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                         {entry.role === "admin" ? "👑 Admin" : "🏴‍☠️ Modérateur"}
                       </span>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      {canEdit(entry) ? (
-                        <>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {canEdit(entry) ? (
+                          <>
+                            <button
+                              onClick={() => void updateSales(entry, entry.salesCount - 1)}
+                              style={{ width: 30, height: 30, borderRadius: "50%", background: `rgba(239,68,68,0.15)`, border: `1px solid rgba(239,68,68,0.35)`, color: "#fca5a5", fontSize: 20, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+                            >−</button>
+                            <input
+                              type="number"
+                              min={0}
+                              value={entry.salesCount}
+                              onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) void updateSales(entry, v); }}
+                              style={{ width: 54, textAlign: "center", background: "rgba(15,5,30,0.8)", border: `1px solid rgba(239,68,68,0.4)`, borderRadius: 8, color: "#fca5a5", fontSize: 20, fontWeight: 900, padding: "4px 0" }}
+                            />
+                            <button
+                              onClick={() => void updateSales(entry, entry.salesCount + 1)}
+                              style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.35)", color: "#10b981", fontSize: 20, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+                            >+</button>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: 26, fontWeight: 900, color: RED, minWidth: 52, textAlign: "center" }}>{entry.salesCount}</div>
+                        )}
+                        <div style={{ fontSize: 11, color: "#7c5c9a" }}>ventes</div>
+                        {isAdmin && (
                           <button
-                            onClick={() => void updateSales(entry, entry.salesCount - 1)}
-                            style={{ width: 30, height: 30, borderRadius: "50%", background: `rgba(239,68,68,0.15)`, border: `1px solid rgba(239,68,68,0.35)`, color: "#fca5a5", fontSize: 20, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
-                          >−</button>
-                          <input
-                            type="number"
-                            min={0}
-                            value={entry.salesCount}
-                            onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) void updateSales(entry, v); }}
-                            style={{ width: 54, textAlign: "center", background: "rgba(15,5,30,0.8)", border: `1px solid rgba(239,68,68,0.4)`, borderRadius: 8, color: "#fca5a5", fontSize: 20, fontWeight: 900, padding: "4px 0" }}
-                          />
-                          <button
-                            onClick={() => void updateSales(entry, entry.salesCount + 1)}
-                            style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.35)", color: "#10b981", fontSize: 20, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
-                          >+</button>
-                        </>
-                      ) : (
-                        <div style={{ fontSize: 26, fontWeight: 900, color: RED, minWidth: 52, textAlign: "center" }}>{entry.salesCount}</div>
-                      )}
-                      <div style={{ fontSize: 11, color: "#7c5c9a" }}>ventes</div>
-                      {isAdmin && (
-                        <button
-                          onClick={() => void removeModerator(entry)}
-                          title="Retirer du classement"
-                          style={{ background: "rgba(239,68,68,0.1)", border: `1px solid rgba(239,68,68,0.3)`, color: "#fca5a5", borderRadius: 6, width: 26, height: 26, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", marginLeft: 4 }}
-                        >🗑</button>
-                      )}
+                            onClick={() => void removeModerator(entry)}
+                            title="Retirer du classement"
+                            style={{ background: "rgba(239,68,68,0.1)", border: `1px solid rgba(239,68,68,0.3)`, color: "#fca5a5", borderRadius: 6, width: 26, height: 26, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", marginLeft: 4 }}
+                          >🗑</button>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 800 }}>
+                        {(entry.salesCount * globalPrice).toLocaleString("fr-FR")}€ générés
+                      </div>
                     </div>
                   </div>
                 );
@@ -332,6 +383,66 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
               {entries.length === 0 && <div style={{ textAlign: "center", color: "#f87171", padding: 40 }}>Aucun modérateur dans le classement cette semaine.</div>}
             </div>
           )}
+
+          {/* Total section */}
+          <div style={{ marginTop: 36 }}>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "#fca5a5", marginBottom: 18, textAlign: "center" }}>
+              👑 Meilleur vendeur total
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {totalEntries.map((entry, idx) => {
+                const ringStyle = entry.role === "admin"
+                  ? { border: "2.5px solid #ffd700", boxShadow: "0 0 10px #ffd700, 0 0 20px rgba(255,215,0,0.4)" }
+                  : { border: `2.5px solid ${RED}`, boxShadow: `0 0 10px ${RED}, 0 0 20px rgba(239,68,68,0.35)` };
+                return (
+                  <div key={entry.userId} style={{ display: "flex", alignItems: "center", gap: 14, background: idx === 0 ? `rgba(127,29,29,0.25)` : "rgba(255,255,255,0.03)", border: `1px solid ${idx === 0 ? `rgba(239,68,68,0.4)` : "rgba(255,255,255,0.07)"}`, borderRadius: 14, padding: "14px 18px" }}>
+                    <div style={{ fontSize: idx < 3 ? 22 : 15, fontWeight: 900, color: idx === 0 ? "#ffd700" : idx === 1 ? "#c0c0c0" : idx === 2 ? "#cd7f32" : "#7c5c9a", minWidth: 36, textAlign: "center" }}>
+                      {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`}
+                    </div>
+                    <div style={{ width: 44, height: 44, borderRadius: "50%", ...ringStyle, flexShrink: 0, overflow: "hidden", background: "#1e1132", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {entry.avatarUrl
+                        ? <img src={entry.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        : <span style={{ fontSize: 18, color: "#c4a3f0" }}>{(entry.username ?? "?")[0]?.toUpperCase()}</span>}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, color: "#fca5a5", fontSize: 15, marginBottom: 3 }}>{entry.username ?? "Anonyme"}</div>
+                      <span style={{ fontSize: 11, background: entry.role === "admin" ? "rgba(255,215,0,0.12)" : `rgba(239,68,68,0.12)`, color: entry.role === "admin" ? "#ffd700" : "#fca5a5", padding: "2px 8px", borderRadius: 4, fontWeight: 700 }}>
+                        {entry.role === "admin" ? "👑 Admin" : "🏴‍☠️ Modérateur"}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                      {isAdmin ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <button onClick={() => void updateSales(entry, Math.max(0, entry.salesCount - 0) || 0)} style={{ display: "none" }} />
+                          <input
+                            type="number"
+                            min={0}
+                            value={entry.totalSales}
+                            onChange={(e) => {
+                              const v = parseInt(e.target.value);
+                              if (!isNaN(v) && v >= 0 && entry.salesId) {
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                void (supabase as any).from("moderator_sales").update({ total_sales: v }).eq("id", entry.salesId);
+                                setTotalEntries((prev) => [...prev.map((en) => en.userId === entry.userId ? { ...en, totalSales: v } : en)].sort((a, b) => b.totalSales - a.totalSales));
+                              }
+                            }}
+                            style={{ width: 64, textAlign: "center", background: "rgba(15,5,30,0.8)", border: `1px solid rgba(239,68,68,0.4)`, borderRadius: 8, color: "#fca5a5", fontSize: 18, fontWeight: 900, padding: "4px 0" }}
+                          />
+                          <span style={{ fontSize: 11, color: "#7c5c9a" }}>ventes</span>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 24, fontWeight: 900, color: RED }}>{entry.totalSales} <span style={{ fontSize: 11, color: "#7c5c9a", fontWeight: 400 }}>ventes</span></div>
+                      )}
+                      <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 800 }}>
+                        {(entry.totalSales * (entry.pricePerSale || globalPrice)).toLocaleString("fr-FR")}€ générés
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {totalEntries.length === 0 && <div style={{ textAlign: "center", color: "#f87171", padding: 20 }}>Aucune donnée de vente.</div>}
+            </div>
+          </div>
         </div>
       )}
 

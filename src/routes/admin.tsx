@@ -215,6 +215,24 @@ const inviteStudentFn = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+const createStudentFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { email, password } = (data as unknown) as { email: string; password: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: newUser, error } = await supabaseAdmin.auth.admin.createUser({ email, password, email_confirm: true });
+    if (error) throw new Error(error.message);
+    if (newUser.user?.id) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabaseAdmin as any).from("profiles").upsert({ id: newUser.user.id, temp_password: password }, { onConflict: "id" });
+    }
+    return { success: true };
+  });
+
+function generatePassword(): string {
+  const words = ["chocolat", "pirate", "dragon", "soleil", "ocean", "tigre", "rocket", "ninja"];
+  return words[Math.floor(Math.random() * words.length)] + Math.floor(Math.random() * 9000 + 1000).toString();
+}
+
 const listStudentsFn = createServerFn({ method: "GET" })
   .handler(async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -697,6 +715,11 @@ function AdminPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteResult, setInviteResult] = useState<{ text: string; isErr: boolean } | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createEmail, setCreateEmail] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createResult, setCreateResult] = useState<{ text: string; isErr: boolean } | null>(null);
 
   const [students, setStudents] = useState<StudentUser[]>([]);
   const [totalChapters, setTotalChapters] = useState(0);
@@ -1557,10 +1580,86 @@ function AdminPage() {
           )}
           <div className="admin-form-actions">
             <button type="submit" className="admin-btn-primary" disabled={inviteLoading}>
-              {inviteLoading ? "Envoi en cours…" : "Créer l'accès"}
+              {inviteLoading ? "Envoi en cours…" : "Envoyer l'invitation email"}
+            </button>
+            <button
+              type="button"
+              className="admin-btn-ghost"
+              onClick={() => { setCreateEmail(""); setCreatePassword(generatePassword()); setCreateResult(null); setShowCreateModal(true); }}
+            >
+              🔐 Créer avec mot de passe
             </button>
           </div>
         </form>
+
+        {showCreateModal && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <div style={{ background: "#1e1132", border: "1px solid rgba(168,85,247,0.35)", borderRadius: 16, padding: 28, width: "100%", maxWidth: 440 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <h3 style={{ color: "#f0e8ff", margin: 0, fontWeight: 800 }}>🔐 Créer un accès avec mot de passe</h3>
+                <button onClick={() => setShowCreateModal(false)} style={{ background: "none", border: "none", color: "#9a7dbd", fontSize: 20, cursor: "pointer" }}>✕</button>
+              </div>
+              {createResult ? (
+                <div>
+                  <div style={{ background: createResult.isErr ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)", border: `1px solid ${createResult.isErr ? "rgba(239,68,68,0.3)" : "rgba(16,185,129,0.3)"}`, borderRadius: 10, padding: "16px 18px", marginBottom: 16 }}>
+                    <div style={{ color: createResult.isErr ? "#fca5a5" : "#86efac", fontSize: 14, fontWeight: 700, marginBottom: createResult.isErr ? 0 : 10 }}>{createResult.isErr ? "❌ " + createResult.text : "✅ Élève créé avec succès !"}</div>
+                    {!createResult.isErr && (
+                      <>
+                        <div style={{ fontSize: 12, color: "#9a7dbd", marginBottom: 6 }}>Mot de passe provisoire à communiquer à l'élève :</div>
+                        <div style={{ fontFamily: "monospace", fontSize: 22, fontWeight: 900, color: "#a855f7", background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 8, padding: "10px 16px", letterSpacing: 2, userSelect: "all" }}>{createPassword}</div>
+                        <div style={{ fontSize: 11, color: "#7c5c9a", marginTop: 8 }}>Copie ce mot de passe avant de fermer la fenêtre.</div>
+                      </>
+                    )}
+                  </div>
+                  <button className="admin-btn-primary" onClick={() => { setCreateResult(null); setCreateEmail(""); setCreatePassword(generatePassword()); }}>Inviter un autre élève</button>
+                  <button className="admin-btn-ghost" onClick={() => setShowCreateModal(false)} style={{ marginLeft: 8 }}>Fermer</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 12, color: "#9a7dbd", fontWeight: 600 }}>Email de l'élève</span>
+                    <input
+                      type="email"
+                      value={createEmail}
+                      onChange={(e) => setCreateEmail(e.target.value)}
+                      placeholder="eleve@example.com"
+                      style={{ background: "rgba(15,5,30,0.8)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 8, color: "#f0e8ff", padding: "10px 14px", fontSize: 14, outline: "none" }}
+                    />
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 12, color: "#9a7dbd", fontWeight: 600 }}>Mot de passe provisoire</span>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input
+                        type="text"
+                        value={createPassword}
+                        onChange={(e) => setCreatePassword(e.target.value)}
+                        style={{ flex: 1, fontFamily: "monospace", fontWeight: 800, fontSize: 16, background: "rgba(124,58,237,0.1)", border: "1px solid rgba(168,85,247,0.4)", borderRadius: 8, color: "#a855f7", padding: "10px 14px", outline: "none", letterSpacing: 1 }}
+                      />
+                      <button type="button" onClick={() => setCreatePassword(generatePassword())} style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 8, color: "#c4a3f0", padding: "0 12px", cursor: "pointer", fontSize: 18 }}>🎲</button>
+                    </div>
+                  </label>
+                  <button
+                    className="admin-btn-primary"
+                    disabled={createLoading || !createEmail.trim()}
+                    onClick={async () => {
+                      if (!createEmail.trim() || !createPassword) return;
+                      setCreateLoading(true);
+                      try {
+                        await (createStudentFn as unknown as (args: { data: { email: string; password: string } }) => Promise<void>)({ data: { email: createEmail.trim(), password: createPassword } });
+                        setCreateResult({ text: "", isErr: false });
+                      } catch (e) {
+                        setCreateResult({ text: (e as Error).message, isErr: true });
+                      }
+                      setCreateLoading(false);
+                    }}
+                  >
+                    {createLoading ? "Création en cours…" : "✅ Créer l'accès"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="admin-section-header" style={{ marginTop: 48 }}>
           <h2>Modules</h2>

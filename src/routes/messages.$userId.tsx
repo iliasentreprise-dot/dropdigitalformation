@@ -7,13 +7,13 @@ import "../styles/dropdigital.css";
 
 const sendDmFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
-    const { senderId, recipientId, content, senderName, recipientName } = (data as unknown) as { senderId: string; recipientId: string; content: string; senderName: string; recipientName: string };
+    const { senderId, recipientId, content, senderName, recipientName, imageUrl } = (data as unknown) as { senderId: string; recipientId: string; content: string; senderName: string; recipientName: string; imageUrl?: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sa = supabaseAdmin as any;
     const { data: msg, error } = await sa
       .from("private_messages")
-      .insert({ sender_id: senderId, recipient_id: recipientId, content })
+      .insert({ sender_id: senderId, recipient_id: recipientId, content, ...(imageUrl ? { image_url: imageUrl } : {}) })
       .select()
       .single();
     if (error) throw new Error((error as { message: string }).message);
@@ -41,6 +41,7 @@ type PMessage = {
   content: string;
   created_at: string;
   deleted_at: string | null;
+  image_url?: string | null;
 };
 
 type MiniProfile = {
@@ -71,6 +72,9 @@ function MessagesPage() {
   const [hasAcceptedMe, setHasAcceptedMe] = useState<boolean | null>(null); // other accepted my messages
   const [iHaveAccepted, setIHaveAccepted] = useState<boolean | null>(null); // I accepted theirs
   const [otherPresence, setOtherPresence] = useState<{ is_online: boolean } | null>(null);
+  const [dmImageUploading, setDmImageUploading] = useState(false);
+  const [dmLightboxImg, setDmLightboxImg] = useState<string | null>(null);
+  const dmImgRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -175,6 +179,24 @@ function MessagesPage() {
       alert((e as Error).message);
     }
     setSending(false);
+  };
+
+  const uploadDmImage = async (file: File) => {
+    if (!user) return;
+    setDmImageUploading(true);
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `dm/${user.id}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("chat-images").upload(path, file, { upsert: true, contentType: file.type || undefined });
+      if (upErr) { alert("Erreur upload : " + upErr.message); return; }
+      const { data: urlData } = supabase.storage.from("chat-images").getPublicUrl(path);
+      const imageUrl = urlData.publicUrl;
+      const msg = await (sendDmFn as unknown as (args: { data: { senderId: string; recipientId: string; content: string; senderName: string; recipientName: string; imageUrl: string } }) => Promise<PMessage>)({
+        data: { senderId: user.id, recipientId: otherId, content: "", senderName: me?.full_name || me?.username || user.email || "Élève", recipientName: other?.full_name || other?.username || "Élève", imageUrl },
+      });
+      if (msg) setMessages((prev) => (prev.find((x) => x.id === msg.id) ? prev : [...prev, msg]));
+    } catch (e) { alert((e as Error).message); }
+    finally { setDmImageUploading(false); }
   };
 
   const acceptDM = async () => {
@@ -311,6 +333,14 @@ function MessagesPage() {
                 fontSize: 14, lineHeight: 1.5, wordBreak: "break-word",
               }}>
                 {m.content}
+                {m.image_url && !isDeleted && (
+                  <img
+                    src={m.image_url}
+                    alt=""
+                    style={{ display: "block", maxWidth: 200, maxHeight: 200, objectFit: "cover", borderRadius: 12, cursor: "pointer", marginTop: m.content ? 8 : 0 }}
+                    onClick={() => setDmLightboxImg(m.image_url!)}
+                  />
+                )}
                 {isDeleted && (
                   <div style={{ fontSize: 11, marginTop: 6, color: "#fca5a5", fontStyle: "italic" }}>
                     (message supprimé à {new Date(m.deleted_at!).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })})
@@ -343,7 +373,15 @@ function MessagesPage() {
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 10, padding: "12px 14px", borderTop: "1px solid rgba(168,85,247,0.15)", background: "rgba(14,4,24,0.6)" }}>
+      <div style={{ display: "flex", gap: 8, padding: "12px 14px", borderTop: "1px solid rgba(168,85,247,0.15)", background: "rgba(14,4,24,0.6)", alignItems: "center" }}>
+        <button
+          type="button"
+          onClick={() => dmImgRef.current?.click()}
+          disabled={dmImageUploading}
+          title="Envoyer une image"
+          style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#9a7dbd", padding: "0 2px", opacity: dmImageUploading ? 0.5 : 1, flexShrink: 0 }}
+        >{dmImageUploading ? "⏳" : "📎"}</button>
+        <input ref={dmImgRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadDmImage(f); e.target.value = ""; }} />
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -355,11 +393,19 @@ function MessagesPage() {
         <button
           onClick={() => void send()}
           disabled={sending || !input.trim()}
-          style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg, #7c3aed, #a855f7)", color: "#fff", border: "none", cursor: "pointer", fontSize: 18, opacity: !input.trim() ? 0.5 : 1 }}
+          style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg, #7c3aed, #a855f7)", color: "#fff", border: "none", cursor: "pointer", fontSize: 18, opacity: !input.trim() ? 0.5 : 1, flexShrink: 0 }}
         >
           ➤
         </button>
       </div>
+
+      {dmLightboxImg && (
+        <div onClick={() => setDmLightboxImg(null)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <button onClick={() => setDmLightboxImg(null)} style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.15)", border: "none", color: "#fff", fontSize: 22, width: 40, height: 40, borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          <img src={dmLightboxImg} alt="" style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain", borderRadius: 12 }} onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+
       <style>{`
         @keyframes dmClockSpin {
           0% { transform: rotate(0deg); }
