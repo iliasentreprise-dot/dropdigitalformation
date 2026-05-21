@@ -47,22 +47,24 @@ function getPalierStyle(amount: number): PalierResult {
       } as CSSProperties,
       decorators: (
         <>
+          {/* 🔥 flottent au-dessus du conteneur — ne poussent pas le layout */}
           {[0, 1, 2, 3].map((i) => (
             <span key={`fire-${i}`} style={{
               position: "absolute",
               fontSize: 13,
-              left: `${8 + i * 23}%`,
-              bottom: "92%",
+              left: `${10 + i * 20}%`,
+              bottom: "105%",
               animation: `floatUp ${0.7 + i * 0.22}s ease-out infinite`,
               animationDelay: `${i * 0.18}s`,
               pointerEvents: "none",
               zIndex: 2,
             }}>🔥</span>
           ))}
+          {/* Traits de vitesse — en dehors du flux (absolute) */}
           {[0, 1, 2].map((i) => (
             <span key={`streak-${i}`} style={{
               position: "absolute",
-              top: `${28 + i * 22}%`,
+              top: `${25 + i * 25}%`,
               left: 0,
               right: 0,
               height: 2,
@@ -97,17 +99,19 @@ function getPalierStyle(amount: number): PalierResult {
       } as CSSProperties,
       decorators: (
         <>
+          {/* Étoiles dans le padding gauche/droit du conteneur — ne chevauchent pas le texte voisin */}
           {[
-            { left: "-18px", top: "-6px", size: 13, delay: 0 },
-            { left: "calc(100% + 4px)", top: "-6px", size: 10, delay: 0.4 },
-            { left: "-14px", top: "55%", size: 9, delay: 0.8 },
-            { left: "calc(100% + 2px)", top: "55%", size: 12, delay: 0.2 },
+            { left: "2px", top: "-8px", size: 12, delay: 0 },
+            { right: "2px", top: "-8px", size: 10, delay: 0.4 },
+            { left: "4px", top: "55%", size: 9, delay: 0.8 },
+            { right: "4px", top: "55%", size: 11, delay: 0.2 },
           ].map((pos, i) => (
             <span key={`star-${i}`} style={{
               position: "absolute",
               fontSize: pos.size,
               color: "#FFD700",
               left: pos.left,
+              right: (pos as { right?: string }).right,
               top: pos.top,
               animation: `starTwinkle ${1 + i * 0.25}s ease-in-out infinite`,
               animationDelay: `${pos.delay}s`,
@@ -133,6 +137,7 @@ function getPalierStyle(amount: number): PalierResult {
       },
       decorators: (
         <>
+          {/* Particules au-dessus du conteneur — ne poussent pas le layout */}
           {[0, 1, 2, 3].map((i) => (
             <span key={`particle-${i}`} style={{
               position: "absolute",
@@ -140,8 +145,8 @@ function getPalierStyle(amount: number): PalierResult {
               height: 5,
               borderRadius: "50%",
               background: "#00ff88",
-              left: `${10 + i * 22}%`,
-              bottom: "88%",
+              left: `${12 + i * 20}%`,
+              bottom: "105%",
               animation: `particleFloat ${0.85 + i * 0.2}s ease-out infinite`,
               animationDelay: `${i * 0.22}s`,
               pointerEvents: "none",
@@ -520,60 +525,56 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                         {entry.role === "admin" ? "👑 Admin" : "🏴‍☠️ Modérateur"}
                       </span>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                      {/* Sales count row */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {/* ── right side: single flex row ── */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                      {/* Sales count */}
+                      {editable ? (
+                        <>
+                          <button
+                            onClick={() => void updateSales(entry, entry.salesCount - 1)}
+                            style={{ width: 30, height: 30, borderRadius: "50%", background: `rgba(239,68,68,0.15)`, border: `1px solid rgba(239,68,68,0.35)`, color: "#fca5a5", fontSize: 20, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+                          >−</button>
+                          <input
+                            type="number"
+                            min={0}
+                            value={entry.salesCount}
+                            onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) void updateSales(entry, v); }}
+                            style={numInputStyle(54)}
+                          />
+                          <button
+                            onClick={() => void updateSales(entry, entry.salesCount + 1)}
+                            style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.35)", color: "#10b981", fontSize: 20, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+                          >+</button>
+                        </>
+                      ) : (
+                        <span style={{ minWidth: 52, textAlign: "right", fontSize: 22, fontWeight: 900, color: "white", flexShrink: 0 }}>{entry.salesCount}</span>
+                      )}
+                      <span style={{ fontSize: 12, color: "white", fontWeight: 700, flexShrink: 0 }}>ventes</span>
+                      {/* Revenue — padded container so absolute decorators ne débordent pas sur les voisins */}
+                      <div style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 4, paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
                         {editable ? (
                           <>
-                            <button
-                              onClick={() => void updateSales(entry, entry.salesCount - 1)}
-                              style={{ width: 30, height: 30, borderRadius: "50%", background: `rgba(239,68,68,0.15)`, border: `1px solid rgba(239,68,68,0.35)`, color: "#fca5a5", fontSize: 20, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
-                            >−</button>
-                            <input
-                              type="number"
-                              min={0}
-                              value={entry.salesCount}
-                              onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) void updateSales(entry, v); }}
-                              style={numInputStyle(54)}
-                            />
-                            <button
-                              onClick={() => void updateSales(entry, entry.salesCount + 1)}
-                              style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.35)", color: "#10b981", fontSize: 20, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
-                            >+</button>
-                          </>
-                        ) : (
-                          <span style={{ fontSize: 22, fontWeight: 900, color: "white" }}>{entry.salesCount}</span>
-                        )}
-                        <span style={{ fontSize: 12, color: "white", fontWeight: 700 }}>ventes</span>
-                        {isAdmin && (
-                          <button
-                            onClick={() => void removeModerator(entry)}
-                            title="Retirer du classement"
-                            style={{ background: "rgba(239,68,68,0.1)", border: `1px solid rgba(239,68,68,0.3)`, color: "#fca5a5", borderRadius: 6, width: 26, height: 26, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", marginLeft: 4 }}
-                          >🗑</button>
-                        )}
-                      </div>
-                      {/* Weekly revenue row */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        {editable ? (
-                          <div style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 6 }}>
                             <input
                               type="number"
                               min={0}
                               value={entry.weeklyRevenue}
                               onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) void updateWeeklyRevenue(entry, v); }}
-                              style={{ ...numInputStyle(80, wPalier.accentColor), fontSize: 15, border: `1px solid ${wPalier.accentColor}66` }}
+                              style={{ ...numInputStyle(72, wPalier.accentColor), fontSize: 15, border: `1px solid ${wPalier.accentColor}66` }}
                             />
-                            <span style={{ fontSize: 14, color: wPalier.accentColor, fontWeight: 800 }}>€</span>
-                            {wPalier.decorators}
-                          </div>
+                            <span style={{ fontSize: 14, color: wPalier.accentColor, fontWeight: 800, flexShrink: 0 }}>€</span>
+                          </>
                         ) : (
-                          <div style={{ position: "relative", display: "inline-block" }}>
-                            <span style={wPalier.textStyle}>{entry.weeklyRevenue.toLocaleString("fr-FR")}€</span>
-                            {wPalier.decorators}
-                          </div>
+                          <span style={wPalier.textStyle}>{entry.weeklyRevenue.toLocaleString("fr-FR")}€</span>
                         )}
+                        {wPalier.decorators}
                       </div>
+                      {isAdmin && (
+                        <button
+                          onClick={() => void removeModerator(entry)}
+                          title="Retirer du classement"
+                          style={{ background: "rgba(239,68,68,0.1)", border: `1px solid rgba(239,68,68,0.3)`, color: "#fca5a5", borderRadius: 6, width: 26, height: 26, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                        >🗑</button>
+                      )}
                     </div>
                   </div>
                 );
@@ -645,12 +646,13 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                         </>
                       ) : isZero ? (
                         /* ── Zéro : affichage grisé ── */
-                        <span style={{ fontSize: 14, color: "#6b7280", fontStyle: "italic" }}>0 vente — 0€</span>
+                        <span style={{ fontSize: 14, color: "#6b7280", fontStyle: "italic", flexShrink: 0 }}>0 vente — 0€</span>
                       ) : (
-                        /* ── Lecture seule (modérateurs) ── */
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{ fontSize: 22, fontWeight: 900, color: "white" }}>{entry.totalSales} <span style={{ fontSize: 12, fontWeight: 700 }}>ventes</span></span>
-                          <div style={{ position: "relative", display: "inline-block" }}>
+                        /* ── Lecture seule (modérateurs) — single flex row ── */
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                          <span style={{ minWidth: 52, textAlign: "right", fontSize: 22, fontWeight: 900, color: "white", flexShrink: 0 }}>{entry.totalSales}</span>
+                          <span style={{ fontSize: 12, color: "white", fontWeight: 700, flexShrink: 0 }}>ventes</span>
+                          <div style={{ position: "relative", display: "inline-flex", alignItems: "center", paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
                             <span style={tPalier.textStyle}>{entry.totalRevenue.toLocaleString("fr-FR")}€</span>
                             {tPalier.decorators}
                           </div>
