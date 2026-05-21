@@ -9,7 +9,8 @@ type ModeEntry = {
   salesId: string | null;
   salesCount: number;
   totalSales: number;
-  pricePerSale: number;
+  weeklyRevenue: number;
+  totalRevenue: number;
 };
 
 type Resource = {
@@ -56,7 +57,6 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
   const [allModerators, setAllModerators] = useState<KnownModerator[]>([]);
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState("");
-  const [globalPrice, setGlobalPrice] = useState(97);
   const [resources, setResources] = useState<Resource[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [openResource, setOpenResource] = useState<"tiktok" | "miro" | "tunnel" | null>(null);
@@ -86,7 +86,7 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
       supabase.from("profiles").select("id, username, avatar_url").in("id", userIds),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any).from("moderator_sales")
-        .select("id, moderator_id, sales_count, week_start, price_per_sale, total_sales")
+        .select("id, moderator_id, sales_count, week_start, total_sales, weekly_revenue, total_revenue")
         .in("moderator_id", userIds),
     ]);
 
@@ -97,15 +97,15 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
     });
     setAllModerators(allMods);
 
-    type SalesRow = { id: string; moderator_id: string; sales_count: number; week_start: string; price_per_sale: number; total_sales: number };
+    type SalesRow = { id: string; moderator_id: string; sales_count: number; week_start: string; total_sales: number; weekly_revenue: number; total_revenue: number };
     const allRows = ((salesRows ?? []) as SalesRow[]);
 
-    // Compute total per moderator: max total_sales across all their rows (monotonically updated)
-    const totalPerMod: Record<string, { total: number; price: number }> = {};
+    // Compute cumulative totals per moderator: max total_sales and total_revenue across all their rows
+    const totalPerMod: Record<string, { total: number; totalRevenue: number }> = {};
     for (const r of allRows) {
       const ex = totalPerMod[r.moderator_id];
       if (!ex || (r.total_sales ?? 0) > ex.total) {
-        totalPerMod[r.moderator_id] = { total: r.total_sales ?? 0, price: r.price_per_sale ?? 97 };
+        totalPerMod[r.moderator_id] = { total: r.total_sales ?? 0, totalRevenue: r.total_revenue ?? 0 };
       }
     }
 
@@ -114,7 +114,7 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
 
     for (const { user_id, role } of (roleRows as { user_id: string; role: string }[])) {
       const profile = profileMap.get(user_id);
-      const tot = totalPerMod[user_id] ?? { total: 0, price: 97 };
+      const tot = totalPerMod[user_id] ?? { total: 0, totalRevenue: 0 };
       const weekRows = allRows.filter((s) => s.moderator_id === user_id && new Date(s.week_start) >= weekStart);
       const latest = weekRows[0];
       const entry: ModeEntry = {
@@ -125,7 +125,8 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
         salesId: latest?.id ?? null,
         salesCount: latest?.sales_count ?? 0,
         totalSales: tot.total,
-        pricePerSale: tot.price,
+        weeklyRevenue: latest?.weekly_revenue ?? 0,
+        totalRevenue: tot.totalRevenue,
       };
       if (weekRows.length > 0) currentEntries.push(entry);
       allEntries.push(entry);
@@ -148,10 +149,14 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
     const channel = supabase.channel("ea_sales_rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "moderator_sales" }, (payload) => {
         if (payload.eventType === "UPDATE") {
-          const u = payload.new as { id: string; moderator_id: string; sales_count: number };
+          const u = payload.new as { id: string; moderator_id: string; sales_count: number; weekly_revenue: number; total_revenue: number; total_sales: number };
           setEntries((prev) =>
-            [...prev.map((e) => e.userId === u.moderator_id ? { ...e, salesId: u.id, salesCount: u.sales_count } : e)]
+            [...prev.map((e) => e.userId === u.moderator_id ? { ...e, salesId: u.id, salesCount: u.sales_count, weeklyRevenue: u.weekly_revenue ?? 0 } : e)]
               .sort((a, b) => b.salesCount - a.salesCount)
+          );
+          setTotalEntries((prev) =>
+            [...prev.map((e) => e.userId === u.moderator_id ? { ...e, totalSales: u.total_sales ?? e.totalSales, totalRevenue: u.total_revenue ?? 0 } : e)]
+              .sort((a, b) => b.totalSales - a.totalSales)
           );
         } else {
           void loadClassement();
@@ -179,15 +184,47 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
     );
   };
 
+  const updateWeeklyRevenue = async (entry: ModeEntry, newRevenue: number) => {
+    if (newRevenue < 0) newRevenue = 0;
+    if (!entry.salesId) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("moderator_sales").update({ weekly_revenue: newRevenue }).eq("id", entry.salesId);
+    setEntries((prev) =>
+      [...prev.map((e) => e.userId === entry.userId ? { ...e, weeklyRevenue: newRevenue } : e)]
+        .sort((a, b) => b.salesCount - a.salesCount)
+    );
+  };
+
+  const updateTotalSales = async (entry: ModeEntry, newTotal: number) => {
+    if (!entry.salesId) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("moderator_sales").update({ total_sales: newTotal }).eq("id", entry.salesId);
+    setTotalEntries((prev) =>
+      [...prev.map((e) => e.userId === entry.userId ? { ...e, totalSales: newTotal } : e)]
+        .sort((a, b) => b.totalSales - a.totalSales)
+    );
+  };
+
+  const updateTotalRevenue = async (entry: ModeEntry, newRevenue: number) => {
+    if (newRevenue < 0) newRevenue = 0;
+    if (!entry.salesId) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("moderator_sales").update({ total_revenue: newRevenue }).eq("id", entry.salesId);
+    setTotalEntries((prev) =>
+      [...prev.map((e) => e.userId === entry.userId ? { ...e, totalRevenue: newRevenue } : e)]
+        .sort((a, b) => b.totalSales - a.totalSales)
+    );
+  };
+
   const addModerator = async () => {
     if (!addModoSel) return;
     setAdding(true);
     const mod = allModerators.find((m) => m.userId === addModoSel);
     const { data } = await supabase.from("moderator_sales")
-      .insert({ moderator_id: addModoSel, sales_count: 0, week_start: getWeekStart().toISOString() })
+      .insert({ moderator_id: addModoSel, sales_count: 0, week_start: getWeekStart().toISOString(), weekly_revenue: 0, total_revenue: 0 })
       .select("id").single();
     if (data && mod) {
-      const newEntry: ModeEntry = { ...mod, salesId: (data as { id: string }).id, salesCount: 0, totalSales: 0, pricePerSale: 97 };
+      const newEntry: ModeEntry = { ...mod, salesId: (data as { id: string }).id, salesCount: 0, totalSales: 0, weeklyRevenue: 0, totalRevenue: 0 };
       setEntries((prev) => [...prev, newEntry].sort((a, b) => b.salesCount - a.salesCount));
       setTotalEntries((prev) => [...prev.filter((e) => e.userId !== mod.userId), newEntry].sort((a, b) => b.totalSales - a.totalSales));
     }
@@ -253,6 +290,18 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
   const copyBtnStyle = (id: string) => ({ background: copiedId === id ? "rgba(16,185,129,0.2)" : `rgba(239,68,68,0.15)`, border: `1px solid ${copiedId === id ? "rgba(16,185,129,0.4)" : `rgba(239,68,68,0.35)`}`, color: copiedId === id ? "#10b981" : "#fca5a5", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" });
   const openBtnStyle: CSSProperties = { background: `rgba(239,68,68,0.15)`, border: `1px solid rgba(239,68,68,0.35)`, color: "#fca5a5", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, textDecoration: "none", display: "inline-block" };
 
+  const numInputStyle = (width: number, color = "#fca5a5"): CSSProperties => ({
+    width,
+    textAlign: "center",
+    background: "rgba(15,5,30,0.8)",
+    border: `1px solid rgba(239,68,68,0.4)`,
+    borderRadius: 8,
+    color,
+    fontSize: 18,
+    fontWeight: 900,
+    padding: "4px 0",
+  });
+
   return (
     <div>
       <div className="section-header">
@@ -280,21 +329,6 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
             </div>
             <div style={{ fontSize: 11, color: "#7c5c9a", marginTop: 4, letterSpacing: 2 }}>JJ : HH : MM : SS</div>
           </div>
-
-          {/* Admin: price per sale */}
-          {isAdmin && (
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 12, color: "#9a7dbd" }}>Prix unitaire :</span>
-              <input
-                type="number"
-                min={1}
-                value={globalPrice}
-                onChange={(e) => setGlobalPrice(Math.max(1, parseInt(e.target.value) || 97))}
-                style={{ width: 70, background: "rgba(15,5,30,0.8)", border: `1px solid rgba(239,68,68,0.35)`, borderRadius: 8, color: "#fca5a5", fontSize: 14, fontWeight: 800, padding: "4px 8px", textAlign: "center" }}
-              />
-              <span style={{ fontSize: 12, color: "#f87171", fontWeight: 700 }}>€ / vente</span>
-            </div>
-          )}
 
           {/* Admin: add moderator */}
           {isAdmin && missingMods.length > 0 && (
@@ -325,6 +359,7 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                 const ringStyle = entry.role === "admin"
                   ? { border: "2.5px solid #ffd700", boxShadow: "0 0 10px #ffd700, 0 0 20px rgba(255,215,0,0.4)" }
                   : { border: `2.5px solid ${RED}`, boxShadow: `0 0 10px ${RED}, 0 0 20px rgba(239,68,68,0.35)` };
+                const editable = canEdit(entry);
                 return (
                   <div key={entry.userId} style={{ display: "flex", alignItems: "center", gap: 14, background: idx === 0 ? `rgba(127,29,29,0.25)` : "rgba(255,255,255,0.03)", border: `1px solid ${idx === 0 ? `rgba(239,68,68,0.4)` : "rgba(255,255,255,0.07)"}`, borderRadius: 14, padding: "14px 18px" }}>
                     <div style={{ fontSize: idx < 3 ? 22 : 15, fontWeight: 900, color: idx === 0 ? "#ffd700" : idx === 1 ? "#c0c0c0" : idx === 2 ? "#cd7f32" : "#7c5c9a", minWidth: 36, textAlign: "center" }}>
@@ -341,9 +376,10 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                         {entry.role === "admin" ? "👑 Admin" : "🏴‍☠️ Modérateur"}
                       </span>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                      {/* Sales count row */}
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        {canEdit(entry) ? (
+                        {editable ? (
                           <>
                             <button
                               onClick={() => void updateSales(entry, entry.salesCount - 1)}
@@ -354,7 +390,7 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                               min={0}
                               value={entry.salesCount}
                               onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) void updateSales(entry, v); }}
-                              style={{ width: 54, textAlign: "center", background: "rgba(15,5,30,0.8)", border: `1px solid rgba(239,68,68,0.4)`, borderRadius: 8, color: "#fca5a5", fontSize: 20, fontWeight: 900, padding: "4px 0" }}
+                              style={numInputStyle(54)}
                             />
                             <button
                               onClick={() => void updateSales(entry, entry.salesCount + 1)}
@@ -362,9 +398,9 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                             >+</button>
                           </>
                         ) : (
-                          <div style={{ fontSize: 26, fontWeight: 900, color: RED, minWidth: 52, textAlign: "center" }}>{entry.salesCount}</div>
+                          <span style={{ fontSize: 22, fontWeight: 900, color: "white" }}>{entry.salesCount}</span>
                         )}
-                        <div style={{ fontSize: 11, color: "#7c5c9a" }}>ventes</div>
+                        <span style={{ fontSize: 12, color: "white", fontWeight: 700 }}>ventes</span>
                         {isAdmin && (
                           <button
                             onClick={() => void removeModerator(entry)}
@@ -373,8 +409,22 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                           >🗑</button>
                         )}
                       </div>
-                      <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 800 }}>
-                        {(entry.salesCount * globalPrice).toLocaleString("fr-FR")}€ générés
+                      {/* Weekly revenue row */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {editable ? (
+                          <>
+                            <input
+                              type="number"
+                              min={0}
+                              value={entry.weeklyRevenue}
+                              onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) void updateWeeklyRevenue(entry, v); }}
+                              style={{ ...numInputStyle(80, "#22c55e"), fontSize: 15, border: "1px solid rgba(34,197,94,0.4)" }}
+                            />
+                            <span style={{ fontSize: 14, color: "#22c55e", fontWeight: 800 }}>€</span>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 15, color: "#22c55e", fontWeight: 800 }}>{entry.weeklyRevenue.toLocaleString("fr-FR")}€</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -394,6 +444,7 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                 const ringStyle = entry.role === "admin"
                   ? { border: "2.5px solid #ffd700", boxShadow: "0 0 10px #ffd700, 0 0 20px rgba(255,215,0,0.4)" }
                   : { border: `2.5px solid ${RED}`, boxShadow: `0 0 10px ${RED}, 0 0 20px rgba(239,68,68,0.35)` };
+                const editable = canEdit(entry);
                 return (
                   <div key={entry.userId} style={{ display: "flex", alignItems: "center", gap: 14, background: idx === 0 ? `rgba(127,29,29,0.25)` : "rgba(255,255,255,0.03)", border: `1px solid ${idx === 0 ? `rgba(239,68,68,0.4)` : "rgba(255,255,255,0.07)"}`, borderRadius: 14, padding: "14px 18px" }}>
                     <div style={{ fontSize: idx < 3 ? 22 : 15, fontWeight: 900, color: idx === 0 ? "#ffd700" : idx === 1 ? "#c0c0c0" : idx === 2 ? "#cd7f32" : "#7c5c9a", minWidth: 36, textAlign: "center" }}>
@@ -410,32 +461,38 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                         {entry.role === "admin" ? "👑 Admin" : "🏴‍☠️ Modérateur"}
                       </span>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                      {isAdmin ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <button onClick={() => void updateSales(entry, Math.max(0, entry.salesCount - 0) || 0)} style={{ display: "none" }} />
-                          <input
-                            type="number"
-                            min={0}
-                            value={entry.totalSales}
-                            onChange={(e) => {
-                              const v = parseInt(e.target.value);
-                              if (!isNaN(v) && v >= 0 && entry.salesId) {
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                void (supabase as any).from("moderator_sales").update({ total_sales: v }).eq("id", entry.salesId);
-                                setTotalEntries((prev) => [...prev.map((en) => en.userId === entry.userId ? { ...en, totalSales: v } : en)].sort((a, b) => b.totalSales - a.totalSales));
-                              }
-                            }}
-                            style={{ width: 64, textAlign: "center", background: "rgba(15,5,30,0.8)", border: `1px solid rgba(239,68,68,0.4)`, borderRadius: 8, color: "#fca5a5", fontSize: 18, fontWeight: 900, padding: "4px 0" }}
-                          />
-                          <span style={{ fontSize: 11, color: "#7c5c9a" }}>ventes</span>
-                        </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                      {editable ? (
+                        <>
+                          {/* Total sales editable */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <input
+                              type="number"
+                              min={0}
+                              value={entry.totalSales}
+                              onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) void updateTotalSales(entry, v); }}
+                              style={numInputStyle(64)}
+                            />
+                            <span style={{ fontSize: 12, color: "white", fontWeight: 700 }}>ventes</span>
+                          </div>
+                          {/* Total revenue editable */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <input
+                              type="number"
+                              min={0}
+                              value={entry.totalRevenue}
+                              onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) void updateTotalRevenue(entry, v); }}
+                              style={{ ...numInputStyle(90, "#22c55e"), fontSize: 15, border: "1px solid rgba(34,197,94,0.4)" }}
+                            />
+                            <span style={{ fontSize: 14, color: "#22c55e", fontWeight: 800 }}>€</span>
+                          </div>
+                        </>
                       ) : (
-                        <div style={{ fontSize: 24, fontWeight: 900, color: RED }}>{entry.totalSales} <span style={{ fontSize: 11, color: "#7c5c9a", fontWeight: 400 }}>ventes</span></div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontSize: 22, fontWeight: 900, color: "white" }}>{entry.totalSales} <span style={{ fontSize: 12, fontWeight: 700 }}>ventes</span></span>
+                          <span style={{ fontSize: 16, color: "#22c55e", fontWeight: 800 }}>{entry.totalRevenue.toLocaleString("fr-FR")}€</span>
+                        </div>
                       )}
-                      <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 800 }}>
-                        {(entry.totalSales * (entry.pricePerSale || globalPrice)).toLocaleString("fr-FR")}€ générés
-                      </div>
                     </div>
                   </div>
                 );
@@ -516,4 +573,3 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
     </div>
   );
 }
-
