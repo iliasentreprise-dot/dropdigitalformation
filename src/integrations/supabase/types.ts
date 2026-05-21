@@ -205,7 +205,11 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           deleted_by: string | null
+          edited: boolean | null
+          edited_at: string | null
           id: string
+          image_url: string | null
+          message_type: string | null
           reply_to_id: string | null
           user_id: string
           visible: boolean
@@ -215,7 +219,11 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
+          edited?: boolean | null
+          edited_at?: string | null
           id?: string
+          image_url?: string | null
+          message_type?: string | null
           reply_to_id?: string | null
           user_id: string
           visible?: boolean
@@ -225,7 +233,11 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
+          edited?: boolean | null
+          edited_at?: string | null
           id?: string
+          image_url?: string | null
+          message_type?: string | null
           reply_to_id?: string | null
           user_id?: string
           visible?: boolean
@@ -271,6 +283,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      moderator_resources: {
+        Row: {
+          created_at: string | null
+          id: string
+          moderator_id: string | null
+          title: string | null
+          type: string
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          moderator_id?: string | null
+          title?: string | null
+          type: string
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          moderator_id?: string | null
+          title?: string | null
+          type?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      moderator_sales: {
+        Row: {
+          id: string
+          moderator_id: string | null
+          price_per_sale: number | null
+          sales_count: number | null
+          total_sales: number | null
+          updated_at: string | null
+          week_start: string | null
+        }
+        Insert: {
+          id?: string
+          moderator_id?: string | null
+          price_per_sale?: number | null
+          sales_count?: number | null
+          total_sales?: number | null
+          updated_at?: string | null
+          week_start?: string | null
+        }
+        Update: {
+          id?: string
+          moderator_id?: string | null
+          price_per_sale?: number | null
+          sales_count?: number | null
+          total_sales?: number | null
+          updated_at?: string | null
+          week_start?: string | null
+        }
+        Relationships: []
       }
       module_completions: {
         Row: {
@@ -392,6 +461,7 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           id: string
+          image_url: string | null
           recipient_id: string
           sender_id: string
         }
@@ -401,6 +471,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           id?: string
+          image_url?: string | null
           recipient_id: string
           sender_id: string
         }
@@ -410,6 +481,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           id?: string
+          image_url?: string | null
           recipient_id?: string
           sender_id?: string
         }
@@ -544,6 +616,8 @@ export type Database = {
           deleted: boolean | null
           deleted_at: string | null
           deleted_by: string | null
+          edited: boolean | null
+          edited_at: string | null
           id: string
           photo_url: string | null
           user_id: string
@@ -556,6 +630,8 @@ export type Database = {
           deleted?: boolean | null
           deleted_at?: string | null
           deleted_by?: string | null
+          edited?: boolean | null
+          edited_at?: string | null
           id?: string
           photo_url?: string | null
           user_id: string
@@ -568,6 +644,8 @@ export type Database = {
           deleted?: boolean | null
           deleted_at?: string | null
           deleted_by?: string | null
+          edited?: boolean | null
+          edited_at?: string | null
           id?: string
           photo_url?: string | null
           user_id?: string
@@ -600,6 +678,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_presence: {
+        Row: {
+          is_online: boolean | null
+          last_seen: string | null
+          user_id: string
+        }
+        Insert: {
+          is_online?: boolean | null
+          last_seen?: string | null
+          user_id: string
+        }
+        Update: {
+          is_online?: boolean | null
+          last_seen?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
