@@ -333,9 +333,9 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
   };
 
   const updateTotalSales = async (entry: ModeEntry, newTotal: number) => {
-    if (!entry.salesId) return;
+    if (newTotal < 0) newTotal = 0;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("moderator_sales").update({ total_sales: newTotal }).eq("id", entry.salesId);
+    await (supabase as any).from("moderator_sales").update({ total_sales: newTotal }).eq("moderator_id", entry.userId);
     setTotalEntries((prev) =>
       [...prev.map((e) => e.userId === entry.userId ? { ...e, totalSales: newTotal } : e)]
         .sort((a, b) => b.totalSales - a.totalSales)
@@ -344,13 +344,19 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
 
   const updateTotalRevenue = async (entry: ModeEntry, newRevenue: number) => {
     if (newRevenue < 0) newRevenue = 0;
-    if (!entry.salesId) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("moderator_sales").update({ total_revenue: newRevenue }).eq("id", entry.salesId);
+    await (supabase as any).from("moderator_sales").update({ total_revenue: newRevenue }).eq("moderator_id", entry.userId);
     setTotalEntries((prev) =>
       [...prev.map((e) => e.userId === entry.userId ? { ...e, totalRevenue: newRevenue } : e)]
         .sort((a, b) => b.totalSales - a.totalSales)
     );
+  };
+
+  const removeTotalModerator = async (entry: ModeEntry) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("moderator_sales").delete().eq("moderator_id", entry.userId);
+    setTotalEntries((prev) => prev.filter((e) => e.userId !== entry.userId));
+    setEntries((prev) => prev.filter((e) => e.userId !== entry.userId));
   };
 
   const addModerator = async () => {
@@ -586,8 +592,8 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                 const ringStyle = entry.role === "admin"
                   ? { border: "2.5px solid #ffd700", boxShadow: "0 0 10px #ffd700, 0 0 20px rgba(255,215,0,0.4)" }
                   : { border: `2.5px solid ${RED}`, boxShadow: `0 0 10px ${RED}, 0 0 20px rgba(239,68,68,0.35)` };
-                const editable = canEdit(entry);
                 const tPalier = getPalierStyle(entry.totalRevenue);
+                const isZero = entry.totalSales === 0 && entry.totalRevenue === 0;
                 return (
                   <div key={entry.userId} style={{ display: "flex", alignItems: "center", gap: 14, background: idx === 0 ? `rgba(127,29,29,0.25)` : "rgba(255,255,255,0.03)", border: `1px solid ${idx === 0 ? `rgba(239,68,68,0.4)` : "rgba(255,255,255,0.07)"}`, borderRadius: 14, padding: "14px 18px" }}>
                     <div style={{ fontSize: idx < 3 ? 22 : 15, fontWeight: 900, color: idx === 0 ? "#ffd700" : idx === 1 ? "#c0c0c0" : idx === 2 ? "#cd7f32" : "#7c5c9a", minWidth: 36, textAlign: "center" }}>
@@ -605,7 +611,8 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                       </span>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                      {editable ? (
+                      {isAdmin ? (
+                        /* ── Admin : inputs éditables + bouton supprimer ── */
                         <>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <input
@@ -616,6 +623,11 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                               style={numInputStyle(64)}
                             />
                             <span style={{ fontSize: 12, color: "white", fontWeight: 700 }}>ventes</span>
+                            <button
+                              onClick={() => void removeTotalModerator(entry)}
+                              title="Supprimer du classement total"
+                              style={{ background: "rgba(239,68,68,0.1)", border: `1px solid rgba(239,68,68,0.3)`, color: "#fca5a5", borderRadius: 6, width: 26, height: 26, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", marginLeft: 4 }}
+                            >🗑</button>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <div style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -631,7 +643,11 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                             </div>
                           </div>
                         </>
+                      ) : isZero ? (
+                        /* ── Zéro : affichage grisé ── */
+                        <span style={{ fontSize: 14, color: "#6b7280", fontStyle: "italic" }}>0 vente — 0€</span>
                       ) : (
+                        /* ── Lecture seule (modérateurs) ── */
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <span style={{ fontSize: 22, fontWeight: 900, color: "white" }}>{entry.totalSales} <span style={{ fontSize: 12, fontWeight: 700 }}>ventes</span></span>
                           <div style={{ position: "relative", display: "inline-block" }}>
