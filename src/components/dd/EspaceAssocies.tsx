@@ -23,6 +23,144 @@ type Resource = {
 
 type KnownModerator = { userId: string; username: string | null; avatarUrl: string | null; role: string };
 
+type PalierResult = {
+  textStyle: CSSProperties;
+  accentColor: string;
+  decorators: React.ReactNode;
+};
+
+function getPalierStyle(amount: number): PalierResult {
+  if (amount >= 3000) {
+    return {
+      accentColor: "#ff8c00",
+      textStyle: {
+        background: "linear-gradient(90deg, #ff4500, #ff8c00, #ffd700, #ff8c00, #ff4500)",
+        backgroundSize: "300% auto",
+        WebkitBackgroundClip: "text",
+        backgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        color: "transparent",
+        fontWeight: 900,
+        fontSize: 28,
+        display: "inline-block",
+        animation: "goldShine 1.2s linear infinite, fireFlicker 0.3s ease-in-out infinite",
+      } as CSSProperties,
+      decorators: (
+        <>
+          {[0, 1, 2, 3].map((i) => (
+            <span key={`fire-${i}`} style={{
+              position: "absolute",
+              fontSize: 13,
+              left: `${8 + i * 23}%`,
+              bottom: "92%",
+              animation: `floatUp ${0.7 + i * 0.22}s ease-out infinite`,
+              animationDelay: `${i * 0.18}s`,
+              pointerEvents: "none",
+              zIndex: 2,
+            }}>🔥</span>
+          ))}
+          {[0, 1, 2].map((i) => (
+            <span key={`streak-${i}`} style={{
+              position: "absolute",
+              top: `${28 + i * 22}%`,
+              left: 0,
+              right: 0,
+              height: 2,
+              background: `linear-gradient(90deg, transparent, ${["#ff4500", "#ff8c00", "#ffd700"][i]}99, transparent)`,
+              animation: `streakPass ${0.45 + i * 0.14}s linear infinite`,
+              animationDelay: `${i * 0.15}s`,
+              pointerEvents: "none",
+              borderRadius: 2,
+              display: "block",
+            }} />
+          ))}
+        </>
+      ),
+    };
+  }
+
+  if (amount >= 2000) {
+    return {
+      accentColor: "#FFD700",
+      textStyle: {
+        background: "linear-gradient(90deg, #FFD700, #FFF8DC, #FFC200, #FFAA00, #FFD700, #FFF0A0, #FFD700)",
+        backgroundSize: "300% auto",
+        WebkitBackgroundClip: "text",
+        backgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        color: "transparent",
+        fontWeight: 900,
+        fontSize: 24,
+        display: "inline-block",
+        animation: "goldShine 2s linear infinite",
+        filter: "drop-shadow(0 0 10px #FFD700) drop-shadow(0 0 20px #FFC200)",
+      } as CSSProperties,
+      decorators: (
+        <>
+          {[
+            { left: "-18px", top: "-6px", size: 13, delay: 0 },
+            { left: "calc(100% + 4px)", top: "-6px", size: 10, delay: 0.4 },
+            { left: "-14px", top: "55%", size: 9, delay: 0.8 },
+            { left: "calc(100% + 2px)", top: "55%", size: 12, delay: 0.2 },
+          ].map((pos, i) => (
+            <span key={`star-${i}`} style={{
+              position: "absolute",
+              fontSize: pos.size,
+              color: "#FFD700",
+              left: pos.left,
+              top: pos.top,
+              animation: `starTwinkle ${1 + i * 0.25}s ease-in-out infinite`,
+              animationDelay: `${pos.delay}s`,
+              pointerEvents: "none",
+              filter: "drop-shadow(0 0 5px #FFD700)",
+              lineHeight: 1,
+            }}>✦</span>
+          ))}
+        </>
+      ),
+    };
+  }
+
+  if (amount >= 1000) {
+    return {
+      accentColor: "#00ff88",
+      textStyle: {
+        color: "#00ff88",
+        fontWeight: 900,
+        fontSize: 22,
+        display: "inline-block",
+        animation: "greenGlow 1.5s ease-in-out infinite",
+      },
+      decorators: (
+        <>
+          {[0, 1, 2, 3].map((i) => (
+            <span key={`particle-${i}`} style={{
+              position: "absolute",
+              width: 5,
+              height: 5,
+              borderRadius: "50%",
+              background: "#00ff88",
+              left: `${10 + i * 22}%`,
+              bottom: "88%",
+              animation: `particleFloat ${0.85 + i * 0.2}s ease-out infinite`,
+              animationDelay: `${i * 0.22}s`,
+              pointerEvents: "none",
+              boxShadow: "0 0 6px #00ff88, 0 0 12px #00cc66",
+              display: "block",
+            }} />
+          ))}
+        </>
+      ),
+    };
+  }
+
+  return {
+    accentColor: "#22c55e",
+    textStyle: { color: "#22c55e", fontWeight: 800, fontSize: 20 },
+    decorators: null,
+  };
+}
+
 function getWeekStart(): Date {
   const now = new Date();
   const day = now.getDay();
@@ -100,7 +238,6 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
     type SalesRow = { id: string; moderator_id: string; sales_count: number; week_start: string; total_sales: number; weekly_revenue: number; total_revenue: number };
     const allRows = ((salesRows ?? []) as SalesRow[]);
 
-    // Compute cumulative totals per moderator: max total_sales and total_revenue across all their rows
     const totalPerMod: Record<string, { total: number; totalRevenue: number }> = {};
     for (const r of allRows) {
       const ex = totalPerMod[r.moderator_id];
@@ -360,6 +497,7 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                   ? { border: "2.5px solid #ffd700", boxShadow: "0 0 10px #ffd700, 0 0 20px rgba(255,215,0,0.4)" }
                   : { border: `2.5px solid ${RED}`, boxShadow: `0 0 10px ${RED}, 0 0 20px rgba(239,68,68,0.35)` };
                 const editable = canEdit(entry);
+                const wPalier = getPalierStyle(entry.weeklyRevenue);
                 return (
                   <div key={entry.userId} style={{ display: "flex", alignItems: "center", gap: 14, background: idx === 0 ? `rgba(127,29,29,0.25)` : "rgba(255,255,255,0.03)", border: `1px solid ${idx === 0 ? `rgba(239,68,68,0.4)` : "rgba(255,255,255,0.07)"}`, borderRadius: 14, padding: "14px 18px" }}>
                     <div style={{ fontSize: idx < 3 ? 22 : 15, fontWeight: 900, color: idx === 0 ? "#ffd700" : idx === 1 ? "#c0c0c0" : idx === 2 ? "#cd7f32" : "#7c5c9a", minWidth: 36, textAlign: "center" }}>
@@ -412,18 +550,22 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                       {/* Weekly revenue row */}
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         {editable ? (
-                          <>
+                          <div style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 6 }}>
                             <input
                               type="number"
                               min={0}
                               value={entry.weeklyRevenue}
                               onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) void updateWeeklyRevenue(entry, v); }}
-                              style={{ ...numInputStyle(80, "#22c55e"), fontSize: 15, border: "1px solid rgba(34,197,94,0.4)" }}
+                              style={{ ...numInputStyle(80, wPalier.accentColor), fontSize: 15, border: `1px solid ${wPalier.accentColor}66` }}
                             />
-                            <span style={{ fontSize: 14, color: "#22c55e", fontWeight: 800 }}>€</span>
-                          </>
+                            <span style={{ fontSize: 14, color: wPalier.accentColor, fontWeight: 800 }}>€</span>
+                            {wPalier.decorators}
+                          </div>
                         ) : (
-                          <span style={{ fontSize: 15, color: "#22c55e", fontWeight: 800 }}>{entry.weeklyRevenue.toLocaleString("fr-FR")}€</span>
+                          <div style={{ position: "relative", display: "inline-block" }}>
+                            <span style={wPalier.textStyle}>{entry.weeklyRevenue.toLocaleString("fr-FR")}€</span>
+                            {wPalier.decorators}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -445,6 +587,7 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                   ? { border: "2.5px solid #ffd700", boxShadow: "0 0 10px #ffd700, 0 0 20px rgba(255,215,0,0.4)" }
                   : { border: `2.5px solid ${RED}`, boxShadow: `0 0 10px ${RED}, 0 0 20px rgba(239,68,68,0.35)` };
                 const editable = canEdit(entry);
+                const tPalier = getPalierStyle(entry.totalRevenue);
                 return (
                   <div key={entry.userId} style={{ display: "flex", alignItems: "center", gap: 14, background: idx === 0 ? `rgba(127,29,29,0.25)` : "rgba(255,255,255,0.03)", border: `1px solid ${idx === 0 ? `rgba(239,68,68,0.4)` : "rgba(255,255,255,0.07)"}`, borderRadius: 14, padding: "14px 18px" }}>
                     <div style={{ fontSize: idx < 3 ? 22 : 15, fontWeight: 900, color: idx === 0 ? "#ffd700" : idx === 1 ? "#c0c0c0" : idx === 2 ? "#cd7f32" : "#7c5c9a", minWidth: 36, textAlign: "center" }}>
@@ -464,7 +607,6 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
                       {editable ? (
                         <>
-                          {/* Total sales editable */}
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <input
                               type="number"
@@ -475,22 +617,27 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
                             />
                             <span style={{ fontSize: 12, color: "white", fontWeight: 700 }}>ventes</span>
                           </div>
-                          {/* Total revenue editable */}
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <input
-                              type="number"
-                              min={0}
-                              value={entry.totalRevenue}
-                              onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) void updateTotalRevenue(entry, v); }}
-                              style={{ ...numInputStyle(90, "#22c55e"), fontSize: 15, border: "1px solid rgba(34,197,94,0.4)" }}
-                            />
-                            <span style={{ fontSize: 14, color: "#22c55e", fontWeight: 800 }}>€</span>
+                            <div style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                              <input
+                                type="number"
+                                min={0}
+                                value={entry.totalRevenue}
+                                onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 0) void updateTotalRevenue(entry, v); }}
+                                style={{ ...numInputStyle(90, tPalier.accentColor), fontSize: 15, border: `1px solid ${tPalier.accentColor}66` }}
+                              />
+                              <span style={{ fontSize: 14, color: tPalier.accentColor, fontWeight: 800 }}>€</span>
+                              {tPalier.decorators}
+                            </div>
                           </div>
                         </>
                       ) : (
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <span style={{ fontSize: 22, fontWeight: 900, color: "white" }}>{entry.totalSales} <span style={{ fontSize: 12, fontWeight: 700 }}>ventes</span></span>
-                          <span style={{ fontSize: 16, color: "#22c55e", fontWeight: 800 }}>{entry.totalRevenue.toLocaleString("fr-FR")}€</span>
+                          <div style={{ position: "relative", display: "inline-block" }}>
+                            <span style={tPalier.textStyle}>{entry.totalRevenue.toLocaleString("fr-FR")}€</span>
+                            {tPalier.decorators}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -506,7 +653,6 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
       {/* ── RESSOURCES ── */}
       {subTab === "ressources" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* TikTok Live */}
           <div style={resCardStyle(openResource === "tiktok")}>
             {resCardHeader("Rediffusions TikTok Live", "📱", "tiktok")}
             {openResource === "tiktok" && (
@@ -526,7 +672,6 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
             )}
           </div>
 
-          {/* Miro */}
           <div style={resCardStyle(openResource === "miro")}>
             {resCardHeader("Lien Miro personnalisé", "🖼️", "miro")}
             {openResource === "miro" && (
@@ -544,7 +689,6 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
             )}
           </div>
 
-          {/* Tunnel de vente */}
           <div style={resCardStyle(openResource === "tunnel")}>
             {resCardHeader("Tunnel de vente personnalisé", "🔗", "tunnel")}
             {openResource === "tunnel" && (
@@ -568,6 +712,38 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
         @keyframes giftBounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-14px); }
+        }
+        @keyframes greenGlow {
+          0%, 100% { text-shadow: 0 0 8px #00ff88, 0 0 4px #00cc66; }
+          50% { text-shadow: 0 0 24px #00ff88, 0 0 48px #00ff44, 0 0 8px rgba(255,255,255,0.4); }
+        }
+        @keyframes goldShine {
+          0% { background-position: 0% 50%; }
+          100% { background-position: 200% 50%; }
+        }
+        @keyframes starTwinkle {
+          0%, 100% { opacity: 0.1; transform: scale(0.5) rotate(0deg); }
+          50% { opacity: 1; transform: scale(1.4) rotate(180deg); }
+        }
+        @keyframes fireFlicker {
+          0%, 100% { filter: drop-shadow(0 0 8px #ff4500) drop-shadow(0 0 16px #ff8c00); }
+          25% { filter: drop-shadow(0 0 14px #ff8c00) drop-shadow(0 0 28px #ffd700); }
+          50% { filter: drop-shadow(0 0 6px #ffd700) drop-shadow(0 0 20px #ff4500) drop-shadow(0 0 40px #ff4500); }
+          75% { filter: drop-shadow(0 0 12px #ff4500) drop-shadow(0 0 24px #ff8c00); }
+        }
+        @keyframes floatUp {
+          0% { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-28px) scale(0.6); }
+        }
+        @keyframes particleFloat {
+          0% { opacity: 0.9; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-18px) scale(0.3); }
+        }
+        @keyframes streakPass {
+          0% { opacity: 0; transform: translateX(-120%); }
+          30% { opacity: 0.5; }
+          70% { opacity: 0.3; }
+          100% { opacity: 0; transform: translateX(120%); }
         }
       `}</style>
     </div>
