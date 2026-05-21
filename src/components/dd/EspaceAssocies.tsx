@@ -176,18 +176,14 @@ function getWeekStart(): Date {
   return monday;
 }
 
-function getNextWeekStart(): Date {
-  return new Date(getWeekStart().getTime() + 7 * 24 * 60 * 60 * 1000);
-}
-
-function formatCountdown(ms: number): string {
-  if (ms <= 0) return "00:00:00:00";
-  const totalSec = Math.floor(ms / 1000);
-  const d = Math.floor(totalSec / 86400);
-  const h = Math.floor((totalSec % 86400) / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return `${String(d).padStart(2, "0")}:${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+function getNextSundayMidnight(): Date {
+  const now = new Date();
+  const day = now.getDay(); // 0=dim, 1=lun, ..., 6=sam
+  const daysUntilSunday = day === 0 ? 7 : 7 - day;
+  const nextSunday = new Date(now);
+  nextSunday.setDate(now.getDate() + daysUntilSunday);
+  nextSunday.setHours(0, 0, 0, 0);
+  return nextSunday;
 }
 
 const RED = "#ef4444";
@@ -199,7 +195,7 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
   const [totalEntries, setTotalEntries] = useState<ModeEntry[]>([]);
   const [allModerators, setAllModerators] = useState<KnownModerator[]>([]);
   const [loading, setLoading] = useState(true);
-  const [countdown, setCountdown] = useState("");
+  const [countdownMs, setCountdownMs] = useState(0);
   const [resources, setResources] = useState<Resource[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [openResource, setOpenResource] = useState<"tiktok" | "miro" | "tunnel" | null>(null);
@@ -207,7 +203,7 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
-    const tick = () => setCountdown(formatCountdown(getNextWeekStart().getTime() - Date.now()));
+    const tick = () => setCountdownMs(Math.max(0, getNextSundayMidnight().getTime() - Date.now()));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
@@ -472,10 +468,30 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
               🏆 Meilleur vendeur de la semaine — <span style={{ color: "#10b981" }}>Bonus 200€</span>
             </div>
             <div style={{ fontSize: 12, color: "#f87171", marginBottom: 10 }}>Reset dimanche soir 00h00</div>
-            <div style={{ fontSize: 32, fontWeight: 900, color: RED, fontVariantNumeric: "tabular-nums", letterSpacing: 3, fontFamily: "monospace", textShadow: `0 0 16px rgba(239,68,68,0.5)` }}>
-              {countdown}
-            </div>
-            <div style={{ fontSize: 11, color: "#7c5c9a", marginTop: 4, letterSpacing: 2 }}>JJ : HH : MM : SS</div>
+            {(() => {
+              const ms = countdownMs;
+              if (ms <= 0) return <div style={{ fontSize: 28, fontWeight: 900, color: RED, animation: "countdownPulse 0.6s ease-in-out infinite" }}>Terminé !</div>;
+              const totalSec = Math.floor(ms / 1000);
+              const d = Math.floor(totalSec / 86400);
+              const h = Math.floor((totalSec % 86400) / 3600);
+              const m = Math.floor((totalSec % 3600) / 60);
+              const s = totalSec % 60;
+              const isUrgent = ms < 3600 * 1000;
+              const isVeryUrgent = ms < 10 * 60 * 1000;
+              const numSz = isVeryUrgent ? 44 : isUrgent ? 40 : 36;
+              const col = isUrgent ? "#ef4444" : RED;
+              const shadow = isUrgent ? "0 0 22px rgba(239,68,68,0.9)" : "0 0 16px rgba(239,68,68,0.5)";
+              const unitSt: CSSProperties = { fontSize: 13, fontWeight: 600, color: isUrgent ? "#fca5a5" : "#9a7dbd", marginLeft: 1, marginRight: 8, alignSelf: "flex-end", paddingBottom: 4 };
+              const numSt: CSSProperties = { fontSize: numSz, fontWeight: 900, color: col, fontVariantNumeric: "tabular-nums", fontFamily: "monospace", lineHeight: 1 };
+              const wrap: CSSProperties = { display: "inline-flex", alignItems: "baseline", justifyContent: "center", textShadow: shadow, animation: isVeryUrgent ? "countdownPulse 0.8s ease-in-out infinite" : undefined };
+              if (ms > 24 * 3600 * 1000) {
+                return <div style={wrap}><span style={numSt}>{d}</span><span style={unitSt}>J</span><span style={numSt}>{h}</span><span style={unitSt}>H</span></div>;
+              } else if (ms > 3600 * 1000) {
+                return <div style={wrap}><span style={numSt}>{h}</span><span style={unitSt}>H</span><span style={numSt}>{String(m).padStart(2, "0")}</span><span style={unitSt}>min</span><span style={numSt}>{String(s).padStart(2, "0")}</span><span style={unitSt}>s</span></div>;
+              } else {
+                return <div style={wrap}><span style={numSt}>{String(m).padStart(2, "0")}</span><span style={unitSt}>min</span><span style={numSt}>{String(s).padStart(2, "0")}</span><span style={unitSt}>s</span></div>;
+              }
+            })()}
           </div>
 
           {/* Admin: add moderator */}
@@ -762,6 +778,10 @@ export function EspaceAssocies({ userId, userRole }: { userId: string; userRole:
           30% { opacity: 0.5; }
           70% { opacity: 0.3; }
           100% { opacity: 0; transform: translateX(120%); }
+        }
+        @keyframes countdownPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.65; transform: scale(1.07); }
         }
       `}</style>
     </div>
