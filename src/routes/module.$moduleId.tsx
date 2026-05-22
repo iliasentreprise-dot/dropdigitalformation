@@ -7,6 +7,7 @@ import { ReactionsRow } from "@/components/dd/ReactionsRow";
 import { NextChapterCountdown } from "@/components/dd/NextChapterCountdown";
 import { CertificateModal } from "@/components/dd/CertificateModal";
 import { notifyProgressChanged } from "@/components/dd/GlobalProgressBar";
+import { RichText } from "@/lib/rich-text";
 import "../styles/player.css";
 
 export const Route = createFileRoute("/module/$moduleId")({
@@ -491,9 +492,13 @@ function ModulePage() {
                       className="player-edit-textarea"
                       value={draftDesc}
                       onChange={(e) => setDraftDesc(e.target.value)}
-                      rows={4}
+                      rows={6}
                       autoFocus
+                      placeholder="**texte** pour gras · Ligne vide pour nouveau paragraphe"
                     />
+                    <div style={{ fontSize: 11, color: "#9a7dbd", marginTop: 4 }}>
+                      💡 <strong>**gras**</strong> · Ligne vide = nouveau paragraphe
+                    </div>
                     <div className="player-edit-actions">
                       <button className="player-edit-save" onClick={() => void saveChapterField("description", draftDesc)}>Sauvegarder</button>
                       <button className="player-edit-cancel" onClick={() => setEditingDesc(false)}>Annuler</button>
@@ -502,7 +507,7 @@ function ModulePage() {
                 ) : (
                   <div className="player-desc-row">
                     {selected?.description ? (
-                      <p className="player-desc">{selected.description}</p>
+                      <RichText text={selected.description} className="player-desc" />
                     ) : (
                       isAdmin && <p className="player-desc" style={{ opacity: 0.5 }}>Aucune description</p>
                     )}
@@ -564,10 +569,11 @@ function ModulePage() {
               </div>
 
               <h2 className="ms-title">Ce module arrive bientôt !</h2>
-              <p className="ms-desc">
-                {module?.description ||
-                  "Le contenu de ce module est en cours de préparation. Reviens très vite !"}
-              </p>
+              {module?.description ? (
+                <RichText text={module.description} className="ms-desc" />
+              ) : (
+                <p className="ms-desc">Le contenu de ce module est en cours de préparation. Reviens très vite !</p>
+              )}
 
               {/* Admin upload zone */}
               {isAdmin && (

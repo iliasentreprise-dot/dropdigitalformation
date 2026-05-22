@@ -518,7 +518,7 @@ type ResultWithProfile = {
 };
 
 const SECTIONS = [
-  { value: "mindset", label: "🧠 Mindset" },
+  { value: "mindset", label: "📘 Introduction" },
   { value: "jour1", label: "Jour 1" },
   { value: "jour2", label: "Jour 2" },
   { value: "jour3", label: "Jour 3" },
@@ -1755,9 +1755,12 @@ function AdminPage() {
                     description: e.target.value,
                   }))
                 }
-                rows={2}
-                placeholder="Description courte du module"
+                rows={4}
+                placeholder="Description du module — **gras** et lignes vides pour paragraphes"
               />
+              <span style={{ fontSize: 11, color: "#9a7dbd" }}>
+                💡 Utilise <strong>**gras**</strong> pour mettre en gras · Laisse une ligne vide pour créer un nouveau paragraphe
+              </span>
             </label>
             <div className="admin-form-actions">
               <button
@@ -1945,9 +1948,12 @@ function AdminPage() {
                             description: e.target.value,
                           }))
                         }
-                        rows={2}
-                        placeholder="Description du chapitre (optionnel)"
+                        rows={4}
+                        placeholder="Description du chapitre — **gras** et lignes vides pour paragraphes"
                       />
+                      <span style={{ fontSize: 11, color: "#9a7dbd" }}>
+                        💡 <strong>**gras**</strong> · Ligne vide = nouveau paragraphe
+                      </span>
                     </label>
                     <ChapterResourcesAdmin chapterId={editingChapter?.id ?? null} />
                     <div className="admin-form-actions">
