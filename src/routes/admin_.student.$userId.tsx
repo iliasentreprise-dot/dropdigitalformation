@@ -45,7 +45,7 @@ type StudentData = {
   is_online: boolean;
 };
 
-type DmRow = { id: string; sender_id: string; recipient_id: string; content: string; created_at: string; deleted_at: string | null };
+type DmRow = { id: string; sender_id: string; recipient_id: string; content: string; created_at: string; deleted_at: string | null; edited: boolean; edited_at: string | null };
 type DmPartner = { id: string; username: string | null; full_name: string | null; avatar_url: string | null; lastAt: string; count: number };
 
 // ── Server functions ────────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ const getAdminDmsFn = createServerFn({ method: "POST" })
     const sa = supabaseAdmin as any;
     const { data: msgs } = await sa
       .from("private_messages")
-      .select("id, sender_id, recipient_id, content, created_at, deleted_at")
+      .select("id, sender_id, recipient_id, content, created_at, deleted_at, edited, edited_at")
       .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
       .order("created_at", { ascending: true })
       .limit(2000);
@@ -201,6 +201,32 @@ const getAdminDmsFn = createServerFn({ method: "POST" })
       return { id: pid, username: p.username, full_name: p.full_name, avatar_url: p.avatar_url, lastAt: list[list.length - 1]?.created_at ?? "", count: list.length };
     }).sort((a, b) => (b.lastAt > a.lastAt ? 1 : -1));
     return { partners, messagesByPartner: map };
+  });
+
+const adminDeleteDmFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { messageId } = (data as unknown) as { messageId: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any)
+      .from("private_messages")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", messageId);
+    if (error) throw new Error((error as { message: string }).message);
+    return { success: true };
+  });
+
+const adminUpdateDmFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { messageId, content } = (data as unknown) as { messageId: string; content: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any)
+      .from("private_messages")
+      .update({ content, edited: true, edited_at: new Date().toISOString() })
+      .eq("id", messageId);
+    if (error) throw new Error((error as { message: string }).message);
+    return { success: true };
   });
 
 // ── Route ────────────────────────────────────────────────────────────────────
@@ -263,6 +289,9 @@ function StudentProfilePage() {
   const [dmsData, setDmsData] = useState<{ partners: DmPartner[]; messagesByPartner: Record<string, DmRow[]> } | null>(null);
   const [dmsActive, setDmsActive] = useState<string | null>(null);
   const [dmsLoading, setDmsLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [usernameDraft, setUsernameDraft] = useState("");
   const [bioDraft, setBioDraft] = useState("");
@@ -371,6 +400,39 @@ function StudentProfilePage() {
       showFlash("Photo mise à jour ✓");
     }
     setAvatarUploading(false);
+  };
+
+  const handleDmDelete = async (msgId: string) => {
+    setActionLoading(msgId);
+    try {
+      await (adminDeleteDmFn as unknown as (a: { data: { messageId: string } }) => Promise<void>)({ data: { messageId: msgId } });
+      setDmsData((prev) => {
+        if (!prev) return prev;
+        const updated: typeof prev = { partners: prev.partners, messagesByPartner: {} };
+        for (const [k, msgs] of Object.entries(prev.messagesByPartner)) {
+          updated.messagesByPartner[k] = msgs.map((m) => m.id === msgId ? { ...m, deleted_at: new Date().toISOString() } : m);
+        }
+        return updated;
+      });
+    } catch (e) { showFlash((e as Error).message); }
+    setActionLoading(null);
+  };
+
+  const handleDmEdit = async (msgId: string) => {
+    setActionLoading(msgId);
+    try {
+      await (adminUpdateDmFn as unknown as (a: { data: { messageId: string; content: string } }) => Promise<void>)({ data: { messageId: msgId, content: editContent } });
+      setDmsData((prev) => {
+        if (!prev) return prev;
+        const updated: typeof prev = { partners: prev.partners, messagesByPartner: {} };
+        for (const [k, msgs] of Object.entries(prev.messagesByPartner)) {
+          updated.messagesByPartner[k] = msgs.map((m) => m.id === msgId ? { ...m, content: editContent, edited: true, edited_at: new Date().toISOString() } : m);
+        }
+        return updated;
+      });
+      setEditingId(null);
+    } catch (e) { showFlash((e as Error).message); }
+    setActionLoading(null);
   };
 
   const openDms = async () => {
@@ -745,12 +807,67 @@ function StudentProfilePage() {
                   {dmsActive && (dmsData.messagesByPartner[dmsActive] ?? []).map((m) => {
                     const fromStudent = m.sender_id === userId;
                     const isDeleted = !!m.deleted_at;
+                    const isEditing = editingId === m.id;
+                    const isBusy = actionLoading === m.id;
                     return (
                       <div key={m.id} style={{ alignSelf: fromStudent ? "flex-end" : "flex-start", maxWidth: "78%" }}>
-                        <div style={{ background: isDeleted ? "rgba(220,38,38,0.22)" : fromStudent ? "linear-gradient(135deg, #7c3aed, #a855f7)" : "rgba(30,15,55,0.85)", border: isDeleted ? "1px solid rgba(239,68,68,0.55)" : "1px solid rgba(168,85,247,0.18)", color: isDeleted ? "#fecaca" : "#fff", borderRadius: 10, padding: "7px 11px", fontSize: 13, lineHeight: 1.45, wordBreak: "break-word" }}>
-                          {m.content}
-                          {isDeleted && <div style={{ fontSize: 10, marginTop: 3, color: "#fca5a5", fontStyle: "italic" }}>(supprimé)</div>}
-                        </div>
+                        {isEditing ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <textarea
+                              value={editContent}
+                              onChange={(e) => setEditContent(e.target.value)}
+                              rows={3}
+                              autoFocus
+                              style={{ width: 280, background: "rgba(15,9,32,0.9)", border: "1px solid rgba(168,85,247,0.5)", borderRadius: 8, padding: "7px 10px", color: "#f0e8ff", fontSize: 13, resize: "vertical", fontFamily: "inherit", outline: "none" }}
+                            />
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button
+                                onClick={() => void handleDmEdit(m.id)}
+                                disabled={isBusy}
+                                style={{ background: "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.5)", borderRadius: 6, color: "#c4a3f0", fontSize: 12, fontWeight: 700, padding: "4px 10px", cursor: "pointer" }}
+                              >
+                                {isBusy ? "…" : "✓ Sauvegarder"}
+                              </button>
+                              <button
+                                onClick={() => setEditingId(null)}
+                                style={{ background: "none", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 6, color: "#7c5c9a", fontSize: 12, padding: "4px 10px", cursor: "pointer" }}
+                              >
+                                Annuler
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ background: isDeleted ? "rgba(220,38,38,0.22)" : fromStudent ? "linear-gradient(135deg, #7c3aed, #a855f7)" : "rgba(30,15,55,0.85)", border: isDeleted ? "1px solid rgba(239,68,68,0.55)" : "1px solid rgba(168,85,247,0.18)", color: isDeleted ? "#fecaca" : "#fff", borderRadius: 10, padding: "7px 11px", fontSize: 13, lineHeight: 1.45, wordBreak: "break-word" }}>
+                              <span style={{ textDecoration: isDeleted ? "line-through" : "none" }}>{m.content}</span>
+                              {isDeleted && <div style={{ fontSize: 10, marginTop: 3, color: "#fca5a5", fontStyle: "italic" }}>(supprimé par admin)</div>}
+                              {m.edited && !isDeleted && <div style={{ fontSize: 10, marginTop: 2, color: "rgba(196,163,240,0.6)", fontStyle: "italic" }}>(modifié)</div>}
+                            </div>
+                            {!isDeleted && (
+                              <div style={{ display: "flex", gap: 4, marginTop: 3, justifyContent: fromStudent ? "flex-end" : "flex-start" }}>
+                                <button
+                                  onClick={() => { setEditingId(m.id); setEditContent(m.content); }}
+                                  title="Modifier"
+                                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#9a7dbd", padding: "1px 4px", opacity: 0.6, transition: "opacity 0.15s" }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => void handleDmDelete(m.id)}
+                                  disabled={isBusy}
+                                  title="Supprimer"
+                                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#9a7dbd", padding: "1px 4px", opacity: 0.6, transition: "opacity 0.15s" }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
+                                >
+                                  {isBusy ? "…" : "🗑"}
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
                         <div style={{ fontSize: 10, color: "#6b4fa0", marginTop: 2, textAlign: fromStudent ? "right" : "left" }}>
                           {new Date(m.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                         </div>
