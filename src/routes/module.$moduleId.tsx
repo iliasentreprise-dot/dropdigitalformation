@@ -492,9 +492,13 @@ function ModulePage() {
                       className="player-edit-textarea"
                       value={draftDesc}
                       onChange={(e) => setDraftDesc(e.target.value)}
-                      rows={4}
+                      rows={6}
                       autoFocus
+                      placeholder="**texte** pour gras · Ligne vide pour nouveau paragraphe"
                     />
+                    <div style={{ fontSize: 11, color: "#9a7dbd", marginTop: 4 }}>
+                      💡 <strong>**gras**</strong> · Ligne vide = nouveau paragraphe
+                    </div>
                     <div className="player-edit-actions">
                       <button className="player-edit-save" onClick={() => void saveChapterField("description", draftDesc)}>Sauvegarder</button>
                       <button className="player-edit-cancel" onClick={() => setEditingDesc(false)}>Annuler</button>
@@ -503,7 +507,7 @@ function ModulePage() {
                 ) : (
                   <div className="player-desc-row">
                     {selected?.description ? (
-                      <p className="player-desc">{selected.description}</p>
+                      <RichText text={selected.description} className="player-desc" />
                     ) : (
                       isAdmin && <p className="player-desc" style={{ opacity: 0.5 }}>Aucune description</p>
                     )}
