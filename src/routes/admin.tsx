@@ -1755,9 +1755,12 @@ function AdminPage() {
                     description: e.target.value,
                   }))
                 }
-                rows={2}
-                placeholder="Description courte du module"
+                rows={4}
+                placeholder="Description du module — **gras** et lignes vides pour paragraphes"
               />
+              <span style={{ fontSize: 11, color: "#9a7dbd" }}>
+                💡 Utilise <strong>**gras**</strong> pour mettre en gras · Laisse une ligne vide pour créer un nouveau paragraphe
+              </span>
             </label>
             <div className="admin-form-actions">
               <button
