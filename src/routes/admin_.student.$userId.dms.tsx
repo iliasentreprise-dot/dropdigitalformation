@@ -13,6 +13,9 @@ type DMRow = {
   content: string;
   created_at: string;
   deleted_at: string | null;
+  deleted_by: string | null;
+  edited: boolean;
+  edited_at: string | null;
 };
 
 type PartnerInfo = {
@@ -38,7 +41,7 @@ const getDmsFn = createServerFn({ method: "POST" })
     const sa = supabaseAdmin as any;
     const { data: msgs } = await sa
       .from("private_messages")
-      .select("id, sender_id, recipient_id, content, created_at, deleted_at")
+      .select("id, sender_id, recipient_id, content, created_at, deleted_at, deleted_by, edited, edited_at")
       .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
       .order("created_at", { ascending: true })
       .limit(2000);
@@ -78,6 +81,32 @@ const getDmsFn = createServerFn({ method: "POST" })
     return { studentName, partners, messagesByPartner: map } as Payload;
   });
 
+const deleteDmFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { messageId, adminId } = (data as unknown) as { messageId: string; adminId: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any)
+      .from("private_messages")
+      .update({ deleted_at: new Date().toISOString(), deleted_by: adminId })
+      .eq("id", messageId);
+    if (error) throw new Error((error as { message: string }).message);
+    return { success: true };
+  });
+
+const editDmFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { messageId, content } = (data as unknown) as { messageId: string; content: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any)
+      .from("private_messages")
+      .update({ content, edited: true, edited_at: new Date().toISOString() })
+      .eq("id", messageId);
+    if (error) throw new Error((error as { message: string }).message);
+    return { success: true };
+  });
+
 export const Route = createFileRoute("/admin_/student/$userId/dms")({
   component: StudentDmsPage,
 });
@@ -89,6 +118,9 @@ function StudentDmsPage() {
   const [data, setData] = useState<Payload | null>(null);
   const [active, setActive] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) { void navigate({ to: "/login" }); return; }
@@ -117,6 +149,59 @@ function StudentDmsPage() {
   const activePartner = data.partners.find((p) => p.id === active);
   const partnerName = (p: PartnerInfo) => p.full_name || p.username || "Élève";
 
+  const handleDelete = async (m: DMRow) => {
+    if (!user) return;
+    setActionLoading(m.id);
+    try {
+      await (deleteDmFn as unknown as (a: { data: { messageId: string; adminId: string } }) => Promise<void>)({
+        data: { messageId: m.id, adminId: user.id },
+      });
+      // Mettre à jour le state local immédiatement
+      setData((prev) => {
+        if (!prev || !active) return prev;
+        return {
+          ...prev,
+          messagesByPartner: {
+            ...prev.messagesByPartner,
+            [active]: prev.messagesByPartner[active].map((msg) =>
+              msg.id === m.id ? { ...msg, deleted_at: new Date().toISOString(), deleted_by: user.id } : msg
+            ),
+          },
+        };
+      });
+    } catch (e) {
+      console.error(e);
+    }
+    setActionLoading(null);
+  };
+
+  const handleEdit = async (m: DMRow) => {
+    if (!editContent.trim()) return;
+    setActionLoading(m.id);
+    try {
+      await (editDmFn as unknown as (a: { data: { messageId: string; content: string } }) => Promise<void>)({
+        data: { messageId: m.id, content: editContent.trim() },
+      });
+      setData((prev) => {
+        if (!prev || !active) return prev;
+        return {
+          ...prev,
+          messagesByPartner: {
+            ...prev.messagesByPartner,
+            [active]: prev.messagesByPartner[active].map((msg) =>
+              msg.id === m.id ? { ...msg, content: editContent.trim(), edited: true, edited_at: new Date().toISOString() } : msg
+            ),
+          },
+        };
+      });
+      setEditingId(null);
+      setEditContent("");
+    } catch (e) {
+      console.error(e);
+    }
+    setActionLoading(null);
+  };
+
   return (
     <div style={{ minHeight: "100dvh", background: "oklch(0.129 0.042 264.695)", color: "#f0e8ff" }}>
       <div className="admin-topbar" style={{ position: "sticky", top: 0, zIndex: 10, display: "flex", alignItems: "center", gap: 12 }}>
@@ -125,6 +210,7 @@ function StudentDmsPage() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 16, padding: 16, maxWidth: 1100, margin: "0 auto" }}>
+        {/* Liste des conversations */}
         <div style={{ background: "rgba(25,10,48,0.7)", border: "1px solid rgba(168,85,247,0.15)", borderRadius: 12, padding: 8, maxHeight: "75vh", overflowY: "auto" }}>
           {data.partners.length === 0 && (
             <div style={{ color: "#6b4fa0", fontSize: 13, padding: 16, textAlign: "center" }}>Aucune conversation.</div>
@@ -132,7 +218,7 @@ function StudentDmsPage() {
           {data.partners.map((p) => (
             <button
               key={p.id}
-              onClick={() => setActive(p.id)}
+              onClick={() => { setActive(p.id); setEditingId(null); }}
               style={{
                 width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10,
                 padding: "10px 12px", background: active === p.id ? "rgba(124,58,237,0.25)" : "transparent",
@@ -150,6 +236,7 @@ function StudentDmsPage() {
           ))}
         </div>
 
+        {/* Fenêtre de messages */}
         <div style={{ background: "rgba(25,10,48,0.7)", border: "1px solid rgba(168,85,247,0.15)", borderRadius: 12, padding: 16, maxHeight: "75vh", overflowY: "auto" }}>
           {!activePartner && <div style={{ color: "#6b4fa0", fontSize: 13, textAlign: "center", padding: 40 }}>Sélectionne une conversation.</div>}
           {activePartner && (
@@ -157,27 +244,89 @@ function StudentDmsPage() {
               <div style={{ fontSize: 13, color: "#c4a3f0", marginBottom: 14, paddingBottom: 10, borderBottom: "1px solid rgba(168,85,247,0.15)" }}>
                 Conversation entre <strong>{data.studentName}</strong> et <strong>{partnerName(activePartner)}</strong>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {activeMsgs.map((m) => {
                   const fromStudent = m.sender_id === userId;
                   const isDeleted = !!m.deleted_at;
+                  const isEditing = editingId === m.id;
+                  const isActing = actionLoading === m.id;
+
                   return (
-                    <div key={m.id} style={{ alignSelf: fromStudent ? "flex-end" : "flex-start", maxWidth: "78%" }}>
+                    <div key={m.id} style={{ alignSelf: fromStudent ? "flex-end" : "flex-start", maxWidth: "80%", minWidth: 160 }}>
+                      {/* Bulle du message */}
                       <div style={{
-                        background: isDeleted ? "rgba(220,38,38,0.22)" : fromStudent ? "linear-gradient(135deg, #7c3aed, #a855f7)" : "rgba(30,15,55,0.85)",
-                        border: isDeleted ? "1px solid rgba(239,68,68,0.55)" : "1px solid rgba(168,85,247,0.18)",
-                        color: isDeleted ? "#fecaca" : "#fff",
-                        borderRadius: 12, padding: "8px 12px", fontSize: 13, lineHeight: 1.45, wordBreak: "break-word",
+                        background: isDeleted ? "rgba(127,29,29,0.35)" : fromStudent ? "linear-gradient(135deg, #7c3aed, #a855f7)" : "rgba(30,15,55,0.85)",
+                        border: isDeleted ? "1px solid rgba(239,68,68,0.45)" : "1px solid rgba(168,85,247,0.18)",
+                        color: isDeleted ? "#fca5a5" : "#fff",
+                        borderRadius: 12, padding: "8px 12px", fontSize: 13, lineHeight: 1.5, wordBreak: "break-word",
+                        opacity: isDeleted ? 0.75 : 1,
                       }}>
-                        {m.content}
-                        {isDeleted && (
-                          <div style={{ fontSize: 10, marginTop: 4, color: "#fca5a5", fontStyle: "italic" }}>
-                            (message supprimé à {new Date(m.deleted_at!).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })})
+                        {isEditing ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <textarea
+                              value={editContent}
+                              onChange={(e) => setEditContent(e.target.value)}
+                              rows={3}
+                              style={{ width: "100%", background: "rgba(15,5,30,0.8)", border: "1px solid rgba(168,85,247,0.4)", borderRadius: 8, color: "#f0e8ff", fontSize: 13, padding: "6px 8px", resize: "vertical", outline: "none" }}
+                              autoFocus
+                            />
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button
+                                onClick={() => void handleEdit(m)}
+                                disabled={isActing || !editContent.trim()}
+                                style={{ flex: 1, background: "rgba(16,185,129,0.2)", border: "1px solid rgba(16,185,129,0.4)", color: "#6ee7b7", borderRadius: 6, padding: "4px 8px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                              >
+                                {isActing ? "…" : "✓ Sauvegarder"}
+                              </button>
+                              <button
+                                onClick={() => { setEditingId(null); setEditContent(""); }}
+                                style={{ background: "rgba(100,100,120,0.2)", border: "1px solid rgba(100,100,120,0.35)", color: "#9a7dbd", borderRadius: 6, padding: "4px 8px", fontSize: 12, cursor: "pointer" }}
+                              >
+                                Annuler
+                              </button>
+                            </div>
                           </div>
+                        ) : (
+                          <>
+                            <span style={{ textDecoration: isDeleted ? "line-through" : "none" }}>{m.content}</span>
+                            {isDeleted && (
+                              <div style={{ fontSize: 10, marginTop: 4, color: "#fca5a5", fontStyle: "italic" }}>
+                                (supprimé par admin à {new Date(m.deleted_at!).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })})
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
-                      <div style={{ fontSize: 10, color: "#6b4fa0", marginTop: 2, textAlign: fromStudent ? "right" : "left" }}>
-                        {new Date(m.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+
+                      {/* Métadonnées + boutons admin */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, justifyContent: fromStudent ? "flex-end" : "flex-start", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 10, color: "#6b4fa0" }}>
+                          {new Date(m.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        {m.edited && !isDeleted && (
+                          <span style={{ fontSize: 10, color: "#6b4fa0", fontStyle: "italic" }}>(modifié)</span>
+                        )}
+                        {/* ── Boutons admin — visibles uniquement ici ── */}
+                        {!isDeleted && !isEditing && (
+                          <button
+                            onClick={() => { setEditingId(m.id); setEditContent(m.content); }}
+                            disabled={isActing}
+                            title="Modifier le message"
+                            style={{ background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.3)", color: "#c4a3f0", borderRadius: 5, padding: "2px 6px", fontSize: 10, cursor: "pointer", lineHeight: 1.4 }}
+                          >
+                            ✏️
+                          </button>
+                        )}
+                        {!isDeleted && (
+                          <button
+                            onClick={() => void handleDelete(m)}
+                            disabled={isActing}
+                            title="Supprimer le message"
+                            style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#fca5a5", borderRadius: 5, padding: "2px 6px", fontSize: 10, cursor: "pointer", lineHeight: 1.4 }}
+                          >
+                            {isActing ? "…" : "🗑"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
