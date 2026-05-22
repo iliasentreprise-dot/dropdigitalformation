@@ -285,17 +285,92 @@ const inviteStudentFn = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+const BOT_USER_ID = "4c9dfcb2-b056-45c7-8dd1-f67656bc4aca";
+
 const createStudentFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { email, password } = (data as unknown) as { email: string; password: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sa = supabaseAdmin as any;
     const { data: newUser, error } = await supabaseAdmin.auth.admin.createUser({ email, password, email_confirm: true });
     if (error) throw new Error(error.message);
-    if (newUser.user?.id) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabaseAdmin as any).from("profiles").upsert({ id: newUser.user.id, temp_password: password }, { onConflict: "id" });
+    const newUserId = newUser.user?.id;
+    if (newUserId) {
+      await sa.from("profiles").upsert({ id: newUserId, temp_password: password }, { onConflict: "id" });
+      // Message de bienvenue dans le groupe depuis le bot
+      await sa.from("group_messages").insert({
+        user_id: BOT_USER_ID,
+        content: "🏴‍☠️ Bienvenue dans la formation DropDigital ! Accède à tes modules dès maintenant et rejoins la communauté. Bonne formation !",
+        visible: true,
+      });
+      // Planifier le premier DM de suivi dans 15 jours
+      const next15d = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();
+      await sa.from("bot_followup_schedule").upsert(
+        { student_id: newUserId, last_sent_at: new Date().toISOString(), next_send_at: next15d },
+        { onConflict: "student_id" }
+      );
     }
     return { success: true };
+  });
+
+const sendFollowupDmFn = createServerFn({ method: "POST" })
+  .handler(async () => {
+    const FOLLOW_BOT_ID = "4c9dfcb2-b056-45c7-8dd1-f67656bc4aca";
+    const MESSAGES = [
+      "Salut [pseudo] 👋 Comment ça se passe depuis que t'as rejoint la formation ? T'as pu tester le système sur tes comptes TikTok ?",
+      "Yo [pseudo] ! T'en es où avec la formation ? Des premières ventes ? On veut voir tes résultats dans l'espace Résultats 🏆",
+      "Hey [pseudo], ça fait un moment ! T'as réussi à implémenter le système ? Des questions ? Je suis là 🏴‍☠️",
+      "Salut [pseudo] ! Un petit check-in pour savoir si tout va bien. T'as des résultats à partager ? Lance-toi dans l'espace Résultats 💰",
+      "Coucou [pseudo] 👀 T'as pensé à poster tes résultats dans la formation ? Même les petites victoires comptent !",
+    ];
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sa = supabaseAdmin as any;
+
+    // Récupérer tous les utilisateurs auth
+    const listResult = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    if (listResult.error) throw new Error(listResult.error.message);
+
+    // Exclure admin/moderator et le bot lui-même
+    const { data: roleRows } = await sa.from("user_roles").select("user_id, role").in("role", ["admin", "moderator"]);
+    const privilegedIds = new Set(((roleRows ?? []) as { user_id: string }[]).map((r) => r.user_id));
+    privilegedIds.add(FOLLOW_BOT_ID);
+    const allStudents = listResult.data.users.filter((u) => !privilegedIds.has(u.id));
+
+    // Récupérer le planning des DM
+    const { data: scheduleRows } = await sa.from("bot_followup_schedule").select("student_id, next_send_at");
+    const scheduleMap = new Map(((scheduleRows ?? []) as { student_id: string; next_send_at: string }[]).map((r) => [r.student_id, r.next_send_at]));
+
+    const now = new Date();
+    const toContact = allStudents.filter((s) => {
+      const next = scheduleMap.get(s.id);
+      return !next || new Date(next) <= now;
+    });
+
+    if (toContact.length === 0) return { sent: 0 };
+
+    // Récupérer les profils pour les pseudos
+    const ids = toContact.map((s) => s.id);
+    const { data: profiles } = await sa.from("profiles").select("id, username, full_name").in("id", ids);
+    const profileMap = Object.fromEntries(((profiles ?? []) as { id: string; username: string | null; full_name: string | null }[]).map((p) => [p.id, p]));
+
+    const next15d = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000).toISOString();
+    let sent = 0;
+
+    for (const student of toContact) {
+      const p = profileMap[student.id] as { username: string | null; full_name: string | null } | undefined;
+      const pseudo = p?.username || p?.full_name || student.email.split("@")[0];
+      const content = MESSAGES[Math.floor(Math.random() * MESSAGES.length)].replace("[pseudo]", pseudo);
+      await sa.from("private_messages").insert({ sender_id: FOLLOW_BOT_ID, recipient_id: student.id, content });
+      await sa.from("bot_followup_schedule").upsert(
+        { student_id: student.id, last_sent_at: now.toISOString(), next_send_at: next15d },
+        { onConflict: "student_id" }
+      );
+      sent++;
+    }
+
+    return { sent };
   });
 
 function generatePassword(): string {
@@ -821,6 +896,8 @@ function AdminPage() {
   const [resMiroUrl, setResMiroUrl] = useState("");
   const [resTunnelUrl, setResTunnelUrl] = useState("");
   const [resSaving, setResSaving] = useState(false);
+  const [followupLoading, setFollowupLoading] = useState(false);
+  const [followupResult, setFollowupResult] = useState<string | null>(null);
 
   const loadResAssoc = async () => {
     setResLoading(true);
@@ -1293,14 +1370,38 @@ function AdminPage() {
         <div className="admin-body">
           <div className="admin-section-header">
             <h2>👥 Élèves ({students.length})</h2>
-            <button
-              className="admin-btn-ghost"
-              onClick={() => void loadStudents()}
-              disabled={studentsLoading}
-            >
-              {studentsLoading ? "Chargement…" : "↻ Actualiser"}
-            </button>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                className="admin-btn-ghost"
+                onClick={() => void loadStudents()}
+                disabled={studentsLoading}
+              >
+                {studentsLoading ? "Chargement…" : "↻ Actualiser"}
+              </button>
+              <button
+                className="admin-btn-primary"
+                disabled={followupLoading}
+                onClick={async () => {
+                  setFollowupLoading(true);
+                  setFollowupResult(null);
+                  try {
+                    const res = await (sendFollowupDmFn as unknown as () => Promise<{ sent: number }>)();
+                    setFollowupResult(res.sent === 0 ? "✓ Aucun DM à envoyer (tous les élèves sont à jour)" : `✅ ${res.sent} DM envoyé${res.sent > 1 ? "s" : ""} à ${res.sent} élève${res.sent > 1 ? "s" : ""}`);
+                  } catch (e) {
+                    setFollowupResult("❌ " + (e as Error).message);
+                  }
+                  setFollowupLoading(false);
+                }}
+              >
+                {followupLoading ? "Envoi en cours…" : "📨 Envoyer DM de suivi"}
+              </button>
+            </div>
           </div>
+          {followupResult && (
+            <div style={{ margin: "8px 0 12px", padding: "8px 14px", borderRadius: 8, background: followupResult.startsWith("❌") ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)", border: `1px solid ${followupResult.startsWith("❌") ? "rgba(239,68,68,0.3)" : "rgba(16,185,129,0.3)"}`, color: followupResult.startsWith("❌") ? "#fca5a5" : "#86efac", fontSize: 13, fontWeight: 600 }}>
+              {followupResult}
+            </div>
+          )}
 
           {studentsLoading && students.length === 0 ? (
             <div className="admin-empty">Chargement des élèves…</div>
