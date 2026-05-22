@@ -1948,9 +1948,12 @@ function AdminPage() {
                             description: e.target.value,
                           }))
                         }
-                        rows={2}
-                        placeholder="Description du chapitre (optionnel)"
+                        rows={4}
+                        placeholder="Description du chapitre — **gras** et lignes vides pour paragraphes"
                       />
+                      <span style={{ fontSize: 11, color: "#9a7dbd" }}>
+                        💡 <strong>**gras**</strong> · Ligne vide = nouveau paragraphe
+                      </span>
                     </label>
                     <ChapterResourcesAdmin chapterId={editingChapter?.id ?? null} />
                     <div className="admin-form-actions">
