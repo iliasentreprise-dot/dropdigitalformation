@@ -7,6 +7,7 @@ import { ReactionsRow } from "@/components/dd/ReactionsRow";
 import { NextChapterCountdown } from "@/components/dd/NextChapterCountdown";
 import { CertificateModal } from "@/components/dd/CertificateModal";
 import { notifyProgressChanged } from "@/components/dd/GlobalProgressBar";
+import { RichText } from "@/lib/rich-text";
 import "../styles/player.css";
 
 export const Route = createFileRoute("/module/$moduleId")({
@@ -564,10 +565,11 @@ function ModulePage() {
               </div>
 
               <h2 className="ms-title">Ce module arrive bientôt !</h2>
-              <p className="ms-desc">
-                {module?.description ||
-                  "Le contenu de ce module est en cours de préparation. Reviens très vite !"}
-              </p>
+              {module?.description ? (
+                <RichText text={module.description} className="ms-desc" />
+              ) : (
+                <p className="ms-desc">Le contenu de ce module est en cours de préparation. Reviens très vite !</p>
+              )}
 
               {/* Admin upload zone */}
               {isAdmin && (
