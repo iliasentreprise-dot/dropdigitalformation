@@ -317,27 +317,33 @@ export type Database = {
           moderator_id: string | null
           price_per_sale: number | null
           sales_count: number | null
+          total_revenue: number | null
           total_sales: number | null
           updated_at: string | null
           week_start: string | null
+          weekly_revenue: number | null
         }
         Insert: {
           id?: string
           moderator_id?: string | null
           price_per_sale?: number | null
           sales_count?: number | null
+          total_revenue?: number | null
           total_sales?: number | null
           updated_at?: string | null
           week_start?: string | null
+          weekly_revenue?: number | null
         }
         Update: {
           id?: string
           moderator_id?: string | null
           price_per_sale?: number | null
           sales_count?: number | null
+          total_revenue?: number | null
           total_sales?: number | null
           updated_at?: string | null
           week_start?: string | null
+          weekly_revenue?: number | null
         }
         Relationships: []
       }
