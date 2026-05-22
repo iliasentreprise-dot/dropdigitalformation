@@ -145,24 +145,36 @@ function VideoInput({
 function SimpleThumbnailPicker({ value, onChange, moduleId }: { value: string; onChange: (url: string) => void; moduleId?: string }) {
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const [imgError, setImgError] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const isExternalExpiring = Boolean(value && (
+    value.includes("oaidalleapiprodscus") ||
+    value.includes("openai.com") ||
+    value.startsWith("blob:")
+  ));
+
   const upload = async (file: File) => {
+    console.log("[thumbnail] fichier détecté", { name: file.name, type: file.type, size: file.size });
     setUploadErr(null);
     setUploading(true);
     try {
       const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
       const path = `${moduleId || "new"}/${Date.now()}.${ext}`;
+      console.log("[thumbnail] upload lancé", { path, contentType: file.type });
       const { error: uploadError } = await supabase.storage
         .from("module-thumbnails")
         .upload(path, file, { upsert: true, contentType: file.type || undefined, cacheControl: "3600" });
+      console.log("[thumbnail] résultat upload", { error: uploadError });
       if (uploadError) { setUploadErr("Échec de l'upload : " + uploadError.message); return; }
       const { data } = supabase.storage.from("module-thumbnails").getPublicUrl(path);
       const url = `${data.publicUrl}?v=${Date.now()}`;
+      console.log("[thumbnail] URL générée", url);
       if (moduleId) {
         const { error: updateError } = await supabase.from("modules").update({ thumbnail_url: url }).eq("id", moduleId);
         if (updateError) { setUploadErr("Échec de la sauvegarde : " + updateError.message); return; }
       }
+      setImgError(false);
       onChange(url);
     } catch (e: unknown) {
       setUploadErr("Erreur : " + ((e as Error)?.message ?? "inconnue"));
@@ -171,10 +183,23 @@ function SimpleThumbnailPicker({ value, onChange, moduleId }: { value: string; o
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    console.log("[thumbnail] onChange input file", { file: f?.name ?? "aucun" });
+    if (f) void upload(f);
+    e.target.value = "";
+  };
+
+  const openPicker = () => {
+    console.log("[thumbnail] ouverture sélecteur");
+    fileRef.current?.click();
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Zone preview cliquable */}
       <div
-        onClick={() => fileRef.current?.click()}
+        onClick={openPicker}
         style={{ width: "100%", height: 90, borderRadius: 8, border: "2px dashed rgba(168,85,247,0.4)", background: "rgba(124,58,237,0.08)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative" }}
       >
         {uploading ? (
@@ -182,22 +207,67 @@ function SimpleThumbnailPicker({ value, onChange, moduleId }: { value: string; o
             <div style={{ width: 16, height: 16, border: "2px solid rgba(168,85,247,0.3)", borderTopColor: "#a855f7", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
             Envoi…
           </div>
-        ) : value ? (
-          <img src={value} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : value && !imgError ? (
+          <img
+            src={value}
+            alt=""
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            onLoad={() => setImgError(false)}
+            onError={() => setImgError(true)}
+          />
         ) : (
           <div style={{ textAlign: "center", color: "#7c5c9a" }}>
-            <div style={{ fontSize: 28 }}>🖼️</div>
-            <div style={{ fontSize: 12, marginTop: 4 }}>Ajouter une miniature</div>
+            <div style={{ fontSize: 28 }}>{imgError ? "❌" : "🖼️"}</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>{imgError ? "Image inaccessible" : "Ajouter une miniature"}</div>
           </div>
         )}
-        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
+        {/* Input caché — séparé du flux de clics du div via style none */}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
       </div>
-      {uploadErr && <div style={{ color: "#fca5a5", fontSize: 11, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, padding: "4px 8px" }}>{uploadErr}</div>}
+
+      {/* Bouton explicite hors du div pour garantir le déclenchement du sélecteur */}
+      <button
+        type="button"
+        onClick={openPicker}
+        style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(168,85,247,0.4)", color: "#a855f7", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}
+      >
+        📁 Choisir une image
+      </button>
+
+      {/* Avertissement URL externe expirant (OpenAI/blob) */}
+      {isExternalExpiring && (
+        <div style={{ color: "#f59e0b", fontSize: 11, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.35)", borderRadius: 6, padding: "6px 10px" }}>
+          ⚠️ Cette image externe expire — clique sur "📁 Choisir une image" pour l'uploader directement depuis ton ordi.
+        </div>
+      )}
+
+      {/* Erreur URL inaccessible */}
+      {imgError && value && !isExternalExpiring && (
+        <div style={{ color: "#fca5a5", fontSize: 11, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, padding: "4px 8px" }}>
+          URL invalide ou image inaccessible
+        </div>
+      )}
+
+      {/* Erreur upload */}
+      {uploadErr && (
+        <div style={{ color: "#fca5a5", fontSize: 11, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, padding: "4px 8px" }}>
+          {uploadErr}
+        </div>
+      )}
+
       <input
         className="dz-url-input"
         placeholder="ou coller une URL"
         value={value}
-        onChange={(e) => { setUploadErr(null); onChange(e.target.value); }}
+        onChange={(e) => { setUploadErr(null); setImgError(false); onChange(e.target.value); }}
         style={{ fontSize: 12 }}
       />
     </div>
