@@ -107,6 +107,32 @@ const editDmFn = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+const restoreDmFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { messageId } = (data as unknown) as { messageId: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any)
+      .from("private_messages")
+      .update({ deleted_at: null, deleted_by: null })
+      .eq("id", messageId);
+    if (error) throw new Error((error as { message: string }).message);
+    return { success: true };
+  });
+
+const hardDeleteDmFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { messageId } = (data as unknown) as { messageId: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any)
+      .from("private_messages")
+      .delete()
+      .eq("id", messageId);
+    if (error) throw new Error((error as { message: string }).message);
+    return { success: true };
+  });
+
 export const Route = createFileRoute("/admin_/student/$userId/dms")({
   component: StudentDmsPage,
 });
@@ -166,6 +192,52 @@ function StudentDmsPage() {
             [active]: prev.messagesByPartner[active].map((msg) =>
               msg.id === m.id ? { ...msg, deleted_at: new Date().toISOString(), deleted_by: user.id } : msg
             ),
+          },
+        };
+      });
+    } catch (e) {
+      console.error(e);
+    }
+    setActionLoading(null);
+  };
+
+  const handleRestore = async (m: DMRow) => {
+    setActionLoading(m.id);
+    try {
+      await (restoreDmFn as unknown as (a: { data: { messageId: string } }) => Promise<void>)({
+        data: { messageId: m.id },
+      });
+      setData((prev) => {
+        if (!prev || !active) return prev;
+        return {
+          ...prev,
+          messagesByPartner: {
+            ...prev.messagesByPartner,
+            [active]: prev.messagesByPartner[active].map((msg) =>
+              msg.id === m.id ? { ...msg, deleted_at: null, deleted_by: null } : msg
+            ),
+          },
+        };
+      });
+    } catch (e) {
+      console.error(e);
+    }
+    setActionLoading(null);
+  };
+
+  const handleHardDelete = async (m: DMRow) => {
+    setActionLoading(m.id);
+    try {
+      await (hardDeleteDmFn as unknown as (a: { data: { messageId: string } }) => Promise<void>)({
+        data: { messageId: m.id },
+      });
+      setData((prev) => {
+        if (!prev || !active) return prev;
+        return {
+          ...prev,
+          messagesByPartner: {
+            ...prev.messagesByPartner,
+            [active]: prev.messagesByPartner[active].filter((msg) => msg.id !== m.id),
           },
         };
       });
@@ -326,6 +398,26 @@ function StudentDmsPage() {
                           >
                             {isActing ? "…" : "🗑"}
                           </button>
+                        )}
+                        {isDeleted && (
+                          <>
+                            <button
+                              onClick={() => void handleRestore(m)}
+                              disabled={isActing}
+                              title="Restaurer le message"
+                              style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.35)", color: "#6ee7b7", borderRadius: 5, padding: "2px 6px", fontSize: 10, cursor: "pointer", lineHeight: 1.4, fontWeight: 700 }}
+                            >
+                              {isActing ? "…" : "↩ Restaurer"}
+                            </button>
+                            <button
+                              onClick={() => void handleHardDelete(m)}
+                              disabled={isActing}
+                              title="Supprimer définitivement"
+                              style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.5)", color: "#fca5a5", borderRadius: 5, padding: "2px 6px", fontSize: 10, cursor: "pointer", lineHeight: 1.4, fontWeight: 700 }}
+                            >
+                              {isActing ? "…" : "🗑 Suppr. déf."}
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
