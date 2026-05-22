@@ -229,6 +229,32 @@ const adminUpdateDmFn = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+const adminRestoreDmFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { messageId } = (data as unknown) as { messageId: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any)
+      .from("private_messages")
+      .update({ deleted_at: null, deleted_by: null })
+      .eq("id", messageId);
+    if (error) throw new Error((error as { message: string }).message);
+    return { success: true };
+  });
+
+const adminHardDeleteDmFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { messageId } = (data as unknown) as { messageId: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin as any)
+      .from("private_messages")
+      .delete()
+      .eq("id", messageId);
+    if (error) throw new Error((error as { message: string }).message);
+    return { success: true };
+  });
+
 // ── Route ────────────────────────────────────────────────────────────────────
 
 export const Route = createFileRoute("/admin_/student/$userId")({
@@ -431,6 +457,38 @@ function StudentProfilePage() {
         return updated;
       });
       setEditingId(null);
+    } catch (e) { showFlash((e as Error).message); }
+    setActionLoading(null);
+  };
+
+  const handleDmRestore = async (msgId: string) => {
+    setActionLoading(msgId);
+    try {
+      await (adminRestoreDmFn as unknown as (a: { data: { messageId: string } }) => Promise<void>)({ data: { messageId: msgId } });
+      setDmsData((prev) => {
+        if (!prev) return prev;
+        const updated: typeof prev = { partners: prev.partners, messagesByPartner: {} };
+        for (const [k, msgs] of Object.entries(prev.messagesByPartner)) {
+          updated.messagesByPartner[k] = msgs.map((m) => m.id === msgId ? { ...m, deleted_at: null, deleted_by: null } : m);
+        }
+        return updated;
+      });
+    } catch (e) { showFlash((e as Error).message); }
+    setActionLoading(null);
+  };
+
+  const handleDmHardDelete = async (msgId: string) => {
+    setActionLoading(msgId);
+    try {
+      await (adminHardDeleteDmFn as unknown as (a: { data: { messageId: string } }) => Promise<void>)({ data: { messageId: msgId } });
+      setDmsData((prev) => {
+        if (!prev) return prev;
+        const updated: typeof prev = { partners: prev.partners, messagesByPartner: {} };
+        for (const [k, msgs] of Object.entries(prev.messagesByPartner)) {
+          updated.messagesByPartner[k] = msgs.filter((m) => m.id !== msgId);
+        }
+        return updated;
+      });
     } catch (e) { showFlash((e as Error).message); }
     setActionLoading(null);
   };
@@ -843,29 +901,47 @@ function StudentProfilePage() {
                               {isDeleted && <div style={{ fontSize: 10, marginTop: 3, color: "#fca5a5", fontStyle: "italic" }}>(supprimé par admin)</div>}
                               {m.edited && !isDeleted && <div style={{ fontSize: 10, marginTop: 2, color: "rgba(196,163,240,0.6)", fontStyle: "italic" }}>(modifié)</div>}
                             </div>
-                            {!isDeleted && (
-                              <div style={{ display: "flex", gap: 4, marginTop: 3, justifyContent: fromStudent ? "flex-end" : "flex-start" }}>
-                                <button
-                                  onClick={() => { setEditingId(m.id); setEditContent(m.content); }}
-                                  title="Modifier"
-                                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#9a7dbd", padding: "1px 4px", opacity: 0.6, transition: "opacity 0.15s" }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
-                                >
-                                  ✏️
-                                </button>
-                                <button
-                                  onClick={() => void handleDmDelete(m.id)}
-                                  disabled={isBusy}
-                                  title="Supprimer"
-                                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#9a7dbd", padding: "1px 4px", opacity: 0.6, transition: "opacity 0.15s" }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
-                                >
-                                  {isBusy ? "…" : "🗑"}
-                                </button>
-                              </div>
-                            )}
+                            <div style={{ display: "flex", gap: 4, marginTop: 3, justifyContent: fromStudent ? "flex-end" : "flex-start", flexWrap: "wrap" }}>
+                              {!isDeleted && (
+                                <>
+                                  <button
+                                    onClick={() => { setEditingId(m.id); setEditContent(m.content); }}
+                                    title="Modifier"
+                                    style={{ background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 5, cursor: "pointer", fontSize: 11, color: "#c4a3f0", padding: "2px 6px", lineHeight: 1.4 }}
+                                  >
+                                    ✏️
+                                  </button>
+                                  <button
+                                    onClick={() => void handleDmDelete(m.id)}
+                                    disabled={isBusy}
+                                    title="Supprimer"
+                                    style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 5, cursor: "pointer", fontSize: 11, color: "#fca5a5", padding: "2px 6px", lineHeight: 1.4 }}
+                                  >
+                                    {isBusy ? "…" : "🗑"}
+                                  </button>
+                                </>
+                              )}
+                              {isDeleted && (
+                                <>
+                                  <button
+                                    onClick={() => void handleDmRestore(m.id)}
+                                    disabled={isBusy}
+                                    title="Restaurer"
+                                    style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.35)", borderRadius: 5, cursor: "pointer", fontSize: 11, color: "#86efac", padding: "2px 6px", lineHeight: 1.4, fontWeight: 700 }}
+                                  >
+                                    {isBusy ? "…" : "↩ Restaurer"}
+                                  </button>
+                                  <button
+                                    onClick={() => void handleDmHardDelete(m.id)}
+                                    disabled={isBusy}
+                                    title="Supprimer définitivement"
+                                    style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.5)", borderRadius: 5, cursor: "pointer", fontSize: 11, color: "#fca5a5", padding: "2px 6px", lineHeight: 1.4, fontWeight: 700 }}
+                                  >
+                                    {isBusy ? "…" : "🗑 Suppr. déf."}
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </>
                         )}
                         <div style={{ fontSize: 10, color: "#6b4fa0", marginTop: 2, textAlign: fromStudent ? "right" : "left" }}>
