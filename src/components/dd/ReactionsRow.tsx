@@ -23,7 +23,7 @@ export function ReactionsRow({ chapterId }: { chapterId: string }) {
     lightbulb: 0,
     think: 0,
   });
-  const [mine, setMine] = useState<ReactionKey | null>(null);
+  const [mine, setMine] = useState<Set<ReactionKey>>(new Set());
   const [busy, setBusy] = useState(false);
   const [allReactions, setAllReactions] = useState<ReactionDetail[]>([]);
   const [popup, setPopup] = useState<ReactionPopup | null>(null);
@@ -35,10 +35,10 @@ export function ReactionsRow({ chapterId }: { chapterId: string }) {
       .eq("chapter_id", chapterId);
     const rows = (all ?? []) as Array<{ reaction: ReactionKey; user_id: string }>;
     const c: Record<ReactionKey, number> = { like: 0, fire: 0, lightbulb: 0, think: 0 };
-    let m: ReactionKey | null = null;
+    const m = new Set<ReactionKey>();
     for (const row of rows) {
       if (row.reaction in c) c[row.reaction] += 1;
-      if (user && row.user_id === user.id) m = row.reaction;
+      if (user && row.user_id === user.id) m.add(row.reaction as ReactionKey);
     }
     setCounts(c);
     setMine(m);
@@ -61,18 +61,19 @@ export function ReactionsRow({ chapterId }: { chapterId: string }) {
   const toggle = async (key: ReactionKey) => {
     if (!user || busy) return;
     setBusy(true);
-    if (mine === key) {
+    if (mine.has(key)) {
       await supabase
         .from("chapter_reactions")
         .delete()
         .eq("user_id", user.id)
-        .eq("chapter_id", chapterId);
+        .eq("chapter_id", chapterId)
+        .eq("reaction", key);
     } else {
       await supabase
         .from("chapter_reactions")
         .upsert(
           { user_id: user.id, chapter_id: chapterId, reaction: key },
-          { onConflict: "user_id,chapter_id" },
+          { onConflict: "chapter_id,user_id,reaction" },
         );
     }
     await reload();
@@ -102,14 +103,23 @@ export function ReactionsRow({ chapterId }: { chapterId: string }) {
                 );
               })}
             </div>
-            {user && popup.users.some((u) => u.id === user.id) && (
+            {user && (
               <div style={{ padding: "10px 16px", borderTop: "1px solid rgba(168,85,247,0.15)" }}>
-                <button
-                  onClick={async () => { setPopup(null); await toggle(popup.key); }}
-                  style={{ width: "100%", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 8, color: "#fca5a5", fontSize: 13, fontWeight: 700, padding: "8px 0", cursor: "pointer" }}
-                >
-                  ✕ Retirer ma réaction
-                </button>
+                {mine.has(popup.key) ? (
+                  <button
+                    onClick={async () => { setPopup(null); await toggle(popup.key); }}
+                    style={{ width: "100%", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 8, color: "#fca5a5", fontSize: 13, fontWeight: 700, padding: "8px 0", cursor: "pointer" }}
+                  >
+                    ✕ Retirer ma réaction
+                  </button>
+                ) : (
+                  <button
+                    onClick={async () => { setPopup(null); await toggle(popup.key); }}
+                    style={{ width: "100%", background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.45)", borderRadius: 8, color: "#c4a3f0", fontSize: 13, fontWeight: 700, padding: "8px 0", cursor: "pointer" }}
+                  >
+                    {REACTIONS.find((r) => r.key === popup.key)?.emoji} Réagir
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -124,7 +134,7 @@ export function ReactionsRow({ chapterId }: { chapterId: string }) {
         }}
       >
         {REACTIONS.map((r) => {
-          const active = mine === r.key;
+          const active = mine.has(r.key);
           const count = counts[r.key];
           return (
             <button
