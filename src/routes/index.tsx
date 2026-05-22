@@ -62,7 +62,7 @@ function SectionCountdown({ unlockAt }: { unlockAt: Date }) {
 }
 
 const SECTIONS: { key: string; label: string; sub?: string }[] = [
-  { key: "mindset", label: "Mindset" },
+  { key: "mindset", label: "Introduction" },
   { key: "jour1", label: "Jour 1", sub: "Préparation" },
   { key: "jour2", label: "Jour 2", sub: "Création" },
   { key: "jour3", label: "Jour 3", sub: "Conversion" },

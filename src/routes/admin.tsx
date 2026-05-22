@@ -518,7 +518,7 @@ type ResultWithProfile = {
 };
 
 const SECTIONS = [
-  { value: "mindset", label: "🧠 Mindset" },
+  { value: "mindset", label: "📘 Introduction" },
   { value: "jour1", label: "Jour 1" },
   { value: "jour2", label: "Jour 2" },
   { value: "jour3", label: "Jour 3" },
