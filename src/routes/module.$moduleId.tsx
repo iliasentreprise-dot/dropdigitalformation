@@ -281,6 +281,28 @@ function ModulePage() {
     }
   };
 
+  const moveChapter = async (id: string, dir: "up" | "down") => {
+    const idx = chapters.findIndex((c) => c.id === id);
+    if (dir === "up" && idx === 0) return;
+    if (dir === "down" && idx === chapters.length - 1) return;
+    const swapIdx = dir === "up" ? idx - 1 : idx + 1;
+    const a = chapters[idx];
+    const b = chapters[swapIdx];
+    const next = [...chapters];
+    next[idx] = { ...a, position: b.position };
+    next[swapIdx] = { ...b, position: a.position };
+    next.sort((x, y) => x.position - y.position);
+    setChapters(next);
+    try {
+      await Promise.all([
+        supabase.from("chapters").update({ position: b.position }).eq("id", a.id),
+        supabase.from("chapters").update({ position: a.position }).eq("id", b.id),
+      ]);
+    } catch {
+      setChapters(chapters);
+    }
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -916,7 +938,7 @@ function ModulePage() {
                 <div key={c.id} style={{ position: "relative" }}>
                   <button
                     className={["player-chapter-item", c.id === selectedId ? "active" : "", completed.has(c.id) ? "done" : ""].filter(Boolean).join(" ")}
-                    style={isAdmin ? { paddingRight: 36, width: "100%" } : undefined}
+                    style={isAdmin ? { paddingLeft: 38, paddingRight: 36, width: "100%" } : undefined}
                     onClick={() => { setSelectedId(c.id); if (typeof window !== "undefined" && window.innerWidth < 768) setSidebarOpen(false); }}
                   >
                     <span className="chapter-num">{idx + 1}</span>
@@ -924,13 +946,29 @@ function ModulePage() {
                     {completed.has(c.id) && <span className="chapter-check">✓</span>}
                   </button>
                   {isAdmin && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); void deleteChapter(c.id); }}
-                      title="Supprimer le chapitre"
-                      style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 22, height: 22, background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, color: "#fca5a5", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0 }}
-                    >
-                      ✕
-                    </button>
+                    <>
+                      <div style={{ position: "absolute", left: 4, top: "50%", transform: "translateY(-50%)", display: "flex", flexDirection: "column", gap: 1 }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); void moveChapter(c.id, "up"); }}
+                          disabled={idx === 0}
+                          title="Monter"
+                          style={{ background: "none", border: "none", color: "rgba(196,160,255,0.5)", fontSize: 9, cursor: idx === 0 ? "default" : "pointer", padding: "1px 3px", lineHeight: 1, opacity: idx === 0 ? 0.2 : 0.6 }}
+                        >▲</button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); void moveChapter(c.id, "down"); }}
+                          disabled={idx === chapters.length - 1}
+                          title="Descendre"
+                          style={{ background: "none", border: "none", color: "rgba(196,160,255,0.5)", fontSize: 9, cursor: idx === chapters.length - 1 ? "default" : "pointer", padding: "1px 3px", lineHeight: 1, opacity: idx === chapters.length - 1 ? 0.2 : 0.6 }}
+                        >▼</button>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); void deleteChapter(c.id); }}
+                        title="Supprimer le chapitre"
+                        style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 22, height: 22, background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, color: "#fca5a5", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0 }}
+                      >
+                        ✕
+                      </button>
+                    </>
                   )}
                 </div>
               ))}
