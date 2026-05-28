@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      bot_followup_schedule: {
+        Row: {
+          id: string
+          last_sent_at: string | null
+          next_send_at: string | null
+          student_id: string | null
+        }
+        Insert: {
+          id?: string
+          last_sent_at?: string | null
+          next_send_at?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          id?: string
+          last_sent_at?: string | null
+          next_send_at?: string | null
+          student_id?: string | null
+        }
+        Relationships: []
+      }
       chapter_reactions: {
         Row: {
           chapter_id: string
@@ -466,6 +487,8 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           deleted_by: string | null
+          edited: boolean | null
+          edited_at: string | null
           id: string
           image_url: string | null
           recipient_id: string
@@ -476,6 +499,8 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
+          edited?: boolean | null
+          edited_at?: string | null
           id?: string
           image_url?: string | null
           recipient_id: string
@@ -486,6 +511,8 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
+          edited?: boolean | null
+          edited_at?: string | null
           id?: string
           image_url?: string | null
           recipient_id?: string
