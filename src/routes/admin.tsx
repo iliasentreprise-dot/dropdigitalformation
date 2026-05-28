@@ -360,7 +360,7 @@ const sendFollowupDmFn = createServerFn({ method: "POST" })
 
     for (const student of toContact) {
       const p = profileMap[student.id] as { username: string | null; full_name: string | null } | undefined;
-      const pseudo = p?.username || p?.full_name || student.email.split("@")[0];
+      const pseudo = p?.username || p?.full_name || (student.email?.split("@")[0] ?? "ami");
       const content = MESSAGES[Math.floor(Math.random() * MESSAGES.length)].replace("[pseudo]", pseudo);
       await sa.from("private_messages").insert({ sender_id: FOLLOW_BOT_ID, recipient_id: student.id, content });
       await sa.from("bot_followup_schedule").upsert(
