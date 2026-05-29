@@ -228,6 +228,7 @@ export type Database = {
           deleted_by: string | null
           edited: boolean | null
           edited_at: string | null
+          hidden_by_admin: boolean
           id: string
           image_url: string | null
           message_type: string | null
@@ -242,6 +243,7 @@ export type Database = {
           deleted_by?: string | null
           edited?: boolean | null
           edited_at?: string | null
+          hidden_by_admin?: boolean
           id?: string
           image_url?: string | null
           message_type?: string | null
@@ -256,6 +258,7 @@ export type Database = {
           deleted_by?: string | null
           edited?: boolean | null
           edited_at?: string | null
+          hidden_by_admin?: boolean
           id?: string
           image_url?: string | null
           message_type?: string | null
