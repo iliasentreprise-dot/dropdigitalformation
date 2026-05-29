@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { hideMessageFn } from "@/lib/api/group-messages";
+import { hideMessageFn, restoreMessageFn } from "@/lib/api/group-messages";
 
 type GroupMessage = {
   id: string;
@@ -122,9 +122,21 @@ export function GroupChat({
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "group_messages" }, (payload) => {
         const updated = payload.new as GroupMessage;
-        if (updated.hidden_by_admin && updated.user_id !== userId && myRoleRef.current !== "admin") {
-          // Non-author, non-admin: remove immediately without page refresh
+        const isOtherUser = updated.user_id !== userId && myRoleRef.current !== "admin";
+        if (updated.hidden_by_admin && isOtherUser) {
+          // Hidden: non-author non-admin → remove immediately
           setMessages((prev) => prev.filter((m) => m.id !== updated.id));
+        } else if (!updated.hidden_by_admin && isOtherUser) {
+          // Restored: add back in chronological order if not already present
+          setMessages((prev) => {
+            if (prev.find((m) => m.id === updated.id)) {
+              return prev.map((m) => (m.id === updated.id ? updated : m));
+            }
+            const idx = prev.findIndex((m) => m.created_at > updated.created_at);
+            const next = [...prev];
+            next.splice(idx === -1 ? next.length : idx, 0, updated);
+            return next;
+          });
         } else {
           setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
         }
@@ -239,6 +251,15 @@ export function GroupChat({
     );
     setMessages((prev) =>
       prev.map((m) => (m.id === id ? { ...m, hidden_by_admin: true } : m)),
+    );
+  };
+
+  const unhideMessage = async (id: string) => {
+    await (restoreMessageFn as unknown as (args: { data: { messageId: string; callerId: string } }) => Promise<{ success: boolean }>)(
+      { data: { messageId: id, callerId: userId } },
+    );
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, hidden_by_admin: false } : m)),
     );
   };
 
@@ -405,7 +426,7 @@ export function GroupChat({
             role === "admin" ? "chat-msg-name-admin" : role === "moderator" ? "chat-msg-name-mod" : "chat-msg-name-user";
 
           return (
-            <div key={msg.id} className={`chat-row${isOwn ? " own" : ""}`}>
+            <div key={msg.id} className={`chat-row${isOwn ? " own" : ""}`} style={isAdmin && msg.hidden_by_admin ? { opacity: 0.55, outline: "1px solid rgba(239,68,68,0.3)", borderRadius: 10 } : undefined}>
               <div className="chat-avatar" onClick={() => goToProfile(msg.user_id)} title={`Voir le profil de ${name}`} style={{ cursor: "pointer", ...avatarRing(role) }}>
                 {avatar ? (
                   <img src={avatar} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
@@ -552,6 +573,15 @@ export function GroupChat({
                           title="Masquer pour tous sauf l'auteur"
                         >
                           👁
+                        </button>
+                      )}
+                      {isAdmin && !isOwn && roleOf(msg.user_id) !== "admin" && !msg.deleted_at && msg.hidden_by_admin && (
+                        <button
+                          className="msg-action-btn"
+                          onClick={() => void unhideMessage(msg.id)}
+                          title="Démasquer — rendre visible pour tout le monde"
+                        >
+                          👁‍🗨
                         </button>
                       )}
                       {pickerFor === msg.id && (
