@@ -225,6 +225,15 @@ const updateSoftwareAccessFn = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+const deleteStudentFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { userId } = (data as unknown) as { userId: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
 const listGroupMessagesFn = createServerFn({ method: "GET" })
   .handler(async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -457,12 +466,14 @@ function StudentModal({
   onClose,
   onRoleChange,
   onSoftwareAccessChange,
+  onDelete,
 }: {
   student: StudentUser;
   totalChapters: number;
   onClose: () => void;
   onRoleChange: (userId: string, role: string) => Promise<void>;
   onSoftwareAccessChange: (userId: string, access: boolean) => Promise<void>;
+  onDelete: (userId: string) => Promise<void>;
 }) {
   const [changing, setChanging] = useState(false);
   const [togglingAccess, setTogglingAccess] = useState(false);
@@ -537,6 +548,21 @@ function StudentModal({
           {!isAdminUser && (
             <button className="admin-btn-ghost" onClick={handleRoleChange} disabled={changing} style={{ width: "100%" }}>
               {changing ? "…" : isMod ? "↩ Repasser élève" : "⬆ Passer modérateur"}
+            </button>
+          )}
+          {!isAdminUser && (
+            <button
+              className="admin-btn-danger"
+              style={{ width: "100%", marginTop: 4 }}
+              disabled={changing}
+              onClick={async () => {
+                if (!window.confirm(`Supprimer ${name} ? Cette action est irréversible et révoque immédiatement son accès.`)) return;
+                setChanging(true);
+                await onDelete(student.id);
+                setChanging(false);
+              }}
+            >
+              🗑 Supprimer l'élève
             </button>
           )}
         </div>
@@ -952,12 +978,31 @@ function AdminPage() {
                       </div>
                       <span className="s-prog-pct">{pct}%</span>
                     </div>
-                    <button
-                      className="admin-btn-ghost sm"
-                      onClick={() => setSelectedStudent(s)}
-                    >
-                      Voir le profil
-                    </button>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        className="admin-btn-ghost sm"
+                        style={{ flex: 1 }}
+                        onClick={() => setSelectedStudent(s)}
+                      >
+                        Voir le profil
+                      </button>
+                      {!isAdminUser && (
+                        <button
+                          className="admin-btn-danger sm"
+                          onClick={async () => {
+                            if (!window.confirm(`Supprimer ${name} ? Cette action est irréversible.`)) return;
+                            try {
+                              await (deleteStudentFn as unknown as (args: { data: { userId: string } }) => Promise<void>)({ data: { userId: s.id } });
+                              setStudents((prev) => prev.filter((u) => u.id !== s.id));
+                            } catch (e) {
+                              flash((e as Error).message, true);
+                            }
+                          }}
+                        >
+                          🗑
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -992,6 +1037,15 @@ function AdminPage() {
                     prev.map((s) => s.id === userId ? { ...s, has_software_access: access } : s)
                   );
                   setSelectedStudent((prev) => prev ? { ...prev, has_software_access: access } : null);
+                } catch (e) {
+                  flash((e as Error).message, true);
+                }
+              }}
+              onDelete={async (userId) => {
+                try {
+                  await (deleteStudentFn as unknown as (args: { data: { userId: string } }) => Promise<void>)({ data: { userId } });
+                  setStudents((prev) => prev.filter((s) => s.id !== userId));
+                  setSelectedStudent(null);
                 } catch (e) {
                   flash((e as Error).message, true);
                 }
