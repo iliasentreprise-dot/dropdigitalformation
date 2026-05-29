@@ -170,6 +170,10 @@ function ModulePage() {
   const [draftDesc, setDraftDesc] = useState("");
   const [flash, setFlash] = useState<string | null>(null);
 
+  // Drag-and-drop chapter reorder (admin only)
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
   // Upload state (admin only)
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -281,25 +285,14 @@ function ModulePage() {
     }
   };
 
-  const moveChapter = async (id: string, dir: "up" | "down") => {
-    const idx = chapters.findIndex((c) => c.id === id);
-    if (dir === "up" && idx === 0) return;
-    if (dir === "down" && idx === chapters.length - 1) return;
-    const swapIdx = dir === "up" ? idx - 1 : idx + 1;
-    const a = chapters[idx];
-    const b = chapters[swapIdx];
-    const next = [...chapters];
-    next[idx] = { ...a, position: b.position };
-    next[swapIdx] = { ...b, position: a.position };
-    next.sort((x, y) => x.position - y.position);
-    setChapters(next);
+  const saveChapterOrder = async (reordered: Chapter[]) => {
+    const prev = [...chapters];
     try {
-      await Promise.all([
-        supabase.from("chapters").update({ position: b.position }).eq("id", a.id),
-        supabase.from("chapters").update({ position: a.position }).eq("id", b.id),
-      ]);
+      await Promise.all(
+        reordered.map((c, i) => supabase.from("chapters").update({ position: i }).eq("id", c.id))
+      );
     } catch {
-      setChapters(chapters);
+      setChapters(prev);
     }
   };
 
@@ -934,33 +927,49 @@ function ModulePage() {
             )}
 
             <div className="player-chapters-list">
-              {chapters.map((c, idx) => (
-                <div key={c.id} style={{ position: "relative" }}>
-                  <button
-                    className={["player-chapter-item", c.id === selectedId ? "active" : "", completed.has(c.id) ? "done" : ""].filter(Boolean).join(" ")}
-                    style={isAdmin ? { paddingLeft: 38, paddingRight: 36, width: "100%" } : undefined}
-                    onClick={() => { setSelectedId(c.id); if (typeof window !== "undefined" && window.innerWidth < 768) setSidebarOpen(false); }}
+              {chapters.map((c, idx) => {
+                const isDragging = dragId === c.id;
+                const isOver = dragOverId === c.id && !isDragging;
+                return (
+                  <div
+                    key={c.id}
+                    style={{
+                      position: "relative",
+                      opacity: isDragging ? 0.4 : 1,
+                      outline: isOver ? "2px solid #a855f7" : "2px solid transparent",
+                      borderRadius: 8,
+                      transition: "opacity 0.15s, outline 0.1s",
+                      cursor: isAdmin ? (isDragging ? "grabbing" : "grab") : undefined,
+                    }}
+                    draggable={isAdmin}
+                    onDragStart={isAdmin ? () => setDragId(c.id) : undefined}
+                    onDragOver={isAdmin ? (e) => { e.preventDefault(); if (dragOverId !== c.id) setDragOverId(c.id); } : undefined}
+                    onDragEnd={isAdmin ? () => { setDragId(null); setDragOverId(null); } : undefined}
+                    onDrop={isAdmin ? (e) => {
+                      e.preventDefault();
+                      if (!dragId || dragId === c.id) { setDragId(null); setDragOverId(null); return; }
+                      const from = chapters.findIndex((x) => x.id === dragId);
+                      const to = chapters.findIndex((x) => x.id === c.id);
+                      if (from === -1 || to === -1) { setDragId(null); setDragOverId(null); return; }
+                      const reordered = [...chapters];
+                      const [moved] = reordered.splice(from, 1);
+                      reordered.splice(to, 0, moved);
+                      setChapters(reordered);
+                      setDragId(null);
+                      setDragOverId(null);
+                      void saveChapterOrder(reordered);
+                    } : undefined}
                   >
-                    <span className="chapter-num">{idx + 1}</span>
-                    <span className="chapter-title">{c.title}</span>
-                    {completed.has(c.id) && <span className="chapter-check">✓</span>}
-                  </button>
-                  {isAdmin && (
-                    <>
-                      <div style={{ position: "absolute", left: 4, top: "50%", transform: "translateY(-50%)", display: "flex", flexDirection: "column", gap: 1 }}>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); void moveChapter(c.id, "up"); }}
-                          disabled={idx === 0}
-                          title="Monter"
-                          style={{ background: "none", border: "none", color: "rgba(196,160,255,0.5)", fontSize: 9, cursor: idx === 0 ? "default" : "pointer", padding: "1px 3px", lineHeight: 1, opacity: idx === 0 ? 0.2 : 0.6 }}
-                        >▲</button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); void moveChapter(c.id, "down"); }}
-                          disabled={idx === chapters.length - 1}
-                          title="Descendre"
-                          style={{ background: "none", border: "none", color: "rgba(196,160,255,0.5)", fontSize: 9, cursor: idx === chapters.length - 1 ? "default" : "pointer", padding: "1px 3px", lineHeight: 1, opacity: idx === chapters.length - 1 ? 0.2 : 0.6 }}
-                        >▼</button>
-                      </div>
+                    <button
+                      className={["player-chapter-item", c.id === selectedId ? "active" : "", completed.has(c.id) ? "done" : ""].filter(Boolean).join(" ")}
+                      style={isAdmin ? { paddingRight: 36, width: "100%", cursor: "inherit" } : undefined}
+                      onClick={() => { setSelectedId(c.id); if (typeof window !== "undefined" && window.innerWidth < 768) setSidebarOpen(false); }}
+                    >
+                      <span className="chapter-num">{idx + 1}</span>
+                      <span className="chapter-title">{c.title}</span>
+                      {completed.has(c.id) && <span className="chapter-check">✓</span>}
+                    </button>
+                    {isAdmin && (
                       <button
                         onClick={(e) => { e.stopPropagation(); void deleteChapter(c.id); }}
                         title="Supprimer le chapitre"
@@ -968,10 +977,10 @@ function ModulePage() {
                       >
                         ✕
                       </button>
-                    </>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <div className="player-sidebar-progress">
               <div className="pg-label">{completed.size} / {chapters.length} chapitres — {progressPct}%</div>
