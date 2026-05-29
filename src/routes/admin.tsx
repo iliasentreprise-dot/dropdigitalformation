@@ -435,6 +435,15 @@ const listStudentsFn = createServerFn({ method: "GET" })
     };
   });
 
+const deleteStudentFn = createServerFn({ method: "POST" })
+  .handler(async ({ data }) => {
+    const { userId } = (data as unknown) as { userId: string };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
 const updateRoleFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { userId, role, adminUserId, targetUsername } = (data as unknown) as { userId: string; role: "admin" | "moderator" | "user"; adminUserId: string; targetUsername: string };
@@ -1462,6 +1471,22 @@ function AdminPage() {
                       >
                         Profil complet →
                       </Link>
+                      {!isAdminUser && (
+                        <button
+                          className="admin-btn-danger sm"
+                          onClick={async () => {
+                            if (!window.confirm(`Supprimer ${name} ? Cette action est irréversible.`)) return;
+                            try {
+                              await (deleteStudentFn as unknown as (args: { data: { userId: string } }) => Promise<void>)({ data: { userId: s.id } });
+                              setStudents((prev) => prev.filter((u) => u.id !== s.id));
+                            } catch (e) {
+                              flash((e as Error).message, true);
+                            }
+                          }}
+                        >
+                          🗑
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
