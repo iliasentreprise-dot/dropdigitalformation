@@ -382,9 +382,7 @@ export function GroupChat({
             Aucun message pour l'instant. Sois le premier à dire bonjour 👋
           </div>
         )}
-        {messages
-          .filter((msg) => !msg.hidden_by_admin || isAdmin || msg.user_id === userId)
-          .map((msg) => {
+        {messages.filter((msg) => !msg.hidden_by_admin || isAdmin || msg.user_id === userId).map((msg) => {
           const isOwn = msg.user_id === userId;
           const name = nameOf(msg.user_id);
           const avatar = avatarOf(msg.user_id);
