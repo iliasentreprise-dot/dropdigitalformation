@@ -475,12 +475,24 @@
 
 /* ── Role badge animations ── */
 @keyframes adminGlow {
-  0%, 100% { box-shadow: 0 0 6px rgba(251, 191, 36, 0.5), 0 0 12px rgba(251, 191, 36, 0.3); }
-  50% { box-shadow: 0 0 14px rgba(251, 191, 36, 0.9), 0 0 28px rgba(251, 191, 36, 0.5); }
+  0%, 100% { box-shadow: 0 0 8px #FFD700, 0 0 16px #FFD700; }
+  50% { box-shadow: 0 0 20px #FFD700, 0 0 40px #FFC200, 0 0 60px #FFAA00; }
+}
+@keyframes modNeon {
+  0%, 100% { box-shadow: 0 0 6px #ef4444, 0 0 12px #ef4444; }
+  50% { box-shadow: 0 0 20px #ef4444, 0 0 40px #dc2626, 0 0 60px #ff0000; }
 }
 @keyframes modGlow {
-  0%, 100% { box-shadow: 0 0 4px rgba(239, 68, 68, 0.4), 0 0 8px rgba(239, 68, 68, 0.2); }
-  50% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.7), 0 0 18px rgba(239, 68, 68, 0.4); }
+  0%, 100% { box-shadow: 0 0 6px #ef4444, 0 0 12px #ef4444; }
+  50% { box-shadow: 0 0 20px #ef4444, 0 0 40px #dc2626, 0 0 60px #ff0000; }
+}
+@keyframes starPop {
+  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(180deg); }
+}
+@keyframes lightning {
+  0%, 80%, 100% { opacity: 0; transform: scaleY(0); }
+  85%, 95% { opacity: 1; transform: scaleY(1); }
 }
 @keyframes fireGradient {
   0% { background-position: 0% 50%; }
@@ -488,15 +500,31 @@
   100% { background-position: 0% 50%; }
 }
 .fire-progress {
-  background: linear-gradient(270deg, #ff4500, #ff8c00, #ffd700, #ff8c00, #ff4500);
-  background-size: 300% 100%;
-  animation: fireGradient 2s ease-in-out infinite;
+  /* Overridden by dropdigital.css — kept here as fallback */
+  background: linear-gradient(90deg, #7f1d1d, #dc2626, #ef4444, #b91c1c, #7f1d1d);
+  background-size: 250% 100%;
+  animation: fireGradient 1.6s linear infinite;
   border-radius: 4px;
   height: 100%;
   width: 100%;
 }
 
-/* ── Student grid ── */
+@keyframes nitroSlide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes nitroPulse {
+  0%,100% { box-shadow: 0 0 10px rgba(255,80,0,0.7), 0 0 20px rgba(255,200,0,0.5) inset; }
+  50%     { box-shadow: 0 0 22px rgba(255,80,0,1),   0 0 32px rgba(255,255,0,0.8) inset; }
+}
+.nitro-progress {
+  background:
+    repeating-linear-gradient(115deg, rgba(255,255,255,0.25) 0 8px, transparent 8px 18px),
+    linear-gradient(90deg, #ff0040, #ff6a00, #ffd200, #ff6a00, #ff0040);
+  background-size: 60px 100%, 200% 100%;
+  animation: nitroSlide 1.2s linear infinite, nitroPulse 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
 .student-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

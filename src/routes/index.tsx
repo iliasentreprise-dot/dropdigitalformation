@@ -6,6 +6,10 @@ import { useTheme } from "@/lib/theme-context";
 import logo from "@/assets/logo.png";
 import { GroupChat } from "@/components/dd/GroupChat";
 import { ResultsWall } from "@/components/dd/ResultsWall";
+import { EspaceAssocies } from "@/components/dd/EspaceAssocies";
+import { NotificationBell } from "@/components/dd/NotificationBell";
+import { AvatarCropModal } from "@/components/dd/AvatarCropModal";
+import { toast } from "sonner";
 import "../styles/dropdigital.css";
 
 export const Route = createFileRoute("/")({
@@ -37,12 +41,29 @@ type UserProfile = {
   avatar_url: string | null;
   bio: string | null;
   has_software_access: boolean;
+  followers_count: number;
+  following_count: number;
 };
 
-type TabKey = "modules" | "groupe" | "coaching" | "resultats" | "profil" | "parametres";
+type TabKey = "modules" | "groupe" | "coaching" | "resultats" | "associes" | "profil" | "parametres";
+
+function SectionCountdown({ unlockAt }: { unlockAt: Date }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const diff = unlockAt.getTime() - now.getTime();
+  if (diff <= 0) return <span>Disponible maintenant — actualise la page</span>;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  return <>{`Disponible dans ${h}h ${String(m).padStart(2, "0")}min ${String(s).padStart(2, "0")}s`}</>;
+}
 
 const SECTIONS: { key: string; label: string; sub?: string }[] = [
-  { key: "mindset", label: "Mindset" },
+  { key: "mindset", label: "Introduction", sub: "DropDigital" },
+
   { key: "jour1", label: "Jour 1", sub: "Préparation" },
   { key: "jour2", label: "Jour 2", sub: "Création" },
   { key: "jour3", label: "Jour 3", sub: "Conversion" },
@@ -85,6 +106,19 @@ function HomePage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
+  // Lightbox + crop
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+
+  // Password change
+  const [pwFormOpen, setPwFormOpen] = useState(false);
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwErr, setPwErr] = useState<string | null>(null);
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
+
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
   }, [user, loading, navigate]);
@@ -110,7 +144,7 @@ function HomePage() {
         supabase.from("chapters").select("id, module_id"),
         supabase.from("user_chapter_progress").select("chapter_id, completed_at").eq("user_id", user.id),
         supabase.from("user_roles").select("role").eq("user_id", user.id),
-        supabase.from("profiles").select("username, full_name, avatar_url, bio, has_software_access").eq("id", user.id).maybeSingle(),
+        supabase.from("profiles").select("username, full_name, avatar_url, bio, has_software_access, followers_count, following_count").eq("id", user.id).maybeSingle(),
       ]);
 
       setModules(mods ?? []);
@@ -144,16 +178,10 @@ function HomePage() {
 
   const globalPct = useMemo(() => {
     if (!chapters.length) return 0;
-    return Math.round((completed.size / chapters.length) * 100);
+    return Math.min(100, Math.round((completed.size / chapters.length) * 100));
   }, [chapters, completed]);
 
   const visibleModules = modules.filter((m) => m.section === activeSection);
-
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   const dripUnlock = useMemo(() => {
     const jour1ModIds = new Set(modules.filter((m) => m.section === "jour1").map((m) => m.id));
@@ -179,32 +207,55 @@ function HomePage() {
     return <div className="dd-root" style={{ alignItems: "center", justifyContent: "center" }} />;
   }
 
-  const formatCountdown = (unlockAt: Date): string => {
-    const diff = unlockAt.getTime() - now.getTime();
-    if (diff <= 0) return "";
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
-    return `${h}h ${String(m).padStart(2, "0")}min ${String(s).padStart(2, "0")}s`;
-  };
-
-  const getSectionLock = (section: string): { locked: boolean; message: string } => {
+  const getSectionLock = (section: string): { locked: boolean; unlockAt: Date | null; message: string } => {
+    if (isAdmin || userRole === "moderator") return { locked: false, unlockAt: null, message: "" };
     if (section === "jour2") {
       const { jour2UnlocksAt } = dripUnlock;
-      if (!jour2UnlocksAt) return { locked: true, message: "Termine tous les chapitres du Jour 1 pour débloquer le Jour 2." };
-      if (jour2UnlocksAt > now) return { locked: true, message: `Disponible dans ${formatCountdown(jour2UnlocksAt)}` };
+      if (!jour2UnlocksAt) return { locked: true, unlockAt: null, message: "Termine tous les chapitres du Jour 1 pour débloquer le Jour 2." };
+      const locked = jour2UnlocksAt > new Date();
+      return { locked, unlockAt: locked ? jour2UnlocksAt : null, message: "" };
     }
     if (section === "jour3") {
       const { jour3UnlocksAt } = dripUnlock;
-      if (!jour3UnlocksAt) return { locked: true, message: "Termine tous les chapitres du Jour 2 pour débloquer le Jour 3." };
-      if (jour3UnlocksAt > now) return { locked: true, message: `Disponible dans ${formatCountdown(jour3UnlocksAt)}` };
+      if (!jour3UnlocksAt) return { locked: true, unlockAt: null, message: "Termine tous les chapitres du Jour 2 pour débloquer le Jour 3." };
+      const locked = jour3UnlocksAt > new Date();
+      return { locked, unlockAt: locked ? jour3UnlocksAt : null, message: "" };
     }
-    return { locked: false, message: "" };
+    return { locked: false, unlockAt: null, message: "" };
   };
 
   const handleSignOut = async () => {
     await signOut();
     navigate({ to: "/login" });
+  };
+
+  const closePwForm = () => {
+    setPwFormOpen(false);
+    setCurrentPw("");
+    setNewPw("");
+    setConfirmPw("");
+    setPwErr(null);
+    setPwMsg(null);
+  };
+
+  const handlePasswordChange = async () => {
+    setPwErr(null);
+    setPwMsg(null);
+    if (!user?.email) return;
+    if (newPw !== confirmPw) { setPwErr("Les nouveaux mots de passe ne correspondent pas."); return; }
+    if (newPw.length < 6) { setPwErr("Le mot de passe doit faire au moins 6 caractères."); return; }
+    setPwSaving(true);
+    const { error: signInErr } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPw });
+    if (signInErr) { setPwErr("Mot de passe actuel incorrect."); setPwSaving(false); return; }
+    const { error: updateErr } = await supabase.auth.updateUser({ password: newPw });
+    if (updateErr) {
+      setPwErr(updateErr.message);
+    } else {
+      setPwMsg("Mot de passe mis à jour ✓");
+      setCurrentPw(""); setNewPw(""); setConfirmPw("");
+      setTimeout(closePwForm, 1500);
+    }
+    setPwSaving(false);
   };
 
   const handleTabClick = (k: TabKey) => {
@@ -222,18 +273,36 @@ function HomePage() {
     setProfileSaving(false);
   };
 
-  const uploadAvatar = async (file: File) => {
+  const uploadAvatar = async (file: Blob | File) => {
     if (!user) return;
     setAvatarUploading(true);
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `${user.id}/avatar.${ext}`;
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (!error) {
+    try {
+      const ext = (file instanceof File ? (file.name.split(".").pop() || "jpg") : "jpg").toLowerCase();
+      const path = `${user.id}/avatar.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true, contentType: file.type || undefined, cacheControl: "3600" });
+      if (uploadError) {
+        toast.error("Échec de l'envoi de la photo : " + uploadError.message);
+        return;
+      }
       const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-      await supabase.from("profiles").update({ avatar_url: data.publicUrl }).eq("id", user.id);
-      setProfile((prev) => (prev ? { ...prev, avatar_url: data.publicUrl } : null));
+      const cacheBustedUrl = `${data.publicUrl}?v=${Date.now()}`;
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: cacheBustedUrl })
+        .eq("id", user.id);
+      if (updateError) {
+        toast.error("Échec de la sauvegarde : " + updateError.message);
+        return;
+      }
+      setProfile((prev) => (prev ? { ...prev, avatar_url: cacheBustedUrl } : null));
+      toast.success("Photo de profil mise à jour");
+    } catch (e: any) {
+      toast.error("Erreur : " + (e?.message ?? "inconnue"));
+    } finally {
+      setAvatarUploading(false);
     }
-    setAvatarUploading(false);
   };
 
   const displayName = profile?.full_name || profile?.username || user.email?.split("@")[0] || "Élève";
@@ -247,6 +316,7 @@ function HomePage() {
             key={m.id}
             to="/module/$moduleId"
             params={{ moduleId: m.id }}
+            preload="intent"
             className="module-card"
             style={{ textDecoration: "none", color: "inherit" }}
           >
@@ -282,6 +352,68 @@ function HomePage() {
     </div>
   );
 
+  const renderModulesContent = () => {
+    const lock = getSectionLock(activeSection);
+    if (lock.locked) {
+      return (
+        <div style={{ textAlign: "center", padding: "60px 20px" }}>
+          <div style={{ fontSize: 64, marginBottom: 20 }}>🔒</div>
+          <p style={{ color: "#c4a3f0", fontSize: 18, fontWeight: 600, lineHeight: 1.7, margin: 0 }}>
+            {lock.unlockAt ? <SectionCountdown unlockAt={lock.unlockAt} /> : lock.message}
+          </p>
+        </div>
+      );
+    }
+
+    if (activeSection === "ultime") {
+      if (!hasSoftwareAccess && !isAdmin && userRole !== "moderator") {
+        return (
+          <div style={{ position: "relative", minHeight: 320 }}>
+            <div className="modules-grid" style={{ filter: "blur(5px)", pointerEvents: "none", userSelect: "none", opacity: 0.5 }}>
+              {visibleModules.map((m, i) => (
+                <div key={m.id} className="module-card">
+                  <div className="module-thumb">
+                    {m.thumbnail_url ? <img src={m.thumbnail_url} alt={m.title} /> : <div style={{ fontSize: 48, opacity: 0.4 }}>🎬</div>}
+                    <div className="play-btn" />
+                  </div>
+                  <div className="module-info">
+                    <div className="module-num">Module {String(i + 1).padStart(2, "0")}</div>
+                    <div className="module-title">{m.title}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="software-lock-overlay">
+              <div style={{ fontSize: 52, marginBottom: 16 }}>🔒</div>
+              <p style={{ color: "#e2d4f8", fontSize: 15, lineHeight: 1.7, marginBottom: 28, textAlign: "center", maxWidth: 400 }}>
+                Tu n'as pas accès au logiciel d'automatisation car tu as pris l'offre Formation à 97€
+              </p>
+              <a
+                href="https://revolut.me/ilias_business?currency=EUR&amount=4700&note=Logiciel%20d%27automatisation%20TikTok"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="software-cta-btn"
+              >
+                ⚡ Accéder à l'ensemble des logiciels pour automatiser ton système
+              </a>
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div>
+          <div className="software-coming-soon">
+            <span className="hourglass-spin">⏳</span>
+            <span>Tu auras accès aux logiciels d'automatisation bientôt…</span>
+          </div>
+          <ModulesGrid mods={visibleModules} />
+        </div>
+      );
+    }
+
+    return <ModulesGrid mods={visibleModules} />;
+  };
+
   return (
     <div className="dd-root">
       <div className="topbar">
@@ -296,14 +428,11 @@ function HomePage() {
           <div className="logo-icon"><img src={logo} alt="DropDigital" width={36} height={36} /></div>
           <div className="logo-text">Drop<span>Digital</span></div>
         </div>
-        <div className="topbar-right">
-          <div className="price-pill">
-            <span className="live-dot" />
-            <span className="old-price">997€</span>
-            <span className="new-price">297€</span>
-            <span className="badge-red">-70%</span>
-          </div>
+        <div className="topbar-right" style={{ display: "flex", alignItems: "center", gap: 12, paddingRight: 8 }}>
+          <Link to="/messages" title="Messages privés" style={{ color: "#c4a3f0", textDecoration: "none", fontSize: 20, lineHeight: 1 }}>💬</Link>
+          <NotificationBell userId={user.id} />
         </div>
+
       </div>
 
       <div className="layout">
@@ -316,6 +445,22 @@ function HomePage() {
               <span>{t.label}</span>
             </div>
           ))}
+          <Link to="/messages" className="sidebar-item" style={{ textDecoration: "none" }} onClick={() => setSidebarOpen(false)}>
+            <span className="si-icon">💬</span>
+            <span>Message privé</span>
+          </Link>
+          {(userRole === "moderator" || userRole === "admin") && (
+            <div
+              className={`sidebar-item ${tab === "associes" ? "active" : ""}`}
+              onClick={() => handleTabClick("associes")}
+              style={tab === "associes"
+                ? { background: "rgba(127,29,29,0.45)", borderLeft: "3px solid #ef4444", color: "#fca5a5", boxShadow: "inset 0 0 20px rgba(239,68,68,0.12)" }
+                : { borderLeft: "3px solid transparent", color: "#f87171" }}
+            >
+              <span className="si-icon" style={{ animation: "modNeon 2s ease-in-out infinite" }}>🤝</span>
+              <span style={{ fontWeight: tab === "associes" ? 800 : 600, animation: "neonRedPulse 3s ease-in-out infinite" }}>Espace Associés</span>
+            </div>
+          )}
           <div className="sidebar-section-label">COMPTE</div>
           {ACCOUNT_TABS.map((t) => (
             <div key={t.key} className={`sidebar-item ${tab === t.key ? "active" : ""}`} onClick={() => handleTabClick(t.key)}>
@@ -374,65 +519,7 @@ function HomePage() {
                   <span className="pg-pct">{globalPct}%</span>
                 </div>
 
-                {(() => {
-                  const lock = getSectionLock(activeSection);
-                  if (lock.locked) {
-                    return (
-                      <div style={{ textAlign: "center", padding: "60px 20px" }}>
-                        <div style={{ fontSize: 64, marginBottom: 20 }}>🔒</div>
-                        <p style={{ color: "#c4a3f0", fontSize: 18, fontWeight: 600, lineHeight: 1.7, margin: 0 }}>{lock.message}</p>
-                      </div>
-                    );
-                  }
-
-                  if (activeSection === "ultime") {
-                    if (!hasSoftwareAccess) {
-                      return (
-                        <div style={{ position: "relative", minHeight: 320 }}>
-                          <div className="modules-grid" style={{ filter: "blur(5px)", pointerEvents: "none", userSelect: "none", opacity: 0.5 }}>
-                            {visibleModules.map((m, i) => (
-                              <div key={m.id} className="module-card">
-                                <div className="module-thumb">
-                                  {m.thumbnail_url ? <img src={m.thumbnail_url} alt={m.title} /> : <div style={{ fontSize: 48, opacity: 0.4 }}>🎬</div>}
-                                  <div className="play-btn" />
-                                </div>
-                                <div className="module-info">
-                                  <div className="module-num">Module {String(i + 1).padStart(2, "0")}</div>
-                                  <div className="module-title">{m.title}</div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="software-lock-overlay">
-                            <div style={{ fontSize: 52, marginBottom: 16 }}>🔒</div>
-                            <p style={{ color: "#e2d4f8", fontSize: 15, lineHeight: 1.7, marginBottom: 28, textAlign: "center", maxWidth: 400 }}>
-                              Tu n'as pas accès au logiciel d'automatisation car tu as pris l'offre Formation à 97€
-                            </p>
-                            <a
-                              href="https://revolut.me/ilias_business?currency=EUR&amount=4700&note=Logiciel%20d%27automatisation%20TikTok"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="software-cta-btn"
-                            >
-                              ⚡ Accéder à l'ensemble des logiciels pour automatiser ton système
-                            </a>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div>
-                        <div className="software-coming-soon">
-                          <span className="hourglass-spin">⏳</span>
-                          <span>Tu auras accès aux logiciels d'automatisation bientôt…</span>
-                        </div>
-                        <ModulesGrid mods={visibleModules} />
-                      </div>
-                    );
-                  }
-
-                  return <ModulesGrid mods={visibleModules} />;
-                })()}
+                {renderModulesContent()}
               </>
             )}
 
@@ -447,7 +534,6 @@ function HomePage() {
                   userId={user.id}
                   username={profile?.username ?? null}
                   avatarUrl={profile?.avatar_url ?? null}
-                  isAdmin={isAdmin}
                 />
               </div>
             )}
@@ -501,6 +587,11 @@ function HomePage() {
               </div>
             )}
 
+            {/* ── ESPACE ASSOCIÉS ── */}
+            {tab === "associes" && (userRole === "moderator" || userRole === "admin") && (
+              <EspaceAssocies userId={user.id} userRole={userRole} />
+            )}
+
             {/* ── PROFIL ── */}
             {tab === "profil" && (
               <div style={{ maxWidth: 480, margin: "0 auto" }}>
@@ -508,34 +599,50 @@ function HomePage() {
 
                 {/* Avatar */}
                 <div style={{ textAlign: "center", marginBottom: 28 }}>
-                  <div className="profile-avatar-wrap" onClick={() => avatarInputRef.current?.click()} title="Changer la photo">
+                  <div
+                    className="profile-avatar-wrap"
+                    title={profile?.avatar_url ? "Voir la photo" : "Changer la photo"}
+                    style={userRole === "admin" ? { border: "3px solid #FFD700", boxShadow: "0 0 14px #FFD700, 0 0 28px #FFD700" } : userRole === "moderator" ? { border: "3px solid #ef4444", boxShadow: "0 0 14px #ef4444, 0 0 28px #dc2626" } : { border: "3px solid #7c3aed" }}
+                    onClick={() => { if (profile?.avatar_url) setLightboxSrc(profile.avatar_url); else avatarInputRef.current?.click(); }}
+                  >
                     {profile?.avatar_url
                       ? <img src={profile.avatar_url} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
                       : <span style={{ fontSize: 36, color: "#c4a3f0" }}>{displayName[0]?.toUpperCase()}</span>
                     }
-                    <div className="profile-avatar-overlay">{avatarUploading ? "…" : "📷"}</div>
+                    <div className="profile-avatar-overlay" onClick={(e) => { e.stopPropagation(); avatarInputRef.current?.click(); }}>{avatarUploading ? "…" : "📷"}</div>
                   </div>
-                  <input ref={avatarInputRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadAvatar(f); }} />
-                  <div style={{ marginTop: 8, fontSize: 12, color: "#7c5c9a" }}>Clique pour changer la photo</div>
+                  <input ref={avatarInputRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) setCropFile(f); e.target.value = ""; }} />
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#7c5c9a" }}>📷 pour changer · clic photo pour agrandir</div>
                 </div>
 
                 {/* Role badge */}
                 <div style={{ textAlign: "center", marginBottom: 24 }}>
                   {userRole === "admin" && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #b45309, #f59e0b, #fbbf24)", color: "#1a0800", fontWeight: 800, fontSize: 14, padding: "6px 16px", borderRadius: 8, animation: "adminGlow 2s ease-in-out infinite" }}>✨ Admin</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #FFD700, #FFC200, #FFAA00)", color: "#1a0800", fontWeight: 800, fontSize: 14, padding: "6px 16px", borderRadius: 8, animation: "adminGlow 2s ease-in-out infinite", position: "relative" }}>
+                      👑 Admin <span style={{ animation: "starPop 1.5s ease-in-out infinite" }}>✦</span><span style={{ animation: "starPop 1.5s ease-in-out 0.5s infinite" }}>✦</span>
+                    </span>
                   )}
                   {userRole === "moderator" && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#7f1d1d", color: "#fca5a5", fontWeight: 800, fontSize: 14, padding: "6px 16px", borderRadius: 8, border: "1px solid #ef4444", animation: "modGlow 2s ease-in-out infinite" }}>🔴 Modérateur</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #7f1d1d, #991b1b)", color: "#fca5a5", fontWeight: 800, fontSize: 14, padding: "6px 16px", borderRadius: 8, border: "1px solid #ef4444", animation: "modNeon 2s ease-in-out infinite", position: "relative" }}>
+                      🏴‍☠️ Modérateur <span style={{ animation: "lightning 5s ease-in-out infinite", display: "inline-block" }}>⚡</span><span style={{ animation: "lightning 5s ease-in-out 0.1s infinite", display: "inline-block" }}>⚡</span>
+                    </span>
                   )}
                   {userRole === "user" && (
                     <span style={{ display: "inline-flex", alignItems: "center", background: "rgba(55,65,81,0.6)", color: "#9ca3af", fontWeight: 600, fontSize: 14, padding: "6px 16px", borderRadius: 8 }}>Élève</span>
                   )}
                 </div>
 
-                {/* Email */}
-                <div className="profile-field-row">
-                  <div className="profile-field-label">Email</div>
-                  <div className="profile-field-value">{user.email}</div>
+                {/* Followers / Following */}
+                <div style={{ display: "flex", justifyContent: "center", gap: 28, marginBottom: 24 }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#e2d4f8" }}>{profile?.followers_count ?? 0}</div>
+                    <div style={{ fontSize: 11, color: "#9a7dbd", textTransform: "uppercase", letterSpacing: 0.5 }}>Abonnés</div>
+                  </div>
+                  <div style={{ width: 1, background: "rgba(168,85,247,0.2)" }} />
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#e2d4f8" }}>{profile?.following_count ?? 0}</div>
+                    <div style={{ fontSize: 11, color: "#9a7dbd", textTransform: "uppercase", letterSpacing: 0.5 }}>Abonnements</div>
+                  </div>
                 </div>
 
                 {/* Username */}
@@ -578,13 +685,20 @@ function HomePage() {
                 <div className="profile-field-row" style={{ flexDirection: "column", gap: 10, alignItems: "stretch" }}>
                   <div className="profile-field-label">Progression globale</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ flex: 1, height: 10, background: "rgba(168,85,247,0.12)", borderRadius: 6, overflow: "hidden" }}>
+                    <div style={{ flex: 1, height: 14, background: "rgba(168,85,247,0.12)", borderRadius: 8, overflow: "hidden" }}>
                       {isAdmin
-                        ? <div className="fire-progress" style={{ borderRadius: 6 }} />
-                        : <div style={{ height: "100%", width: `${globalPct}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 6, transition: "width 0.4s" }} />
+                        ? <div className="nitro-progress" style={{ borderRadius: 8, height: "100%", width: "100%" }} />
+                        : userRole === "moderator"
+                        ? <div className="fire-progress" style={{ borderRadius: 8, height: "100%", width: "100%" }} />
+                        : <div style={{ height: "100%", width: `${globalPct}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 8, transition: "width 0.4s" }} />
                       }
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#9a7dbd" }}>{isAdmin ? 100 : globalPct}%</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: isAdmin || userRole === "moderator" ? "#ff6a00" : "#9a7dbd", textShadow: isAdmin || userRole === "moderator" ? "0 0 6px rgba(255,106,0,0.6)" : undefined }}>
+                      {isAdmin ? "⚡ 1000%" : userRole === "moderator" ? "🔥 100%" : `${globalPct}%`}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#7c5c9a" }}>
+                    {(isAdmin || userRole === "moderator") ? "∞ chapitres terminés" : `${completed.size} / ${chapters.length} chapitre${chapters.length > 1 ? "s" : ""} terminé${completed.size > 1 ? "s" : ""}`}
                   </div>
                 </div>
               </div>
@@ -605,12 +719,57 @@ function HomePage() {
                   </button>
                   <button
                     className="admin-btn-ghost"
-                    onClick={() => navigate({ to: "/forgot-password" })}
+                    onClick={() => { setPwFormOpen((o) => !o); setPwErr(null); setPwMsg(null); }}
                     style={{ textAlign: "left", padding: "14px 18px", fontSize: 14, display: "flex", alignItems: "center", gap: 12 }}
                   >
-                    <span>🔐</span>
-                    <span>Changer mon mot de passe</span>
+                    <span>👤</span>
+                    <span>Informations personnelles</span>
+                    <span style={{ marginLeft: "auto", opacity: 0.6 }}>{pwFormOpen ? "▲" : "▼"}</span>
                   </button>
+                  {pwFormOpen && (
+                    <div style={{ background: "rgba(25,10,48,0.85)", border: "1px solid rgba(168,85,247,0.25)", borderRadius: 12, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: "#9a7dbd", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Email</div>
+                        <div style={{ fontSize: 14, color: "#e2d4f8", padding: "8px 12px", background: "rgba(15,5,30,0.6)", borderRadius: 8, border: "1px solid rgba(168,85,247,0.15)" }}>{user.email}</div>
+                      </div>
+                      <div style={{ height: 1, background: "rgba(168,85,247,0.15)", margin: "4px 0" }} />
+                      <div style={{ fontSize: 11, color: "#9a7dbd", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Changer mon mot de passe</div>
+                      <input
+                        className="profile-edit-input"
+                        type="password"
+                        placeholder="Mot de passe actuel"
+                        value={currentPw}
+                        onChange={(e) => setCurrentPw(e.target.value)}
+                      />
+                      <input
+                        className="profile-edit-input"
+                        type="password"
+                        placeholder="Nouveau mot de passe"
+                        value={newPw}
+                        onChange={(e) => setNewPw(e.target.value)}
+                      />
+                      <input
+                        className="profile-edit-input"
+                        type="password"
+                        placeholder="Confirmer le nouveau mot de passe"
+                        value={confirmPw}
+                        onChange={(e) => setConfirmPw(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") void handlePasswordChange(); }}
+                      />
+                      {pwErr && <div style={{ color: "#ef4444", fontSize: 13, fontWeight: 600 }}>{pwErr}</div>}
+                      {pwMsg && <div style={{ color: "#10b981", fontSize: 13, fontWeight: 600 }}>{pwMsg}</div>}
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          className="admin-btn-primary"
+                          onClick={() => void handlePasswordChange()}
+                          disabled={pwSaving || !currentPw || !newPw || !confirmPw}
+                          style={{ flex: 1 }}
+                        >
+                          {pwSaving ? "…" : "Changer le mot de passe"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <button
                     className="admin-btn-danger"
                     onClick={handleSignOut}
@@ -626,6 +785,25 @@ function HomePage() {
           </div>
         </main>
       </div>
+
+      {/* Lightbox */}
+      {lightboxSrc && (
+        <div onClick={() => setLightboxSrc(null)} style={{ position: "fixed", inset: 0, zIndex: 9500, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${lightboxSrc})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(20px)", opacity: 0.3, transform: "scale(1.1)" }} />
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.72)" }} />
+          <img src={lightboxSrc} onClick={(e) => e.stopPropagation()} className="lightbox-img-anim" style={{ position: "relative", maxWidth: "90vw", maxHeight: "90vh", borderRadius: "50%", objectFit: "cover", width: "min(80vw,80vh)", height: "min(80vw,80vh)", boxShadow: "0 0 60px rgba(0,0,0,0.8)" }} alt="avatar" />
+          <button onClick={() => setLightboxSrc(null)} style={{ position: "absolute", top: 20, right: 20, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "50%", width: 40, height: 40, color: "#fff", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+        </div>
+      )}
+
+      {/* Avatar crop modal */}
+      {cropFile && (
+        <AvatarCropModal
+          file={cropFile}
+          onCrop={async (blob) => { setCropFile(null); await uploadAvatar(blob); }}
+          onCancel={() => setCropFile(null)}
+        />
+      )}
     </div>
   );
 }

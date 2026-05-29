@@ -39,6 +39,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    const uid = user.id;
+
+    const updatePresence = async () => {
+      try {
+        await supabase.from("user_presence").upsert(
+          { user_id: uid, last_seen: new Date().toISOString(), is_online: true },
+          { onConflict: "user_id" }
+        );
+        console.log("[presence] heartbeat ok", uid);
+      } catch (e) {
+        console.error("[presence] heartbeat error", e);
+      }
+    };
+
+    void updatePresence();
+    const interval = setInterval(() => void updatePresence(), 20000);
+
+    const onBeforeUnload = () => {
+      supabase.from("user_presence").update({ is_online: false }).eq("user_id", uid);
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        supabase.from("user_presence").update({ is_online: false, last_seen: new Date().toISOString() }).eq("user_id", uid);
+      } else {
+        void updatePresence();
+      }
+    };
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [user?.id]);
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
