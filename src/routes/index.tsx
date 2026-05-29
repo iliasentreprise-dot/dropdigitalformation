@@ -447,6 +447,7 @@ function HomePage() {
                   userId={user.id}
                   username={profile?.username ?? null}
                   avatarUrl={profile?.avatar_url ?? null}
+                  isAdmin={isAdmin}
                 />
               </div>
             )}
