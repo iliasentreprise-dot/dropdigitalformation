@@ -70,6 +70,9 @@ export function GroupChat({
 
   const canModerate = myRole === "admin" || myRole === "moderator";
   const isAdmin = myRole === "admin";
+  // Ref to avoid stale closure in realtime callbacks
+  const myRoleRef = useRef(myRole);
+  useEffect(() => { myRoleRef.current = myRole; }, [myRole]);
 
   // Initial load
   useEffect(() => {
@@ -119,7 +122,12 @@ export function GroupChat({
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "group_messages" }, (payload) => {
         const updated = payload.new as GroupMessage;
-        setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+        if (updated.hidden_by_admin && updated.user_id !== userId && myRoleRef.current !== "admin") {
+          // Non-author, non-admin: remove immediately without page refresh
+          setMessages((prev) => prev.filter((m) => m.id !== updated.id));
+        } else {
+          setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+        }
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "group_messages" }, (payload) => {
         const id = (payload.old as { id: string }).id;
