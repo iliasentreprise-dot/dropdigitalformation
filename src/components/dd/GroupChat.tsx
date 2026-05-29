@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { hideMessageFn } from "@/lib/api/group-messages";
 
 type GroupMessage = {
   id: string;
@@ -225,11 +226,9 @@ export function GroupChat({
   };
 
   const hideMessage = async (id: string) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any)
-      .from("group_messages")
-      .update({ hidden_by_admin: true })
-      .eq("id", id);
+    await (hideMessageFn as unknown as (args: { data: { messageId: string; callerId: string } }) => Promise<{ success: boolean }>)(
+      { data: { messageId: id, callerId: userId } },
+    );
     setMessages((prev) =>
       prev.map((m) => (m.id === id ? { ...m, hidden_by_admin: true } : m)),
     );
