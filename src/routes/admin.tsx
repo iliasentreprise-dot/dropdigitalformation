@@ -6,6 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { ThumbnailUploader } from "@/components/dd/ThumbnailUploader";
 import { ChapterResourcesAdmin } from "@/components/dd/ChapterResourcesAdmin";
 import { AdminDashboard } from "@/components/dd/AdminDashboard";
+import { GroupChat } from "@/components/dd/GroupChat";
 import "../styles/admin.css";
 
 function VideoInput({
@@ -577,7 +578,9 @@ function AdminPage() {
   const [groupeMessages, setGroupeMessages] = useState<GroupMsgWithProfile[]>([]);
   const [groupeResults, setGroupeResults] = useState<ResultWithProfile[]>([]);
   const [groupeLoading, setGroupeLoading] = useState(false);
-  const [groupeSubTab, setGroupeSubTab] = useState<"messages" | "resultats">("messages");
+  const [groupeSubTab, setGroupeSubTab] = useState<"messages" | "resultats" | "chat">("messages");
+  const [adminUsername, setAdminUsername] = useState<string | null>(null);
+  const [adminAvatarUrl, setAdminAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -598,6 +601,13 @@ function AdminPage() {
       }
       setIsAdmin(true);
       void loadModules();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, username, avatar_url")
+        .eq("id", user.id)
+        .maybeSingle();
+      setAdminUsername(profile?.full_name || profile?.username || null);
+      setAdminAvatarUrl(profile?.avatar_url || null);
     })();
   }, [user, loading]);
 
@@ -1012,6 +1022,12 @@ function AdminPage() {
             >
               Résultats ({groupeResults.filter((r) => !r.visible).length} en attente)
             </button>
+            <button
+              className={groupeSubTab === "chat" ? "admin-btn-primary sm" : "admin-btn-ghost sm"}
+              onClick={() => setGroupeSubTab("chat")}
+            >
+              💬 Chat en direct
+            </button>
           </div>
 
           {groupeSubTab === "messages" && (
@@ -1058,6 +1074,15 @@ function AdminPage() {
                 );
               })}
             </div>
+          )}
+
+          {groupeSubTab === "chat" && user && (
+            <GroupChat
+              userId={user.id}
+              username={adminUsername}
+              avatarUrl={adminAvatarUrl}
+              isAdmin={true}
+            />
           )}
 
           {groupeSubTab === "resultats" && (
