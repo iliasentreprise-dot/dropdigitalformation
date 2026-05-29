@@ -71,6 +71,10 @@ function ModulePage() {
   const [draftDesc, setDraftDesc] = useState("");
   const [flash, setFlash] = useState<string | null>(null);
 
+  // Drag-and-drop state (chapter reorder, admin only)
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
   // Upload state (admin only)
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -134,6 +138,13 @@ function ModulePage() {
       setSelectedId(remaining[0]?.id ?? null);
     }
   };
+
+  const saveChapterOrder = async (reordered: Chapter[]) => {
+    await Promise.all(
+      reordered.map((c, i) => supabase.from("chapters").update({ position: i }).eq("id", c.id))
+    );
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -792,62 +803,94 @@ function ModulePage() {
               </div>
             )}
             <div className="player-chapters-list">
-              {chapters.map((c, idx) => (
-                <div key={c.id} style={{ position: "relative" }}>
-                  <button
-                    className={[
-                      "player-chapter-item",
-                      c.id === selectedId ? "active" : "",
-                      completed.has(c.id) ? "done" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    style={isAdmin ? { paddingRight: 36, width: "100%" } : undefined}
-                    onClick={() => {
-                      setSelectedId(c.id);
-                      if (typeof window !== "undefined" && window.innerWidth < 768) {
-                        setSidebarOpen(false);
-                      }
+              {chapters.map((c, idx) => {
+                const isDragging = dragId === c.id;
+                const isOver = dragOverId === c.id && !isDragging;
+                return (
+                  <div
+                    key={c.id}
+                    style={{
+                      position: "relative",
+                      opacity: isDragging ? 0.4 : 1,
+                      outline: isOver ? "2px solid #a855f7" : "2px solid transparent",
+                      borderRadius: 8,
+                      transition: "opacity 0.15s, outline 0.1s",
+                      cursor: isAdmin ? (isDragging ? "grabbing" : "grab") : undefined,
                     }}
+                    draggable={isAdmin}
+                    onDragStart={isAdmin ? () => setDragId(c.id) : undefined}
+                    onDragOver={isAdmin ? (e) => { e.preventDefault(); if (dragOverId !== c.id) setDragOverId(c.id); } : undefined}
+                    onDragEnd={isAdmin ? () => { setDragId(null); setDragOverId(null); } : undefined}
+                    onDrop={isAdmin ? (e) => {
+                      e.preventDefault();
+                      if (!dragId || dragId === c.id) { setDragId(null); setDragOverId(null); return; }
+                      const from = chapters.findIndex((x) => x.id === dragId);
+                      const to = chapters.findIndex((x) => x.id === c.id);
+                      if (from === -1 || to === -1) { setDragId(null); setDragOverId(null); return; }
+                      const reordered = [...chapters];
+                      const [moved] = reordered.splice(from, 1);
+                      reordered.splice(to, 0, moved);
+                      setChapters(reordered);
+                      setDragId(null);
+                      setDragOverId(null);
+                      void saveChapterOrder(reordered);
+                    } : undefined}
                   >
-                    <span className="chapter-num">{idx + 1}</span>
-                    <span className="chapter-title">{c.title}</span>
-                    {completed.has(c.id) && (
-                      <span className="chapter-check">✓</span>
-                    )}
-                  </button>
-                  {isAdmin && (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void deleteChapter(c.id);
-                      }}
-                      title="Supprimer le chapitre"
-                      style={{
-                        position: "absolute",
-                        right: 8,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: 22,
-                        height: 22,
-                        background: "rgba(239,68,68,0.15)",
-                        border: "1px solid rgba(239,68,68,0.3)",
-                        borderRadius: 6,
-                        color: "#fca5a5",
-                        fontSize: 12,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        lineHeight: 1,
-                        padding: 0,
+                      className={[
+                        "player-chapter-item",
+                        c.id === selectedId ? "active" : "",
+                        completed.has(c.id) ? "done" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      style={isAdmin ? { paddingRight: 36, width: "100%", cursor: "inherit" } : undefined}
+                      onClick={() => {
+                        setSelectedId(c.id);
+                        if (typeof window !== "undefined" && window.innerWidth < 768) {
+                          setSidebarOpen(false);
+                        }
                       }}
                     >
-                      ✕
+                      <span className="chapter-num">{idx + 1}</span>
+                      <span className="chapter-title">{c.title}</span>
+                      {completed.has(c.id) && (
+                        <span className="chapter-check">✓</span>
+                      )}
                     </button>
-                  )}
-                </div>
-              ))}
+                    {isAdmin && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void deleteChapter(c.id);
+                        }}
+                        title="Supprimer le chapitre"
+                        style={{
+                          position: "absolute",
+                          right: 8,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: 22,
+                          height: 22,
+                          background: "rgba(239,68,68,0.15)",
+                          border: "1px solid rgba(239,68,68,0.3)",
+                          borderRadius: 6,
+                          color: "#fca5a5",
+                          fontSize: 12,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          lineHeight: 1,
+                          padding: 0,
+                        }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <div className="player-sidebar-progress">
               <div className="pg-label">
