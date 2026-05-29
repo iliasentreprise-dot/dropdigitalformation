@@ -1,535 +1,630 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-
-const STRIPE_LINK = "https://buy.stripe.com/REMPLACE_MOI";
-const STRIPE_LINK_BUMP = "https://buy.stripe.com/REMPLACE_MOI_BUMP";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/integrations/supabase/client";
+import { useTheme } from "@/lib/theme-context";
+import logo from "@/assets/logo.png";
+import { GroupChat } from "@/components/dd/GroupChat";
+import { ResultsWall } from "@/components/dd/ResultsWall";
+import "../styles/dropdigital.css";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "La Méthode des 3% — Protocole de Résistance Leptinique Silencieux" },
-      { name: "description", content: "Le seul protocole qui réinitialise la sensibilité à la leptine en 21 jours — sans régime, sans salle de sport, sans privation." },
-    ],
-    links: [
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Montserrat:wght@300;400;600&family=Bebas+Neue&display=swap",
-      },
+      { title: "DropDigital — Espace formation" },
+      { name: "description", content: "Accède à toutes tes formations DropDigital." },
     ],
   }),
-  component: Index,
+  component: HomePage,
 });
 
-function Ornament() {
-  return <div className="ornament">── ◆ ──</div>;
-}
+type Module = {
+  id: string;
+  title: string;
+  description: string;
+  section: string;
+  position: number;
+  thumbnail_url: string | null;
+  badge: string | null;
+  badge_color: string | null;
+};
 
-function Tag({ text }: { text: string }) {
-  return <div className="tag">{text}</div>;
-}
+type Chapter = { id: string; module_id: string };
 
-function Countdown() {
-  const [timeLeft, setTimeLeft] = useState<number>(() => {
-    if (typeof window === "undefined") return 15 * 60;
-    const stored = sessionStorage.getItem("m3p_end");
-    if (stored) {
-      const left = Math.floor((parseInt(stored, 10) - Date.now()) / 1000);
-      return left > 0 ? left : 0;
-    }
-    const end = Date.now() + 15 * 60 * 1000;
-    sessionStorage.setItem("m3p_end", String(end));
-    return 15 * 60;
-  });
+type UserProfile = {
+  username: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  has_software_access: boolean;
+};
+
+type TabKey = "modules" | "groupe" | "coaching" | "resultats" | "profil" | "parametres";
+
+const SECTIONS: { key: string; label: string; sub?: string }[] = [
+  { key: "mindset", label: "Mindset" },
+  { key: "jour1", label: "Jour 1", sub: "Préparation" },
+  { key: "jour2", label: "Jour 2", sub: "Création" },
+  { key: "jour3", label: "Jour 3", sub: "Conversion" },
+  { key: "bonus", label: "Bonus" },
+  { key: "ultime", label: "Logiciel d'automatisation TikTok" },
+];
+
+const FORMATION_TABS: { key: TabKey; label: string; icon: string }[] = [
+  { key: "modules", label: "Modules", icon: "📚" },
+  { key: "groupe", label: "Groupe Privé", icon: "🏴" },
+  { key: "coaching", label: "Coaching", icon: "🎯" },
+  { key: "resultats", label: "Résultats", icon: "🏆" },
+];
+
+const ACCOUNT_TABS: { key: TabKey; label: string; icon: string }[] = [
+  { key: "profil", label: "Profil", icon: "👤" },
+  { key: "parametres", label: "Paramètres", icon: "⚙️" },
+];
+
+function HomePage() {
+  const navigate = useNavigate();
+  const { user, loading, signOut } = useAuth();
+  const { theme, toggle } = useTheme();
+  const [modules, setModules] = useState<Module[]>([]);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [completed, setCompleted] = useState<Set<string>>(new Set());
+  const [completedAt, setCompletedAt] = useState<Map<string, Date>>(new Map());
+  const [activeSection, setActiveSection] = useState("mindset");
+  const [tab, setTab] = useState<TabKey>("modules");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userRole, setUserRole] = useState("user");
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [hasSoftwareAccess, setHasSoftwareAccess] = useState(false);
+
+  // Profile editing
+  const [editingField, setEditingField] = useState<null | "username" | "bio">(null);
+  const [editValue, setEditValue] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (timeLeft <= 0) return;
-    const id = setInterval(() => {
-      setTimeLeft((p) => (p <= 1 ? (clearInterval(id), 0) : p - 1));
-    }, 1000);
+    if (!loading && !user) navigate({ to: "/login" });
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
+    const syncSidebar = () => setSidebarOpen(window.innerWidth > 768);
+    syncSidebar();
+    window.addEventListener("resize", syncSidebar);
+    return () => window.removeEventListener("resize", syncSidebar);
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const [
+        { data: mods },
+        { data: chs },
+        { data: prog },
+        { data: roleRows },
+        { data: profileData },
+      ] = await Promise.all([
+        supabase.from("modules").select("*").order("section").order("position"),
+        supabase.from("chapters").select("id, module_id"),
+        supabase.from("user_chapter_progress").select("chapter_id, completed_at").eq("user_id", user.id),
+        supabase.from("user_roles").select("role").eq("user_id", user.id),
+        supabase.from("profiles").select("username, full_name, avatar_url, bio, has_software_access").eq("id", user.id).maybeSingle(),
+      ]);
+
+      setModules(mods ?? []);
+      setChapters(chs ?? []);
+      setCompleted(new Set((prog ?? []).map((p) => p.chapter_id)));
+      setCompletedAt(new Map((prog ?? []).map((p) => [p.chapter_id, new Date(p.completed_at)])));
+
+      const rolePriority: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
+      const topRole = (roleRows ?? []).reduce<string>((best, r) => {
+        return (rolePriority[r.role] ?? 0) > (rolePriority[best] ?? 0) ? r.role : best;
+      }, "user");
+      setUserRole(topRole);
+      setIsAdmin(topRole === "admin");
+
+      const pd = profileData as UserProfile | null;
+      setProfile(pd);
+      setHasSoftwareAccess(pd?.has_software_access ?? false);
+    })();
+  }, [user]);
+
+  const moduleProgress = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const m of modules) {
+      const mChs = chapters.filter((c) => c.module_id === m.id);
+      if (!mChs.length) { map.set(m.id, 0); continue; }
+      const done = mChs.filter((c) => completed.has(c.id)).length;
+      map.set(m.id, Math.round((done / mChs.length) * 100));
+    }
+    return map;
+  }, [modules, chapters, completed]);
+
+  const globalPct = useMemo(() => {
+    if (!chapters.length) return 0;
+    return Math.round((completed.size / chapters.length) * 100);
+  }, [chapters, completed]);
+
+  const visibleModules = modules.filter((m) => m.section === activeSection);
+
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const mm = String(Math.floor(timeLeft / 60)).padStart(2, "0");
-  const ss = String(timeLeft % 60).padStart(2, "0");
+  const dripUnlock = useMemo(() => {
+    const jour1ModIds = new Set(modules.filter((m) => m.section === "jour1").map((m) => m.id));
+    const jour2ModIds = new Set(modules.filter((m) => m.section === "jour2").map((m) => m.id));
+    const jour1Chs = chapters.filter((c) => jour1ModIds.has(c.module_id));
+    const jour2Chs = chapters.filter((c) => jour2ModIds.has(c.module_id));
+    const allJour1Done = jour1Chs.length > 0 && jour1Chs.every((c) => completed.has(c.id));
+    const allJour2Done = jour2Chs.length > 0 && jour2Chs.every((c) => completed.has(c.id));
+    let jour2UnlocksAt: Date | null = null;
+    let jour3UnlocksAt: Date | null = null;
+    if (allJour1Done) {
+      const maxAt = Math.max(...jour1Chs.map((c) => completedAt.get(c.id)?.getTime() ?? 0));
+      jour2UnlocksAt = new Date(maxAt + 24 * 60 * 60 * 1000);
+    }
+    if (allJour2Done) {
+      const maxAt = Math.max(...jour2Chs.map((c) => completedAt.get(c.id)?.getTime() ?? 0));
+      jour3UnlocksAt = new Date(maxAt + 24 * 60 * 60 * 1000);
+    }
+    return { jour2UnlocksAt, jour3UnlocksAt };
+  }, [modules, chapters, completed, completedAt]);
+
+  if (loading || !user) {
+    return <div className="dd-root" style={{ alignItems: "center", justifyContent: "center" }} />;
+  }
+
+  const formatCountdown = (unlockAt: Date): string => {
+    const diff = unlockAt.getTime() - now.getTime();
+    if (diff <= 0) return "";
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    return `${h}h ${String(m).padStart(2, "0")}min ${String(s).padStart(2, "0")}s`;
+  };
+
+  const getSectionLock = (section: string): { locked: boolean; message: string } => {
+    if (section === "jour2") {
+      const { jour2UnlocksAt } = dripUnlock;
+      if (!jour2UnlocksAt) return { locked: true, message: "Termine tous les chapitres du Jour 1 pour débloquer le Jour 2." };
+      if (jour2UnlocksAt > now) return { locked: true, message: `Disponible dans ${formatCountdown(jour2UnlocksAt)}` };
+    }
+    if (section === "jour3") {
+      const { jour3UnlocksAt } = dripUnlock;
+      if (!jour3UnlocksAt) return { locked: true, message: "Termine tous les chapitres du Jour 2 pour débloquer le Jour 3." };
+      if (jour3UnlocksAt > now) return { locked: true, message: `Disponible dans ${formatCountdown(jour3UnlocksAt)}` };
+    }
+    return { locked: false, message: "" };
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate({ to: "/login" });
+  };
+
+  const handleTabClick = (k: TabKey) => {
+    setTab(k);
+    if (typeof window !== "undefined" && window.innerWidth <= 768) setSidebarOpen(false);
+  };
+
+  const saveProfileField = async (field: "username" | "bio", value: string) => {
+    if (!user) return;
+    setProfileSaving(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("profiles").update({ [field]: value.trim() || null }).eq("id", user.id);
+    setProfile((prev) => (prev ? { ...prev, [field]: value.trim() || null } : null));
+    setEditingField(null);
+    setProfileSaving(false);
+  };
+
+  const uploadAvatar = async (file: File) => {
+    if (!user) return;
+    setAvatarUploading(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${user.id}/avatar.${ext}`;
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (!error) {
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      await supabase.from("profiles").update({ avatar_url: data.publicUrl }).eq("id", user.id);
+      setProfile((prev) => (prev ? { ...prev, avatar_url: data.publicUrl } : null));
+    }
+    setAvatarUploading(false);
+  };
+
+  const displayName = profile?.full_name || profile?.username || user.email?.split("@")[0] || "Élève";
+
+  const ModulesGrid = ({ mods }: { mods: Module[] }) => (
+    <div className="modules-grid">
+      {mods.map((m, i) => {
+        const pct = moduleProgress.get(m.id) ?? 0;
+        return (
+          <Link
+            key={m.id}
+            to="/module/$moduleId"
+            params={{ moduleId: m.id }}
+            className="module-card"
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
+            <div className="module-thumb">
+              {m.thumbnail_url ? (
+                <img src={m.thumbnail_url} alt={m.title} />
+              ) : (
+                <div style={{ fontSize: 48, opacity: 0.4 }}>🎬</div>
+              )}
+              <div className="play-btn" />
+              {m.badge && (
+                <span style={{ position: "absolute", top: 10, left: 10, background: m.badge_color ?? "#7c3aed", color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 4 }}>
+                  {m.badge}
+                </span>
+              )}
+            </div>
+            <div className="module-info">
+              <div className="module-num">Module {String(i + 1).padStart(2, "0")}</div>
+              <div className="module-title">{m.title}</div>
+              <div className="prog-wrap">
+                <div className="prog-bar-bg"><div className="prog-bar-fill" style={{ width: `${pct}%` }} /></div>
+                <span className="prog-pct">{pct}%</span>
+              </div>
+            </div>
+          </Link>
+        );
+      })}
+      {!mods.length && (
+        <div style={{ gridColumn: "1/-1", color: "#9a7dbd", padding: 40, textAlign: "center" }}>
+          Aucun module dans cette section pour le moment.
+        </div>
+      )}
+    </div>
+  );
 
   return (
-    <div style={{
-      position: "sticky", top: 0, zIndex: 50,
-      background: "var(--red)", color: "var(--txt)",
-      display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
-      padding: "10px 20px",
-      fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 12, letterSpacing: 4,
-    }}>
-      ACCÈS LIMITÉ — L'OFFRE EXPIRE DANS
-      <span style={{
-        fontFamily: "'Bebas Neue', sans-serif", fontSize: 20,
-        background: "rgba(0,0,0,0.3)", padding: "2px 12px", letterSpacing: 2,
-      }}>
-        {mm}:{ss}
-      </span>
+    <div className="dd-root">
+      <div className="topbar">
+        <div className="logo-wrap">
+          <button className="menu-toggle" onClick={() => setSidebarOpen((s) => !s)} aria-label="Menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <div className="logo-icon"><img src={logo} alt="DropDigital" width={36} height={36} /></div>
+          <div className="logo-text">Drop<span>Digital</span></div>
+        </div>
+        <div className="topbar-right">
+          <div className="price-pill">
+            <span className="live-dot" />
+            <span className="old-price">997€</span>
+            <span className="new-price">297€</span>
+            <span className="badge-red">-70%</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="layout">
+        <div className={`sidebar-backdrop ${sidebarOpen ? "visible" : ""}`} onClick={() => setSidebarOpen(false)} />
+        <aside className={`sidebar ${sidebarOpen ? "open" : "closed"}`}>
+          <div className="sidebar-section-label">MA FORMATION</div>
+          {FORMATION_TABS.map((t) => (
+            <div key={t.key} className={`sidebar-item ${tab === t.key ? "active" : ""}`} onClick={() => handleTabClick(t.key)}>
+              <span className="si-icon">{t.icon}</span>
+              <span>{t.label}</span>
+            </div>
+          ))}
+          <div className="sidebar-section-label">COMPTE</div>
+          {ACCOUNT_TABS.map((t) => (
+            <div key={t.key} className={`sidebar-item ${tab === t.key ? "active" : ""}`} onClick={() => handleTabClick(t.key)}>
+              <span className="si-icon">{t.icon}</span>
+              <span>{t.label}</span>
+            </div>
+          ))}
+          {isAdmin && (
+            <Link to="/admin" className="sidebar-item" style={{ textDecoration: "none" }}>
+              <span className="si-icon">🛠️</span>
+              <span>Admin</span>
+            </Link>
+          )}
+          <div className="sidebar-item" onClick={handleSignOut}>
+            <span className="si-icon">🚪</span>
+            <span>Déconnexion</span>
+          </div>
+        </aside>
+
+        <main className="main">
+          <div className="tab-content">
+
+            {/* ── MODULES ── */}
+            {tab === "modules" && (
+              <>
+                <div className="section-header">
+                  <h1>
+                    {SECTIONS.find((s) => s.key === activeSection)?.label} —{" "}
+                    {SECTIONS.find((s) => s.key === activeSection)?.sub ?? "DropDigital"}
+                  </h1>
+                  <p>Vendre des produits digitaux sur TikTok en automatique — sans visage, sans audience, sans montage.</p>
+                </div>
+
+                <div className="section-pills">
+                  {SECTIONS.map((s) => {
+                    const isLocked = getSectionLock(s.key).locked;
+                    const isGold = s.key === "ultime";
+                    return (
+                      <button
+                        key={s.key}
+                        className={`section-pill ${activeSection === s.key ? "active" : ""} ${isGold ? "section-pill-gold" : ""}`}
+                        onClick={() => setActiveSection(s.key)}
+                      >
+                        {isLocked && <span style={{ marginRight: 4, fontSize: 12 }}>🔒</span>}
+                        {s.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="progress-global">
+                  <span className="pg-label">Progression globale</span>
+                  <div className="pg-bar-wrap">
+                    <div className="pg-bar" style={{ width: `${globalPct}%` }} />
+                  </div>
+                  <span className="pg-pct">{globalPct}%</span>
+                </div>
+
+                {(() => {
+                  const lock = getSectionLock(activeSection);
+                  if (lock.locked) {
+                    return (
+                      <div style={{ textAlign: "center", padding: "60px 20px" }}>
+                        <div style={{ fontSize: 64, marginBottom: 20 }}>🔒</div>
+                        <p style={{ color: "#c4a3f0", fontSize: 18, fontWeight: 600, lineHeight: 1.7, margin: 0 }}>{lock.message}</p>
+                      </div>
+                    );
+                  }
+
+                  if (activeSection === "ultime") {
+                    if (!hasSoftwareAccess) {
+                      return (
+                        <div style={{ position: "relative", minHeight: 320 }}>
+                          <div className="modules-grid" style={{ filter: "blur(5px)", pointerEvents: "none", userSelect: "none", opacity: 0.5 }}>
+                            {visibleModules.map((m, i) => (
+                              <div key={m.id} className="module-card">
+                                <div className="module-thumb">
+                                  {m.thumbnail_url ? <img src={m.thumbnail_url} alt={m.title} /> : <div style={{ fontSize: 48, opacity: 0.4 }}>🎬</div>}
+                                  <div className="play-btn" />
+                                </div>
+                                <div className="module-info">
+                                  <div className="module-num">Module {String(i + 1).padStart(2, "0")}</div>
+                                  <div className="module-title">{m.title}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="software-lock-overlay">
+                            <div style={{ fontSize: 52, marginBottom: 16 }}>🔒</div>
+                            <p style={{ color: "#e2d4f8", fontSize: 15, lineHeight: 1.7, marginBottom: 28, textAlign: "center", maxWidth: 400 }}>
+                              Tu n'as pas accès au logiciel d'automatisation car tu as pris l'offre Formation à 97€
+                            </p>
+                            <a
+                              href="https://revolut.me/ilias_business?currency=EUR&amount=4700&note=Logiciel%20d%27automatisation%20TikTok"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="software-cta-btn"
+                            >
+                              ⚡ Accéder à l'ensemble des logiciels pour automatiser ton système
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div>
+                        <div className="software-coming-soon">
+                          <span className="hourglass-spin">⏳</span>
+                          <span>Tu auras accès aux logiciels d'automatisation bientôt…</span>
+                        </div>
+                        <ModulesGrid mods={visibleModules} />
+                      </div>
+                    );
+                  }
+
+                  return <ModulesGrid mods={visibleModules} />;
+                })()}
+              </>
+            )}
+
+            {/* ── GROUPE PRIVÉ ── */}
+            {tab === "groupe" && (
+              <div>
+                <div className="section-header">
+                  <h1>🏴 Groupe Privé</h1>
+                  <p>La communauté privée DropDigital — échanges, questions, victoires.</p>
+                </div>
+                <GroupChat
+                  userId={user.id}
+                  username={profile?.username ?? null}
+                  avatarUrl={profile?.avatar_url ?? null}
+                />
+              </div>
+            )}
+
+            {/* ── COACHING ── */}
+            {tab === "coaching" && (
+              <div>
+                <div className="section-header">
+                  <h1>🎯 Coaching</h1>
+                  <p>Rejoins les sessions live et accède aux replays.</p>
+                </div>
+                <div className="coaching-cards">
+                  <div className="coaching-card">
+                    <div className="coaching-card-icon">📡</div>
+                    <div className="coaching-card-info">
+                      <div className="coaching-card-label">Live de groupe</div>
+                      <div className="coaching-card-day">Mardi 20h</div>
+                      <div className="coaching-card-desc">Session live hebdomadaire — Q&A, analyse de compte, feedback en direct.</div>
+                    </div>
+                    <a href="#" className="coaching-join-btn">Rejoindre le live</a>
+                  </div>
+                  <div className="coaching-card">
+                    <div className="coaching-card-icon">📡</div>
+                    <div className="coaching-card-info">
+                      <div className="coaching-card-label">Live de groupe</div>
+                      <div className="coaching-card-day">Jeudi 20h</div>
+                      <div className="coaching-card-desc">Session live hebdomadaire — Q&A, analyse de compte, feedback en direct.</div>
+                    </div>
+                    <a href="#" className="coaching-join-btn">Rejoindre le live</a>
+                  </div>
+                </div>
+                <div className="coaching-replays">
+                  <h2>📼 Replays</h2>
+                  <p style={{ color: "#9a7dbd", fontSize: 14, margin: 0 }}>Aucun replay disponible pour l'instant.</p>
+                </div>
+              </div>
+            )}
+
+            {/* ── RÉSULTATS ── */}
+            {tab === "resultats" && (
+              <div>
+                <div className="section-header">
+                  <h1>🏆 Résultats Élèves</h1>
+                  <p>Partage tes victoires et inspire la communauté.</p>
+                </div>
+                <ResultsWall
+                  userId={user.id}
+                  username={profile?.username ?? null}
+                  avatarUrl={profile?.avatar_url ?? null}
+                />
+              </div>
+            )}
+
+            {/* ── PROFIL ── */}
+            {tab === "profil" && (
+              <div style={{ maxWidth: 480, margin: "0 auto" }}>
+                <div className="section-header"><h1>👤 Mon Profil</h1></div>
+
+                {/* Avatar */}
+                <div style={{ textAlign: "center", marginBottom: 28 }}>
+                  <div className="profile-avatar-wrap" onClick={() => avatarInputRef.current?.click()} title="Changer la photo">
+                    {profile?.avatar_url
+                      ? <img src={profile.avatar_url} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+                      : <span style={{ fontSize: 36, color: "#c4a3f0" }}>{displayName[0]?.toUpperCase()}</span>
+                    }
+                    <div className="profile-avatar-overlay">{avatarUploading ? "…" : "📷"}</div>
+                  </div>
+                  <input ref={avatarInputRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadAvatar(f); }} />
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#7c5c9a" }}>Clique pour changer la photo</div>
+                </div>
+
+                {/* Role badge */}
+                <div style={{ textAlign: "center", marginBottom: 24 }}>
+                  {userRole === "admin" && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #b45309, #f59e0b, #fbbf24)", color: "#1a0800", fontWeight: 800, fontSize: 14, padding: "6px 16px", borderRadius: 8, animation: "adminGlow 2s ease-in-out infinite" }}>✨ Admin</span>
+                  )}
+                  {userRole === "moderator" && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#7f1d1d", color: "#fca5a5", fontWeight: 800, fontSize: 14, padding: "6px 16px", borderRadius: 8, border: "1px solid #ef4444", animation: "modGlow 2s ease-in-out infinite" }}>🔴 Modérateur</span>
+                  )}
+                  {userRole === "user" && (
+                    <span style={{ display: "inline-flex", alignItems: "center", background: "rgba(55,65,81,0.6)", color: "#9ca3af", fontWeight: 600, fontSize: 14, padding: "6px 16px", borderRadius: 8 }}>Élève</span>
+                  )}
+                </div>
+
+                {/* Email */}
+                <div className="profile-field-row">
+                  <div className="profile-field-label">Email</div>
+                  <div className="profile-field-value">{user.email}</div>
+                </div>
+
+                {/* Username */}
+                <div className="profile-field-row">
+                  <div className="profile-field-label">Pseudo</div>
+                  {editingField === "username" ? (
+                    <div style={{ display: "flex", gap: 8, flex: 1 }}>
+                      <input className="profile-edit-input" value={editValue} onChange={(e) => setEditValue(e.target.value)} placeholder="ton_pseudo" autoFocus />
+                      <button className="admin-btn-primary sm" onClick={() => void saveProfileField("username", editValue)} disabled={profileSaving}>{profileSaving ? "…" : "✓"}</button>
+                      <button className="admin-btn-ghost sm" onClick={() => setEditingField(null)}>✕</button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="profile-field-value">{profile?.username || <span style={{ color: "#7c5c9a", fontStyle: "italic" }}>Non défini</span>}</div>
+                      <button className="admin-btn-ghost sm" onClick={() => { setEditingField("username"); setEditValue(profile?.username || ""); }}>Modifier</button>
+                    </>
+                  )}
+                </div>
+
+                {/* Bio */}
+                <div className="profile-field-row" style={{ alignItems: editingField === "bio" ? "flex-start" : "center" }}>
+                  <div className="profile-field-label">Bio</div>
+                  {editingField === "bio" ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+                      <textarea className="profile-edit-input" value={editValue} onChange={(e) => setEditValue(e.target.value)} placeholder="Dis quelque chose sur toi…" rows={3} autoFocus style={{ resize: "vertical" }} />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button className="admin-btn-primary sm" onClick={() => void saveProfileField("bio", editValue)} disabled={profileSaving}>{profileSaving ? "…" : "✓ Sauvegarder"}</button>
+                        <button className="admin-btn-ghost sm" onClick={() => setEditingField(null)}>Annuler</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="profile-field-value" style={{ flex: 1 }}>{profile?.bio || <span style={{ color: "#7c5c9a", fontStyle: "italic" }}>Non défini</span>}</div>
+                      <button className="admin-btn-ghost sm" onClick={() => { setEditingField("bio"); setEditValue(profile?.bio || ""); }}>Modifier</button>
+                    </>
+                  )}
+                </div>
+
+                {/* Progress */}
+                <div className="profile-field-row" style={{ flexDirection: "column", gap: 10, alignItems: "stretch" }}>
+                  <div className="profile-field-label">Progression globale</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ flex: 1, height: 10, background: "rgba(168,85,247,0.12)", borderRadius: 6, overflow: "hidden" }}>
+                      {isAdmin
+                        ? <div className="fire-progress" style={{ borderRadius: 6 }} />
+                        : <div style={{ height: "100%", width: `${globalPct}%`, background: "linear-gradient(90deg, #7c3aed, #a855f7)", borderRadius: 6, transition: "width 0.4s" }} />
+                      }
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#9a7dbd" }}>{isAdmin ? 100 : globalPct}%</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── PARAMÈTRES ── */}
+            {tab === "parametres" && (
+              <div style={{ maxWidth: 420, margin: "0 auto" }}>
+                <div className="section-header"><h1>⚙️ Paramètres</h1></div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <button
+                    className="admin-btn-ghost"
+                    onClick={toggle}
+                    style={{ textAlign: "left", padding: "14px 18px", fontSize: 14, display: "flex", alignItems: "center", gap: 12 }}
+                  >
+                    <span>{theme === "dark" ? "🌙" : "☀️"}</span>
+                    <span>Thème : <strong>{theme === "dark" ? "Sombre" : "Clair"}</strong> — Changer</span>
+                  </button>
+                  <button
+                    className="admin-btn-ghost"
+                    onClick={() => navigate({ to: "/forgot-password" })}
+                    style={{ textAlign: "left", padding: "14px 18px", fontSize: 14, display: "flex", alignItems: "center", gap: 12 }}
+                  >
+                    <span>🔐</span>
+                    <span>Changer mon mot de passe</span>
+                  </button>
+                  <button
+                    className="admin-btn-danger"
+                    onClick={handleSignOut}
+                    style={{ textAlign: "left", padding: "14px 18px", fontSize: 14, display: "flex", alignItems: "center", gap: 12 }}
+                  >
+                    <span>🚪</span>
+                    <span>Se déconnecter</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
-
-function Index() {
-  return (
-    <>
-      <style>{css}</style>
-      <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
-
-        {/* ── 1. COUNTDOWN ── */}
-        <Countdown />
-
-        {/* ── 2. HERO ── */}
-        <section style={{ padding: "120px 20px 100px", textAlign: "center" }}>
-          <div className="inner">
-            <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 11, letterSpacing: 6, color: "var(--gold)", textTransform: "uppercase", marginBottom: 28 }}>
-              ACCÈS RESTREINT · PROGRAMME EXCLUSIF
-            </div>
-            <Ornament />
-            <h1 style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: "clamp(64px, 10vw, 110px)",
-              color: "#fff", fontWeight: 600, lineHeight: 0.9,
-              margin: "0 0 28px",
-            }}>
-              La Méthode des 3%
-            </h1>
-            <p style={{
-              fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic",
-              fontSize: "clamp(20px, 3vw, 30px)",
-              color: "var(--gold2)", lineHeight: 1.4,
-              margin: "0 auto 32px", maxWidth: 640,
-            }}>
-              Ce que font les femmes qui perdent du poids<br />
-              sans effort — et qui n'en parlent jamais.
-            </p>
-            <Ornament />
-            <p style={{
-              fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 16,
-              color: "var(--txt2)", maxWidth: 560, margin: "28px auto 44px", lineHeight: 1.9,
-            }}>
-              Tu ne souffres pas d'un manque de volonté.<br />
-              Tu souffres d'un verrou hormonal que personne ne t'a jamais expliqué.
-            </p>
-            <a href={STRIPE_LINK} className="btn-cta">DÉCOUVRIR LE PROTOCOLE</a>
-            <div className="btn-sub">17,80€ · Accès immédiat · Garanti 30 jours sans condition</div>
-          </div>
-        </section>
-
-        <div className="divider" />
-
-        {/* ── 3. LE VERROU CACHÉ ── */}
-        <section>
-          <div className="inner" style={{ textAlign: "center" }}>
-            <Tag text="LE VERROU QUE PERSONNE NE T'A RÉVÉLÉ" />
-            <h2 style={{
-              fontFamily: "'Cormorant Garamond', serif", fontWeight: 600,
-              fontSize: "clamp(34px, 5vw, 58px)",
-              color: "#fff", margin: "0 auto 32px", maxWidth: 780, lineHeight: 1.15,
-            }}>
-              97% des femmes qui "n'arrivent pas à perdre du ventre"<br />
-              ont toutes le même problème.
-            </h2>
-            <p style={{
-              fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 16,
-              color: "var(--txt2)", lineHeight: 1.9,
-              maxWidth: 640, margin: "0 auto 48px", textAlign: "left",
-            }}>
-              Ce n'est pas la nourriture. Ce n'est pas le sport.<br />
-              C'est la leptine — l'hormone silencieuse qui décide si<br />
-              ton corps brûle ou stocke la graisse abdominale.<br /><br />
-              Quand la leptine est en résistance, peu importe ce que tu fais :<br />
-              ton corps refuse de laisser partir cette graisse.<br />
-              C'est un verrou biologique. Et il existe une clé.
-            </p>
-
-            {/* Carte mécanisme */}
-            <div style={{
-              background: "var(--bg2)", border: "1px solid rgba(201,168,76,0.4)",
-              padding: 40, maxWidth: 640, margin: "0 auto 56px", textAlign: "center",
-            }}>
-              <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 10, letterSpacing: 5, color: "var(--gold)", marginBottom: 20 }}>
-                ── LE MÉCANISME ──
-              </div>
-              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontSize: 36, color: "var(--gold2)", marginBottom: 16, lineHeight: 1.2 }}>
-                Protocole de Résistance<br />Leptinique Silencieux
-              </div>
-              <p style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 15, color: "var(--txt2)", margin: 0, lineHeight: 1.8 }}>
-                Le seul protocole qui réinitialise la sensibilité à la leptine en 21 jours — sans régime, sans salle de sport, sans privation.
-              </p>
-            </div>
-
-            {/* 3 piliers */}
-            <div className="grid3" style={{ textAlign: "left" }}>
-              {[
-                { num: "01", title: "RÉINITIALISATION", desc: "Réactiver les récepteurs leptiniques dormants via une fenêtre thermogénique de 20 minutes" },
-                { num: "02", title: "SYNCHRONISATION", desc: "Aligner les repas avec les pics hormonaux naturels pour maximiser le déstockage" },
-                { num: "03", title: "ANCRAGE", desc: "Stabiliser le nouveau set-point métabolique pour des résultats permanents" },
-              ].map((p) => (
-                <div key={p.num} style={{ borderLeft: "2px solid var(--gold)", paddingLeft: 20 }}>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 42, color: "var(--gold)", opacity: 0.4, lineHeight: 1 }}>{p.num}</div>
-                  <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: 11, letterSpacing: 3, color: "var(--gold)", marginBottom: 10 }}>{p.title}</div>
-                  <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 14, color: "var(--txt2)", lineHeight: 1.8 }}>{p.desc}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <div className="divider" />
-
-        {/* ── 4. TU TE RECONNAIS ? ── */}
-        <section>
-          <div className="inner">
-            <div style={{ textAlign: "center", marginBottom: 40 }}>
-              <Tag text="SOYONS HONNÊTES" />
-              <h2 style={{
-                fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic",
-                fontSize: "clamp(30px, 4vw, 52px)",
-                color: "#fff", margin: "0 auto", maxWidth: 700, lineHeight: 1.2,
-              }}>
-                Si tu lis ceci, c'est que tu en as assez<br />
-                de chercher une réponse qui ne vient jamais.
-              </h2>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {[
-                "→  Tu surveilles ce que tu manges depuis des mois. La balance ne bouge plus.",
-                "→  Tu as essayé les ceintures chauffantes, les compléments, les abdos.\n    Résultat : pareil.",
-                "→  Tu portes des vêtements larges pour cacher cette zone. Tu évites les miroirs.",
-                "→  Tu commences à croire que c'est \"génétique\" ou que \"c'est ton âge\".\n    Tu as tort.",
-              ].map((item, i) => (
-                <div key={i} style={{
-                  background: "var(--bg2)",
-                  padding: "24px 28px",
-                  borderLeft: "1px solid rgba(201,168,76,0.3)",
-                  fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 15,
-                  color: "var(--txt)", lineHeight: 1.8, whiteSpace: "pre-line",
-                }}>
-                  {item}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <div className="divider" />
-
-        {/* ── 5. TÉMOIGNAGES ── */}
-        <section>
-          <div className="inner" style={{ textAlign: "center" }}>
-            <Tag text="ELLES L'ONT FAIT" />
-            <h2 style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: "clamp(32px, 5vw, 56px)",
-              color: "#fff", margin: "0 auto 48px", lineHeight: 1.2,
-            }}>
-              Des femmes ordinaires.<br />Des résultats extraordinaires.
-            </h2>
-            <div className="grid3">
-              {[
-                { result: "-9cm de tour de taille en 3 semaines", quote: "Je portais des robes larges depuis 2 ans. Aujourd'hui je remets mes jeans skinny de 2019. Je n'aurais jamais cru que c'était possible en faisant aussi peu.", name: "Sophie M., 38 ans · Lyon" },
-                { result: "Taille visible dès le jour 12", quote: "Le module sur la synchronisation alimentaire a tout changé pour moi. Pas de privation, pas de sport intense. Juste les bons moments. Je comprends enfin pourquoi je n'y arrivais pas avant.", name: "Aurélie D., 31 ans · Paris" },
-                { result: "-6cm sans me priver", quote: "J'étais sceptique. 17€ pour une méthode qui promet de changer ce que des centaines d'euros de coaching n'ont pas réussi à faire... Et pourtant. Semaine 2, mes vêtements flottaient.", name: "Camille R., 44 ans · Bordeaux" },
-              ].map((t, i) => (
-                <div key={i} style={{
-                  background: "var(--bg2)",
-                  border: "1px solid rgba(201,168,76,0.15)",
-                  borderTop: "1px solid rgba(201,168,76,0.6)",
-                  padding: 32, textAlign: "left",
-                }}>
-                  <div style={{ color: "var(--gold2)", fontSize: 14, marginBottom: 14 }}>⭐⭐⭐⭐⭐</div>
-                  <div style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontSize: 22, color: "var(--gold2)", marginBottom: 16, lineHeight: 1.3 }}>
-                    "{t.result}"
-                  </div>
-                  <p style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 14, color: "var(--txt2)", lineHeight: 1.8, fontStyle: "italic", margin: "0 0 20px" }}>
-                    "{t.quote}"
-                  </p>
-                  <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: 12, letterSpacing: 2, color: "var(--gold)", textTransform: "uppercase" }}>
-                    — {t.name}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <div className="divider" />
-
-        {/* ── 6. STATS ── */}
-        <section>
-          <div className="inner">
-            <div className="stats-row">
-              <div className="stat-block">
-                <div className="stat-val">+800</div>
-                <div className="stat-label">femmes ont suivi ce protocole</div>
-              </div>
-              <div className="stat-sep" />
-              <div className="stat-block">
-                <div className="stat-val">21</div>
-                <div className="stat-label">jours pour voir les premiers résultats</div>
-              </div>
-              <div className="stat-sep" />
-              <div className="stat-block">
-                <div className="stat-val">97%</div>
-                <div className="stat-label">des participantes rapportent une différence visible</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div className="divider" />
-
-        {/* ── 7. CE QUE TU REÇOIS ── */}
-        <section>
-          <div className="inner" style={{ textAlign: "center" }}>
-            <Tag text="CONTENU DU PROGRAMME" />
-            <h2 style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: "clamp(28px, 4vw, 50px)",
-              color: "#fff", margin: "0 auto 48px", maxWidth: 680, lineHeight: 1.2,
-            }}>
-              La Méthode des 3%<br />
-              <span style={{ color: "var(--gold2)" }}>— 6 modules pour lever le verrou.</span>
-            </h2>
-            <div className="grid2">
-              {[
-                { num: "01", title: "La Science du Verrou Leptinique", desc: "Comprendre pourquoi ton corps stocke à cet endroit précis et pourquoi tout ce que tu as essayé n'a pas fonctionné." },
-                { num: "02", title: "Le Protocole Thermogénique (20min/jour)", desc: "Les 5 mouvements qui activent la fenêtre de déstockage leptinique. Simple. Précis. Efficace." },
-                { num: "03", title: "La Synchronisation Alimentaire", desc: "Quoi manger n'est pas le sujet. QUAND manger l'est. Le guide complet des fenêtres hormonales optimales." },
-                { num: "04", title: "Plan Jour par Jour — 21 jours", desc: "Chaque journée planifiée. Rien à inventer. Tu exécutes, tu vois les résultats." },
-                { num: "05", title: "L'Ancrage du Nouveau Métabolisme", desc: "Comment maintenir les résultats à vie sans restriction permanente. Le secret que les coachs ne partagent pas." },
-                { num: "06", title: "Tracker + Recettes Taille Fine", desc: "Le tableau de bord personnel + 18 recettes compatibles avec le protocole." },
-              ].map((m) => (
-                <div key={m.num} style={{
-                  background: "var(--bg2)",
-                  border: "1px solid rgba(201,168,76,0.12)",
-                  padding: "28px 32px", textAlign: "left",
-                }}>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, letterSpacing: 4, color: "var(--gold3)", opacity: 0.8, marginBottom: 8 }}>
-                    MODULE {m.num}
-                  </div>
-                  <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, fontSize: 20, color: "#fff", marginBottom: 10, lineHeight: 1.3 }}>
-                    {m.title}
-                  </div>
-                  <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 14, color: "var(--txt2)", lineHeight: 1.8 }}>
-                    {m.desc}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <div className="divider" />
-
-        {/* ── 8. PRIX ── */}
-        <section>
-          <div className="inner" style={{ textAlign: "center" }}>
-            <Tag text="OFFRE DE LANCEMENT" />
-            <h2 style={{
-              fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic",
-              fontSize: "clamp(36px, 6vw, 72px)",
-              color: "#fff", margin: "0 auto 48px",
-            }}>
-              Rejoindre le cercle des 3%
-            </h2>
-            <div style={{
-              background: "var(--bg2)",
-              border: "1px solid rgba(201,168,76,0.4)",
-              padding: 48, maxWidth: 520, margin: "0 auto",
-              boxShadow: "0 0 80px rgba(201,168,76,0.05)",
-            }}>
-              <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 11, letterSpacing: 4, color: "var(--gold)", marginBottom: 24 }}>
-                ACCÈS COMPLET AU PROGRAMME
-              </div>
-              <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 20, color: "var(--txt2)", textDecoration: "line-through", marginBottom: 4 }}>
-                47€
-              </div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 96, color: "var(--gold2)", lineHeight: 1, marginBottom: 8 }}>
-                17,80€
-              </div>
-              <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 12, color: "var(--txt2)", letterSpacing: 2, marginBottom: 36 }}>
-                accès à vie · PDF immédiat · garanti 30 jours
-              </div>
-
-              {/* Order bump */}
-              <div style={{ border: "1px dashed rgba(201,168,76,0.5)", padding: "20px 24px", marginBottom: 36, textAlign: "left" }}>
-                <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: 11, letterSpacing: 3, color: "var(--gold)", marginBottom: 10 }}>
-                  ✦  PACK BONUS — AJOUTER À MA COMMANDE
-                </div>
-                <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 13, color: "var(--txt2)", lineHeight: 1.7, marginBottom: 12 }}>
-                  12 recettes Taille Fine supplémentaires + Guide de maintien 60 jours<br />
-                  + 7,80€ seulement
-                </div>
-                <a href={STRIPE_LINK_BUMP} style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 13, color: "var(--gold2)", textDecoration: "underline" }}>
-                  Ajouter le pack bonus →
-                </a>
-              </div>
-
-              <a href={STRIPE_LINK} className="btn-cta" style={{ display: "block" }}>JE REJOINS LA MÉTHODE →</a>
-              <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 11, color: "var(--txt2)", marginTop: 16, letterSpacing: 1 }}>
-                Paiement 100% sécurisé · Accès en moins de 2 minutes
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div className="divider" />
-
-        {/* ── 9. GARANTIE ── */}
-        <section style={{ background: "var(--bg3)" }}>
-          <div className="inner" style={{ textAlign: "center" }}>
-            <div style={{
-              width: 160, height: 160, borderRadius: "50%",
-              background: "conic-gradient(from 0deg, #8a6a28, #c9a84c, #e8c97a, #c9a84c, #8a6a28)",
-              boxShadow: "0 0 0 8px rgba(201,168,76,0.1), 0 0 0 16px rgba(201,168,76,0.05)",
-              display: "flex", flexDirection: "column" as const,
-              alignItems: "center", justifyContent: "center",
-              margin: "0 auto 40px",
-            }}>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 18, color: "#fff", letterSpacing: 3, lineHeight: 1.4, textAlign: "center" }}>
-                GARANTI<br />30<br />JOURS
-              </div>
-            </div>
-            <h2 style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: "clamp(28px, 4vw, 48px)",
-              color: "#fff", margin: "0 auto 24px", maxWidth: 640, lineHeight: 1.25,
-            }}>
-              Tu essaies. Si ça ne marche pas,<br />je te rembourse intégralement.
-            </h2>
-            <p style={{
-              fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 16,
-              color: "var(--txt2)", lineHeight: 2, maxWidth: 560, margin: "0 auto",
-            }}>
-              30 jours. Tu appliques le protocole.<br />
-              Si tu ne vois aucune différence, un seul email suffit —<br />
-              remboursement complet, sans question, sans délai.<br /><br />
-              Pas de conditions. Pas de justification.<br />
-              Tu repars avec ton argent.
-            </p>
-          </div>
-        </section>
-
-        <div className="divider" />
-
-        {/* ── 10. FAQ ── */}
-        <section>
-          <div className="inner">
-            <div style={{ textAlign: "center", marginBottom: 48 }}>
-              <Tag text="QUESTIONS" />
-              <h2 style={{
-                fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic",
-                fontSize: "clamp(32px, 5vw, 60px)",
-                color: "#fff", margin: 0,
-              }}>
-                Ce que tu te demandes.
-              </h2>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 760, margin: "0 auto" }}>
-              {[
-                { q: "Est-ce vraiment différent de ce que j'ai déjà essayé ?", r: "Oui. Parce que ce protocole ne s'attaque pas à la nourriture ou au sport — il s'attaque à la résistance leptinique, la cause hormonale que les autres méthodes ignorent complètement." },
-                { q: "Combien de temps ça prend par jour ?", r: "20 minutes. C'est le temps du protocole thermogénique quotidien. Le reste (synchronisation alimentaire) s'intègre dans ta vie normale — sans rien changer à tes repas." },
-                { q: "Ça marche si j'ai plus de 40 ans ?", r: "Oui, et même plus efficacement — la résistance leptinique s'accentue avec l'âge, ce protocole est conçu pour y répondre directement." },
-                { q: "Je reçois l'accès quand ?", r: "Immédiatement. Dès ta commande validée, tu reçois un lien de téléchargement instantané par email. Moins de 2 minutes." },
-                { q: "Et si je ne suis pas satisfaite ?", r: "Garantie 30 jours. Un email suffit. Remboursement total, sans condition, sans justification." },
-              ].map((f, i) => (
-                <div key={i} style={{
-                  background: "var(--bg2)",
-                  border: "1px solid rgba(201,168,76,0.15)",
-                  padding: "24px 28px",
-                }}>
-                  <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, fontSize: 18, color: "var(--gold2)", marginBottom: 12 }}>
-                    Q : {f.q}
-                  </div>
-                  <div style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 14, color: "var(--txt2)", lineHeight: 1.9 }}>
-                    R : {f.r}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <div className="divider" />
-
-        {/* ── 11. CTA FINAL ── */}
-        <section style={{ textAlign: "center" }}>
-          <div className="inner">
-            <Ornament />
-            <h2 style={{
-              fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic",
-              fontSize: "clamp(34px, 6vw, 72px)",
-              color: "#fff", margin: "0 auto 20px", maxWidth: 780, lineHeight: 1.1,
-            }}>
-              Tu sais déjà que cette fois, c'est différent.
-            </h2>
-            <p style={{
-              fontFamily: "'Cormorant Garamond', serif", fontSize: 22,
-              color: "var(--gold2)", margin: "0 auto 44px", maxWidth: 600, lineHeight: 1.5,
-            }}>
-              Le Protocole de Résistance Leptinique Silencieux.<br />
-              21 jours. La taille que tu mérites depuis longtemps.
-            </p>
-            <a href={STRIPE_LINK} className="btn-cta">DÉCOUVRIR LE PROTOCOLE</a>
-            <div className="btn-sub">17,80€ · Accès immédiat · 30 jours pour changer d'avis</div>
-          </div>
-        </section>
-
-        <div className="divider" />
-
-        {/* ── 12. FOOTER ── */}
-        <footer style={{
-          borderTop: "1px solid rgba(201,168,76,0.08)",
-          padding: "28px 20px", textAlign: "center",
-          fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: 11,
-          color: "var(--txt2)", opacity: 0.4, letterSpacing: 1,
-        }}>
-          © 2025 · La Méthode des 3% · Tous droits réservés · Mentions légales · CGV
-        </footer>
-
-      </div>
-    </>
-  );
-}
-
-const css = `
-  :root{--bg:#080605;--bg2:#110e0b;--bg3:#1a1510;--gold:#c9a84c;--gold2:#e8c97a;--gold3:#8a6a28;--txt:#f0e6d3;--txt2:#a89070;--red:#8b0000}
-  *{margin:0;padding:0;box-sizing:border-box}
-  html,body{background:var(--bg);color:var(--txt);font-family:'Montserrat',sans-serif;font-weight:300;overflow-x:hidden;line-height:1.6;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-  a{color:inherit;text-decoration:none}
-  .ornament{text-align:center;color:var(--gold);font-family:'Montserrat',sans-serif;font-size:14px;letter-spacing:8px;opacity:0.6;margin:16px 0}
-  .tag{display:inline-block;font-family:'Montserrat',sans-serif;font-weight:300;font-size:10px;letter-spacing:5px;color:var(--gold);text-transform:uppercase;margin-bottom:20px;opacity:0.8}
-  .divider{height:1px;background:linear-gradient(90deg,transparent,rgba(201,168,76,0.3),transparent)}
-  .btn-cta{display:inline-block;background:var(--gold);color:#080605;font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;padding:18px 60px;border:none;cursor:pointer;transition:background 0.2s;animation:pulseCta 2.5s ease-in-out infinite}
-  .btn-cta:hover{background:var(--gold2)}
-  @keyframes pulseCta{0%,100%{box-shadow:0 0 40px rgba(201,168,76,0.2)}50%{box-shadow:0 0 60px rgba(201,168,76,0.4)}}
-  .btn-sub{display:block;font-family:'Montserrat',sans-serif;font-weight:300;font-size:11px;color:var(--txt2);margin-top:12px;letter-spacing:1px}
-  section{padding:100px 20px}
-  .inner{max-width:900px;margin:0 auto}
-  .grid3{display:grid;grid-template-columns:1fr;gap:28px}
-  .grid2{display:grid;grid-template-columns:1fr;gap:16px}
-  .stats-row{display:flex;flex-direction:column;align-items:center;gap:32px;text-align:center}
-  .stat-val{font-family:'Bebas Neue',sans-serif;font-size:72px;color:var(--gold2);line-height:1}
-  .stat-label{font-family:'Montserrat',sans-serif;font-weight:300;font-size:12px;letter-spacing:3px;color:var(--txt2);text-transform:uppercase;margin-top:8px;max-width:180px}
-  .stat-sep{display:none}
-  @media(min-width:700px){
-    .grid3{grid-template-columns:repeat(3,1fr)}
-    .grid2{grid-template-columns:repeat(2,1fr)}
-    .stats-row{flex-direction:row;justify-content:center;gap:0;align-items:center}
-    .stat-block{padding:0 48px}
-    .stat-sep{display:block;width:1px;height:80px;background:rgba(201,168,76,0.2)}
-  }
-  @media(max-width:700px){
-    section{padding:60px 16px}
-    .btn-cta{padding:16px 32px;font-size:18px}
-  }
-  @media print{
-    *{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
-    html,body{background:var(--bg)!important}
-  }
-`;
