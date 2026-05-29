@@ -7,6 +7,7 @@ type GroupMessage = {
   user_id: string;
   content: string;
   visible: boolean;
+  hidden_by_admin?: boolean;
   created_at: string;
   reply_to_id: string | null;
   deleted_at: string | null;
@@ -223,6 +224,17 @@ export function GroupChat({
     setMessages((prev) => prev.filter((m) => m.id !== id));
   };
 
+  const hideMessage = async (id: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from("group_messages")
+      .update({ hidden_by_admin: true })
+      .eq("id", id);
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, hidden_by_admin: true } : m)),
+    );
+  };
+
   const editMessage = async (msg: GroupMessage, newContent: string) => {
     if (!newContent.trim()) return;
     const isOwner = msg.user_id === userId;
@@ -370,7 +382,9 @@ export function GroupChat({
             Aucun message pour l'instant. Sois le premier à dire bonjour 👋
           </div>
         )}
-        {messages.map((msg) => {
+        {messages
+          .filter((msg) => !msg.hidden_by_admin || isAdmin || msg.user_id === userId)
+          .map((msg) => {
           const isOwn = msg.user_id === userId;
           const name = nameOf(msg.user_id);
           const avatar = avatarOf(msg.user_id);
@@ -525,6 +539,15 @@ export function GroupChat({
                         ) : (
                           <button className="msg-action-btn" onClick={() => void muteUser(msg.user_id)} title="Muter">🔇</button>
                         )
+                      )}
+                      {isAdmin && !isOwn && roleOf(msg.user_id) !== "admin" && !msg.deleted_at && !msg.hidden_by_admin && (
+                        <button
+                          className="msg-action-btn"
+                          onClick={() => void hideMessage(msg.id)}
+                          title="Masquer pour tous sauf l'auteur"
+                        >
+                          👁
+                        </button>
                       )}
                       {pickerFor === msg.id && (
                         <div className="reaction-picker" style={isOwn ? { right: 0 } : { left: 0 }}>
