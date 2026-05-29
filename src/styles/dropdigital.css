@@ -1326,3 +1326,25 @@
   .chat-bubble-wrap { max-width: 85%; }
   .results-amount-input { width: 100%; }
 }
+/* ── Chat delete button (admin only) ── */
+.chat-delete-btn {
+  align-self: center;
+  background: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 13px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  padding: 0;
+  color: #f87171;
+}
+.chat-row.deletable:hover .chat-delete-btn { opacity: 1; }
+.chat-delete-btn:hover { background: rgba(220, 38, 38, 0.28); }
+.chat-delete-btn:disabled { cursor: default; opacity: 0.4; }
