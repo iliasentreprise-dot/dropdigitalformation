@@ -6,6 +6,7 @@ type GroupMessage = {
   user_id: string;
   content: string;
   visible: boolean;
+  hidden_by_admin: boolean;
   created_at: string;
 };
 
@@ -31,7 +32,7 @@ export function GroupChat({
   const [profiles, setProfiles] = useState<Record<string, GProfile>>({});
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,7 +60,12 @@ export function GroupChat({
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "group_messages" }, (payload) => {
         const updated = payload.new as GroupMessage;
-        setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+        // If hidden by admin and current user is not the author, remove from view
+        if (updated.hidden_by_admin && updated.user_id !== userId) {
+          setMessages((prev) => prev.filter((m) => m.id !== updated.id));
+        } else {
+          setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+        }
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "group_messages" }, (payload) => {
         const deleted = payload.old as { id: string };
@@ -71,6 +77,19 @@ export function GroupChat({
       void supabase.removeChannel(channel);
     };
   }, [userId]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(`[data-chat-menu="${openMenuId}"]`)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [openMenuId]);
 
   // Fetch profiles for unknown senders
   useEffect(() => {
@@ -115,13 +134,22 @@ export function GroupChat({
     setSending(false);
   };
 
+  const hideMessage = async (msgId: string) => {
+    setOpenMenuId(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from("group_messages")
+      .update({ hidden_by_admin: true })
+      .eq("id", msgId);
+    setMessages((prev) => prev.filter((m) => m.id !== msgId));
+  };
+
   const deleteMessage = async (msgId: string) => {
+    setOpenMenuId(null);
     if (!window.confirm("Supprimer ce message définitivement ?")) return;
-    setDeletingId(msgId);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any).from("group_messages").delete().eq("id", msgId);
     setMessages((prev) => prev.filter((m) => m.id !== msgId));
-    setDeletingId(null);
   };
 
   const nameOf = (uid: string) => {
@@ -147,9 +175,10 @@ export function GroupChat({
           const isOwn = msg.user_id === userId;
           const name = nameOf(msg.user_id);
           const avatar = avatarOf(msg.user_id);
-          const canDelete = isAdmin && !isOwn;
+          const canAdmin = isAdmin && !isOwn;
+          const menuOpen = openMenuId === msg.id;
           return (
-            <div key={msg.id} className={`chat-row${isOwn ? " own" : ""}${canDelete ? " deletable" : ""}`}>
+            <div key={msg.id} className={`chat-row${isOwn ? " own" : ""}${canAdmin ? " adminable" : ""}`}>
               <div className="chat-avatar">
                 {avatar ? (
                   <img src={avatar} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
@@ -164,15 +193,35 @@ export function GroupChat({
                   {new Date(msg.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                 </div>
               </div>
-              {canDelete && (
-                <button
-                  className="chat-delete-btn"
-                  onClick={() => void deleteMessage(msg.id)}
-                  disabled={deletingId === msg.id}
-                  title="Supprimer ce message"
+              {canAdmin && (
+                <div
+                  className="chat-admin-wrap"
+                  data-chat-menu={msg.id}
                 >
-                  {deletingId === msg.id ? "…" : "🗑"}
-                </button>
+                  <button
+                    className="chat-admin-trigger"
+                    onClick={() => setOpenMenuId(menuOpen ? null : msg.id)}
+                    title="Options admin"
+                  >
+                    ⋮
+                  </button>
+                  {menuOpen && (
+                    <div className="chat-admin-dropdown">
+                      <button
+                        className="chat-admin-item"
+                        onClick={() => void hideMessage(msg.id)}
+                      >
+                        👻 Mode discret
+                      </button>
+                      <button
+                        className="chat-admin-item danger"
+                        onClick={() => void deleteMessage(msg.id)}
+                      >
+                        🗑 Supprimer définitivement
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           );
