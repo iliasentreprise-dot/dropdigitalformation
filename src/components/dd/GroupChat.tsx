@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { hideMessageFn, restoreMessageFn } from "@/lib/api/group-messages";
+import { isChatRestricted } from "@/lib/chat-restrictions";
 
 type GroupMessage = {
   id: string;
