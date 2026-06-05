@@ -194,11 +194,11 @@ function HomePage() {
     let jour3UnlocksAt: Date | null = null;
     if (allJour1Done) {
       const maxAt = Math.max(...jour1Chs.map((c) => completedAt.get(c.id)?.getTime() ?? 0));
-      jour2UnlocksAt = new Date(maxAt + 24 * 60 * 60 * 1000);
+      jour2UnlocksAt = new Date(maxAt);
     }
     if (allJour2Done) {
       const maxAt = Math.max(...jour2Chs.map((c) => completedAt.get(c.id)?.getTime() ?? 0));
-      jour3UnlocksAt = new Date(maxAt + 24 * 60 * 60 * 1000);
+      jour3UnlocksAt = new Date(maxAt);
     }
     return { jour2UnlocksAt, jour3UnlocksAt };
   }, [modules, chapters, completed, completedAt]);
