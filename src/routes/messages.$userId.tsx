@@ -374,6 +374,11 @@ function MessagesPage() {
         </div>
       )}
 
+      {isChatRestricted(user.id) || isChatRestricted(otherId) ? (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 16px", borderTop: "1px solid rgba(168,85,247,0.15)", background: "rgba(14,4,24,0.6)", color: "#9a7dbd", fontSize: 13, textAlign: "center" }}>
+          🔒 Les messages privés sont désactivés pour cette conversation.
+        </div>
+      ) : (
       <div style={{ display: "flex", gap: 8, padding: "12px 14px", borderTop: "1px solid rgba(168,85,247,0.15)", background: "rgba(14,4,24,0.6)", alignItems: "center" }}>
         <button
           type="button"
@@ -399,6 +404,7 @@ function MessagesPage() {
           ➤
         </button>
       </div>
+      )}
 
       {dmLightboxImg && (
         <div onClick={() => setDmLightboxImg(null)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
