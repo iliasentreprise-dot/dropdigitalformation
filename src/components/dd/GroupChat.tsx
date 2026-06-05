@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { hideMessageFn, restoreMessageFn } from "@/lib/api/group-messages";
+import { isChatRestricted } from "@/lib/chat-restrictions";
 
 type GroupMessage = {
   id: string;
@@ -664,6 +665,7 @@ export function GroupChat({
         </div>
       )}
 
+      {!isChatRestricted(userId) && (
       <div className="chat-input-row">
         <button
           type="button"
@@ -696,6 +698,7 @@ export function GroupChat({
           ➤
         </button>
       </div>
+      )}
 
       {lightboxImg && (
         <div onClick={() => setLightboxImg(null)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
