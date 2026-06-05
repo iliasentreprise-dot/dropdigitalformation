@@ -47,10 +47,10 @@ export const Route = createRootRoute({
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e93ff7d4-5342-4ae2-8c46-f037a07ff1b9/id-preview-f439a8b5--3d165468-7237-4d94-b2cd-a3c57d11aee2.lovable.app-1776480600180.png" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" },
     ],
     scripts: [
       { children: THEME_PRE_PAINT_SCRIPT },
