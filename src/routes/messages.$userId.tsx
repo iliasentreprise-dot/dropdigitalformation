@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import { isChatRestricted } from "@/lib/chat-restrictions";
 import "../styles/dropdigital.css";
 
 const sendDmFn = createServerFn({ method: "POST" })
