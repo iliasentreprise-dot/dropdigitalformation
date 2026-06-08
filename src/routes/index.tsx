@@ -183,6 +183,17 @@ function HomePage() {
 
   const visibleModules = modules.filter((m) => m.section === activeSection);
 
+  const DRIP_BYPASS_EMAILS = new Set([
+    "owen.affaire@gmail.com",
+    "ibrahima.rafion@yahoo.com",
+    "zakoulazakou@gmail.com",
+    "amazafba@gmail.com",
+    "couronnedigitale@gmail.com",
+    "elodie.floch.pro@gmail.com",
+    "gfx.free.gelbie@gmail.com",
+  ]);
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
   const dripUnlock = useMemo(() => {
     const jour1ModIds = new Set(modules.filter((m) => m.section === "jour1").map((m) => m.id));
     const jour2ModIds = new Set(modules.filter((m) => m.section === "jour2").map((m) => m.id));
@@ -194,11 +205,11 @@ function HomePage() {
     let jour3UnlocksAt: Date | null = null;
     if (allJour1Done) {
       const maxAt = Math.max(...jour1Chs.map((c) => completedAt.get(c.id)?.getTime() ?? 0));
-      jour2UnlocksAt = new Date(maxAt);
+      jour2UnlocksAt = new Date(maxAt + ONE_DAY_MS);
     }
     if (allJour2Done) {
       const maxAt = Math.max(...jour2Chs.map((c) => completedAt.get(c.id)?.getTime() ?? 0));
-      jour3UnlocksAt = new Date(maxAt);
+      jour3UnlocksAt = new Date(maxAt + ONE_DAY_MS);
     }
     return { jour2UnlocksAt, jour3UnlocksAt };
   }, [modules, chapters, completed, completedAt]);
@@ -207,8 +218,10 @@ function HomePage() {
     return <div className="dd-root" style={{ alignItems: "center", justifyContent: "center" }} />;
   }
 
+  const dripBypass = !!user.email && DRIP_BYPASS_EMAILS.has(user.email.toLowerCase());
+
   const getSectionLock = (section: string): { locked: boolean; unlockAt: Date | null; message: string } => {
-    if (isAdmin || userRole === "moderator") return { locked: false, unlockAt: null, message: "" };
+    if (isAdmin || userRole === "moderator" || dripBypass) return { locked: false, unlockAt: null, message: "" };
     if (section === "jour2") {
       const { jour2UnlocksAt } = dripUnlock;
       if (!jour2UnlocksAt) return { locked: true, unlockAt: null, message: "Termine tous les chapitres du Jour 1 pour débloquer le Jour 2." };
