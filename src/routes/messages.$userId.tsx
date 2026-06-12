@@ -43,6 +43,7 @@ type PMessage = {
   created_at: string;
   deleted_at: string | null;
   image_url?: string | null;
+  __fakeError?: boolean;
 };
 
 type MiniProfile = {
@@ -162,42 +163,34 @@ function MessagesPage() {
 
   const send = async () => {
     if (!user || !input.trim() || sending) return;
-    setSending(true);
     const content = input.trim();
     setInput("");
-    try {
-      const msg = await (sendDmFn as unknown as (args: { data: { senderId: string; recipientId: string; content: string; senderName: string; recipientName: string } }) => Promise<PMessage>)({
-        data: {
-          senderId: user.id,
-          recipientId: otherId,
-          content,
-          senderName: me?.full_name || me?.username || user.email || "Élève",
-          recipientName: other?.full_name || other?.username || "Élève",
-        },
-      });
-      if (msg) setMessages((prev) => (prev.find((x) => x.id === msg.id) ? prev : [...prev, msg]));
-    } catch (e) {
-      alert((e as Error).message);
-    }
-    setSending(false);
+    const fake: PMessage = {
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      sender_id: user.id,
+      recipient_id: otherId,
+      content,
+      created_at: new Date().toISOString(),
+      deleted_at: null,
+      __fakeError: true,
+    };
+    setMessages((prev) => [...prev, fake]);
   };
 
   const uploadDmImage = async (file: File) => {
     if (!user) return;
-    setDmImageUploading(true);
-    try {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-      const path = `dm/${user.id}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("chat-images").upload(path, file, { upsert: true, contentType: file.type || undefined });
-      if (upErr) { alert("Erreur upload : " + upErr.message); return; }
-      const { data: urlData } = supabase.storage.from("chat-images").getPublicUrl(path);
-      const imageUrl = urlData.publicUrl;
-      const msg = await (sendDmFn as unknown as (args: { data: { senderId: string; recipientId: string; content: string; senderName: string; recipientName: string; imageUrl: string } }) => Promise<PMessage>)({
-        data: { senderId: user.id, recipientId: otherId, content: "", senderName: me?.full_name || me?.username || user.email || "Élève", recipientName: other?.full_name || other?.username || "Élève", imageUrl },
-      });
-      if (msg) setMessages((prev) => (prev.find((x) => x.id === msg.id) ? prev : [...prev, msg]));
-    } catch (e) { alert((e as Error).message); }
-    finally { setDmImageUploading(false); }
+    const localUrl = URL.createObjectURL(file);
+    const fake: PMessage = {
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      sender_id: user.id,
+      recipient_id: otherId,
+      content: "",
+      created_at: new Date().toISOString(),
+      deleted_at: null,
+      image_url: localUrl,
+      __fakeError: true,
+    };
+    setMessages((prev) => [...prev, fake]);
   };
 
   const acceptDM = async () => {
