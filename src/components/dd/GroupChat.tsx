@@ -518,6 +518,13 @@ export function GroupChat({
                   </div>
                 )}
 
+                {msg.__fakeError && isOwn && (
+                  <div style={{ fontSize: 11, color: "#ef4444", marginTop: 3, fontStyle: "italic" }}>
+                    problème de réseaux, ressaie plus tard
+                  </div>
+                )}
+
+
                 {!msg.deleted_at && Object.keys(grouped).length > 0 && (
                   <div className="reactions-row">
                     {Object.entries(grouped).map(([emoji, list]) => {
