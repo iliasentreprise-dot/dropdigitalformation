@@ -17,6 +17,7 @@ type GroupMessage = {
   edited?: boolean;
   edited_at?: string | null;
   image_url?: string | null;
+  __fakeError?: boolean;
 };
 
 type GProfile = {
@@ -313,48 +314,41 @@ export function GroupChat({
   const send = async () => {
     const content = input.trim();
     if (!content || sending) return;
-    setSending(true);
     const replyId = replyTo?.id ?? null;
     setInput("");
     setReplyTo(null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
-      .from("group_messages")
-      .insert({ user_id: userId, content, reply_to_id: replyId })
-      .select()
-      .single();
-    if (error) {
-      alert(error.message.includes("policy") ? "Tu as été muté par un modérateur." : error.message);
-    }
-    if (data) {
-      setMessages((prev) => {
-        const row = data as GroupMessage;
-        return prev.find((m) => m.id === row.id) ? prev : [...prev, row];
-      });
-    }
-    setSending(false);
+    const fake: GroupMessage = {
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      user_id: userId,
+      content,
+      visible: true,
+      created_at: new Date().toISOString(),
+      reply_to_id: replyId,
+      deleted_at: null,
+      deleted_by: null,
+      __fakeError: true,
+    };
+    setMessages((prev) => [...prev, fake]);
   };
 
   const uploadGroupImage = async (file: File) => {
     if (mutedSet.has(userId) && !isAdmin) return;
-    setImageUploading(true);
-    try {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-      const path = `group/${userId}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("chat-images").upload(path, file, { upsert: true, contentType: file.type || undefined });
-      if (upErr) { alert("Erreur upload : " + upErr.message); return; }
-      const { data: urlData } = supabase.storage.from("chat-images").getPublicUrl(path);
-      const replyId = replyTo?.id ?? null;
-      setReplyTo(null);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
-        .from("group_messages")
-        .insert({ user_id: userId, content: "", reply_to_id: replyId, image_url: urlData.publicUrl })
-        .select().single();
-      if (error) { alert(error.message); return; }
-      if (data) setMessages((prev) => { const row = data as GroupMessage; return prev.find((m) => m.id === row.id) ? prev : [...prev, row]; });
-    } catch (e) { alert((e as Error).message); }
-    finally { setImageUploading(false); }
+    const replyId = replyTo?.id ?? null;
+    setReplyTo(null);
+    const localUrl = URL.createObjectURL(file);
+    const fake: GroupMessage = {
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      user_id: userId,
+      content: "",
+      visible: true,
+      created_at: new Date().toISOString(),
+      reply_to_id: replyId,
+      deleted_at: null,
+      deleted_by: null,
+      image_url: localUrl,
+      __fakeError: true,
+    };
+    setMessages((prev) => [...prev, fake]);
   };
 
   useEffect(() => {
