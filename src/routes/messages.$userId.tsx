@@ -341,6 +341,11 @@ function MessagesPage() {
                   </div>
                 )}
               </div>
+              {m.__fakeError && own && (
+                <div style={{ fontSize: 10, color: "#ef4444", marginTop: 3, fontStyle: "italic", alignSelf: "flex-end" }}>
+                  problème de réseaux, ressaie plus tard
+                </div>
+              )}
               <div style={{ display: "flex", justifyContent: own ? "flex-end" : "flex-start", gap: 8, marginTop: 3, alignItems: "center" }}>
                 <span style={{ fontSize: 10, color: "#6b4fa0" }}>
                   {new Date(m.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
