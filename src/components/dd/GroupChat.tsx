@@ -520,7 +520,7 @@ export function GroupChat({
 
                 {msg.__fakeError && isOwn && (
                   <div style={{ fontSize: 11, color: "#ef4444", marginTop: 3, fontStyle: "italic" }}>
-                    problème de réseaux, ressaie plus tard
+                    erreur de connexion, veuillez ressayez
                   </div>
                 )}
 

@@ -343,7 +343,7 @@ function MessagesPage() {
               </div>
               {m.__fakeError && own && (
                 <div style={{ fontSize: 10, color: "#ef4444", marginTop: 3, fontStyle: "italic", alignSelf: "flex-end" }}>
-                  problème de réseaux, ressaie plus tard
+                  erreur de connexion, veuillez ressayez
                 </div>
               )}
               <div style={{ display: "flex", justifyContent: own ? "flex-end" : "flex-start", gap: 8, marginTop: 3, alignItems: "center" }}>
