@@ -278,10 +278,9 @@ export function ResultsWall({
     setDmLoading(false);
   };
 
-  const sendDm = async (recipientId: string) => {
+  const sendDm = async (_recipientId: string) => {
     if (!lightboxSrc) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from("private_messages").insert({ sender_id: userId, recipient_id: recipientId, content: lightboxSrc });
+    // Faux envoi — ne persiste rien
     setDmSent(true);
     window.setTimeout(() => { setDmSent(false); setDmOpen(false); }, 1500);
   };
