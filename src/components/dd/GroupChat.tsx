@@ -64,6 +64,7 @@ export function GroupChat({
   const [editContent, setEditContent] = useState("");
   const [imageUploading, setImageUploading] = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const imgRef = useRef<HTMLInputElement>(null);
   // profile click navigates directly to /profil/$userId
   const navigate = useNavigate();
