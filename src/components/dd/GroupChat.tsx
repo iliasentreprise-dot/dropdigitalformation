@@ -642,7 +642,13 @@ export function GroupChat({
       )}
 
       {!isChatRestricted(userId) && (
-      <div className="chat-input-row">
+      <div className="chat-input-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
+        {sendError && (
+          <div style={{ fontSize: 11, color: "#ef4444", fontStyle: "italic", padding: "0 4px 6px" }}>
+            {sendError}
+          </div>
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
         <button
           type="button"
           onClick={() => imgRef.current?.click()}
