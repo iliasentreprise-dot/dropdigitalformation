@@ -357,7 +357,11 @@ function MessagesPage() {
           🔒 Les messages privés sont désactivés pour cette conversation.
         </div>
       ) : (
-      <div style={{ display: "flex", gap: 8, padding: "12px 14px", borderTop: "1px solid rgba(168,85,247,0.15)", background: "rgba(14,4,24,0.6)", alignItems: "center" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "12px 14px", borderTop: "1px solid rgba(168,85,247,0.15)", background: "rgba(14,4,24,0.6)" }}>
+        {sendError && (
+          <div style={{ fontSize: 11, color: "#ef4444", fontStyle: "italic", paddingLeft: 4 }}>{sendError}</div>
+        )}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <button
           type="button"
           onClick={() => dmImgRef.current?.click()}
