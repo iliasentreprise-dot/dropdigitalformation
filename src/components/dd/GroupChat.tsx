@@ -314,41 +314,15 @@ export function GroupChat({
   const send = async () => {
     const content = input.trim();
     if (!content || sending) return;
-    const replyId = replyTo?.id ?? null;
     setInput("");
     setReplyTo(null);
-    const fake: GroupMessage = {
-      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      user_id: userId,
-      content,
-      visible: true,
-      created_at: new Date().toISOString(),
-      reply_to_id: replyId,
-      deleted_at: null,
-      deleted_by: null,
-      __fakeError: true,
-    };
-    setMessages((prev) => [...prev, fake]);
+    setSendError("echec de la connexion, réessayez plus tard");
   };
 
-  const uploadGroupImage = async (file: File) => {
+  const uploadGroupImage = async (_file: File) => {
     if (mutedSet.has(userId) && !isAdmin) return;
-    const replyId = replyTo?.id ?? null;
     setReplyTo(null);
-    const localUrl = URL.createObjectURL(file);
-    const fake: GroupMessage = {
-      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      user_id: userId,
-      content: "",
-      visible: true,
-      created_at: new Date().toISOString(),
-      reply_to_id: replyId,
-      deleted_at: null,
-      deleted_by: null,
-      image_url: localUrl,
-      __fakeError: true,
-    };
-    setMessages((prev) => [...prev, fake]);
+    setSendError("echec de la connexion, réessayez plus tard");
   };
 
   useEffect(() => {
