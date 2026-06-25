@@ -64,6 +64,7 @@ export function GroupChat({
   const [editContent, setEditContent] = useState("");
   const [imageUploading, setImageUploading] = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const imgRef = useRef<HTMLInputElement>(null);
   // profile click navigates directly to /profil/$userId
   const navigate = useNavigate();
@@ -314,41 +315,15 @@ export function GroupChat({
   const send = async () => {
     const content = input.trim();
     if (!content || sending) return;
-    const replyId = replyTo?.id ?? null;
     setInput("");
     setReplyTo(null);
-    const fake: GroupMessage = {
-      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      user_id: userId,
-      content,
-      visible: true,
-      created_at: new Date().toISOString(),
-      reply_to_id: replyId,
-      deleted_at: null,
-      deleted_by: null,
-      __fakeError: true,
-    };
-    setMessages((prev) => [...prev, fake]);
+    setSendError("echec de la connexion, réessayez plus tard");
   };
 
-  const uploadGroupImage = async (file: File) => {
+  const uploadGroupImage = async (_file: File) => {
     if (mutedSet.has(userId) && !isAdmin) return;
-    const replyId = replyTo?.id ?? null;
     setReplyTo(null);
-    const localUrl = URL.createObjectURL(file);
-    const fake: GroupMessage = {
-      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      user_id: userId,
-      content: "",
-      visible: true,
-      created_at: new Date().toISOString(),
-      reply_to_id: replyId,
-      deleted_at: null,
-      deleted_by: null,
-      image_url: localUrl,
-      __fakeError: true,
-    };
-    setMessages((prev) => [...prev, fake]);
+    setSendError("echec de la connexion, réessayez plus tard");
   };
 
   useEffect(() => {
@@ -667,7 +642,13 @@ export function GroupChat({
       )}
 
       {!isChatRestricted(userId) && (
-      <div className="chat-input-row">
+      <div className="chat-input-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
+        {sendError && (
+          <div style={{ fontSize: 11, color: "#ef4444", fontStyle: "italic", padding: "0 4px 6px" }}>
+            {sendError}
+          </div>
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
         <button
           type="button"
           onClick={() => imgRef.current?.click()}
@@ -698,6 +679,7 @@ export function GroupChat({
         >
           ➤
         </button>
+        </div>
       </div>
       )}
 

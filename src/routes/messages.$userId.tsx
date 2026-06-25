@@ -76,6 +76,7 @@ function MessagesPage() {
   const [otherPresence, setOtherPresence] = useState<{ is_online: boolean } | null>(null);
   const [dmImageUploading, setDmImageUploading] = useState(false);
   const [dmLightboxImg, setDmLightboxImg] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const dmImgRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -163,34 +164,13 @@ function MessagesPage() {
 
   const send = async () => {
     if (!user || !input.trim() || sending) return;
-    const content = input.trim();
     setInput("");
-    const fake: PMessage = {
-      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      sender_id: user.id,
-      recipient_id: otherId,
-      content,
-      created_at: new Date().toISOString(),
-      deleted_at: null,
-      __fakeError: true,
-    };
-    setMessages((prev) => [...prev, fake]);
+    setSendError("echec de la connexion, réessayez plus tard");
   };
 
-  const uploadDmImage = async (file: File) => {
+  const uploadDmImage = async (_file: File) => {
     if (!user) return;
-    const localUrl = URL.createObjectURL(file);
-    const fake: PMessage = {
-      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      sender_id: user.id,
-      recipient_id: otherId,
-      content: "",
-      created_at: new Date().toISOString(),
-      deleted_at: null,
-      image_url: localUrl,
-      __fakeError: true,
-    };
-    setMessages((prev) => [...prev, fake]);
+    setSendError("echec de la connexion, réessayez plus tard");
   };
 
   const acceptDM = async () => {
@@ -377,7 +357,11 @@ function MessagesPage() {
           🔒 Les messages privés sont désactivés pour cette conversation.
         </div>
       ) : (
-      <div style={{ display: "flex", gap: 8, padding: "12px 14px", borderTop: "1px solid rgba(168,85,247,0.15)", background: "rgba(14,4,24,0.6)", alignItems: "center" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "12px 14px", borderTop: "1px solid rgba(168,85,247,0.15)", background: "rgba(14,4,24,0.6)" }}>
+        {sendError && (
+          <div style={{ fontSize: 11, color: "#ef4444", fontStyle: "italic", paddingLeft: 4 }}>{sendError}</div>
+        )}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <button
           type="button"
           onClick={() => dmImgRef.current?.click()}
@@ -401,6 +385,7 @@ function MessagesPage() {
         >
           ➤
         </button>
+        </div>
       </div>
       )}
 
