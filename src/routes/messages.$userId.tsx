@@ -76,6 +76,7 @@ function MessagesPage() {
   const [otherPresence, setOtherPresence] = useState<{ is_online: boolean } | null>(null);
   const [dmImageUploading, setDmImageUploading] = useState(false);
   const [dmLightboxImg, setDmLightboxImg] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const dmImgRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
