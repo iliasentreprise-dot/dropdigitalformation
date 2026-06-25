@@ -678,6 +678,7 @@ export function GroupChat({
           style={{ opacity: !input.trim() ? 0.5 : 1 }}
         >
           ➤
+        </button>
         </div>
       </div>
       )}
