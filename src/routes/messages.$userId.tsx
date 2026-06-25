@@ -385,6 +385,7 @@ function MessagesPage() {
         >
           ➤
         </button>
+        </div>
       </div>
       )}
 
