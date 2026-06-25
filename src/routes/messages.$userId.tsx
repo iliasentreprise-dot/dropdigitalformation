@@ -163,34 +163,13 @@ function MessagesPage() {
 
   const send = async () => {
     if (!user || !input.trim() || sending) return;
-    const content = input.trim();
     setInput("");
-    const fake: PMessage = {
-      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      sender_id: user.id,
-      recipient_id: otherId,
-      content,
-      created_at: new Date().toISOString(),
-      deleted_at: null,
-      __fakeError: true,
-    };
-    setMessages((prev) => [...prev, fake]);
+    setSendError("echec de la connexion, réessayez plus tard");
   };
 
-  const uploadDmImage = async (file: File) => {
+  const uploadDmImage = async (_file: File) => {
     if (!user) return;
-    const localUrl = URL.createObjectURL(file);
-    const fake: PMessage = {
-      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      sender_id: user.id,
-      recipient_id: otherId,
-      content: "",
-      created_at: new Date().toISOString(),
-      deleted_at: null,
-      image_url: localUrl,
-      __fakeError: true,
-    };
-    setMessages((prev) => [...prev, fake]);
+    setSendError("echec de la connexion, réessayez plus tard");
   };
 
   const acceptDM = async () => {
