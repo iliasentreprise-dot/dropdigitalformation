@@ -249,8 +249,8 @@ export function GroupChat({
   };
 
   const hideMessage = async (id: string) => {
-    await (hideMessageFn as unknown as (args: { data: { messageId: string; callerId: string } }) => Promise<{ success: boolean }>)(
-      { data: { messageId: id, callerId: userId } },
+    await (hideMessageFn as unknown as (args: { data: { messageId: string } }) => Promise<{ success: boolean }>)(
+      { data: { messageId: id } },
     );
     setMessages((prev) =>
       prev.map((m) => (m.id === id ? { ...m, hidden_by_admin: true } : m)),
@@ -258,8 +258,8 @@ export function GroupChat({
   };
 
   const unhideMessage = async (id: string) => {
-    await (restoreMessageFn as unknown as (args: { data: { messageId: string; callerId: string } }) => Promise<{ success: boolean }>)(
-      { data: { messageId: id, callerId: userId } },
+    await (restoreMessageFn as unknown as (args: { data: { messageId: string } }) => Promise<{ success: boolean }>)(
+      { data: { messageId: id } },
     );
     setMessages((prev) =>
       prev.map((m) => (m.id === id ? { ...m, hidden_by_admin: false } : m)),

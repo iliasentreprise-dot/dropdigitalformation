@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,8 +8,11 @@ import { isChatRestricted } from "@/lib/chat-restrictions";
 import "../styles/dropdigital.css";
 
 const sendDmFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
-    const { senderId, recipientId, content, senderName, recipientName, imageUrl } = (data as unknown) as { senderId: string; recipientId: string; content: string; senderName: string; recipientName: string; imageUrl?: string };
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { recipientId, content, senderName, recipientName, imageUrl } = (data as unknown) as { recipientId: string; content: string; senderName: string; recipientName: string; imageUrl?: string };
+    const senderId = context.userId;
+    if (!recipientId || typeof content !== "string") throw new Error("Invalid input");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sa = supabaseAdmin as any;

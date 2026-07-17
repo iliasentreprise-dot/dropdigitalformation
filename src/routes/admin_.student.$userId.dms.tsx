@@ -1,5 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertAdmin } from "@/lib/admin-guard";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,7 +36,9 @@ type Payload = {
 };
 
 const getDmsFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { userId } = (data as unknown) as { userId: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -82,7 +86,9 @@ const getDmsFn = createServerFn({ method: "POST" })
   });
 
 const deleteDmFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { messageId, adminId } = (data as unknown) as { messageId: string; adminId: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -95,7 +101,9 @@ const deleteDmFn = createServerFn({ method: "POST" })
   });
 
 const editDmFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { messageId, content } = (data as unknown) as { messageId: string; content: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -108,7 +116,9 @@ const editDmFn = createServerFn({ method: "POST" })
   });
 
 const restoreDmFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { messageId } = (data as unknown) as { messageId: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -121,7 +131,9 @@ const restoreDmFn = createServerFn({ method: "POST" })
   });
 
 const hardDeleteDmFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { messageId } = (data as unknown) as { messageId: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

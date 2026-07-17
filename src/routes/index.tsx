@@ -10,6 +10,7 @@ import { EspaceAssocies } from "@/components/dd/EspaceAssocies";
 import { NotificationBell } from "@/components/dd/NotificationBell";
 import { AvatarCropModal } from "@/components/dd/AvatarCropModal";
 import { toast } from "sonner";
+import { getDripBypassFn } from "@/lib/drip.functions";
 import "../styles/dropdigital.css";
 
 export const Route = createFileRoute("/")({
@@ -98,6 +99,7 @@ function HomePage() {
   const [userRole, setUserRole] = useState("user");
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [hasSoftwareAccess, setHasSoftwareAccess] = useState(false);
+  const [dripBypass, setDripBypass] = useState(false);
 
   // Profile editing
   const [editingField, setEditingField] = useState<null | "username" | "bio">(null);
@@ -163,6 +165,14 @@ function HomePage() {
       setProfile(pd);
       setHasSoftwareAccess(pd?.has_software_access ?? false);
     })();
+    (async () => {
+      try {
+        const res = await (getDripBypassFn as unknown as () => Promise<{ bypass: boolean }>)();
+        setDripBypass(!!res?.bypass);
+      } catch {
+        setDripBypass(false);
+      }
+    })();
   }, [user]);
 
   const moduleProgress = useMemo(() => {
@@ -183,15 +193,6 @@ function HomePage() {
 
   const visibleModules = modules.filter((m) => m.section === activeSection);
 
-  const DRIP_BYPASS_EMAILS = new Set([
-    "owen.affaire@gmail.com",
-    "ibrahima.rafion@yahoo.com",
-    "zakoulazakou@gmail.com",
-    "amazafba@gmail.com",
-    "couronnedigitale@gmail.com",
-    "elodie.floch.pro@gmail.com",
-    "gfx.free.gelbie@gmail.com",
-  ]);
   const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
   const dripUnlock = useMemo(() => {
@@ -218,7 +219,7 @@ function HomePage() {
     return <div className="dd-root" style={{ alignItems: "center", justifyContent: "center" }} />;
   }
 
-  const dripBypass = !!user.email && DRIP_BYPASS_EMAILS.has(user.email.toLowerCase());
+  
 
   const getSectionLock = (section: string): { locked: boolean; unlockAt: Date | null; message: string } => {
     if (isAdmin || userRole === "moderator" || dripBypass) return { locked: false, unlockAt: null, message: "" };
