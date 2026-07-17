@@ -99,6 +99,7 @@ function HomePage() {
   const [userRole, setUserRole] = useState("user");
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [hasSoftwareAccess, setHasSoftwareAccess] = useState(false);
+  const [dripBypass, setDripBypass] = useState(false);
 
   // Profile editing
   const [editingField, setEditingField] = useState<null | "username" | "bio">(null);
