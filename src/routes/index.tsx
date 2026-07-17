@@ -211,7 +211,7 @@ function HomePage() {
     return <div className="dd-root" style={{ alignItems: "center", justifyContent: "center" }} />;
   }
 
-  const dripBypass = !!user.email && DRIP_BYPASS_EMAILS.has(user.email.toLowerCase());
+  
 
   const getSectionLock = (section: string): { locked: boolean; unlockAt: Date | null; message: string } => {
     if (isAdmin || userRole === "moderator" || dripBypass) return { locked: false, unlockAt: null, message: "" };
