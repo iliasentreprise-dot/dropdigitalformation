@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertAdmin } from "@/lib/admin-guard";
 import { ChapterResourcesAdmin } from "@/components/dd/ChapterResourcesAdmin";
 import { AdminDashboard } from "@/components/dd/AdminDashboard";
 import "../styles/admin.css";
@@ -275,7 +277,9 @@ function SimpleThumbnailPicker({ value, onChange, moduleId }: { value: string; o
 }
 
 const inviteStudentFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { email, origin } = (data as unknown) as { email: string; origin: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
@@ -288,7 +292,9 @@ const inviteStudentFn = createServerFn({ method: "POST" })
 const BOT_USER_ID = "4c9dfcb2-b056-45c7-8dd1-f67656bc4aca";
 
 const createStudentFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { email, password } = (data as unknown) as { email: string; password: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -315,7 +321,9 @@ const createStudentFn = createServerFn({ method: "POST" })
   });
 
 const sendFollowupDmFn = createServerFn({ method: "POST" })
-  .handler(async () => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
     const FOLLOW_BOT_ID = "4c9dfcb2-b056-45c7-8dd1-f67656bc4aca";
     const MESSAGES = [
       "Salut [pseudo] 👋 Comment ça se passe depuis que t'as rejoint la formation ? T'as pu tester le système sur tes comptes TikTok ?",
@@ -379,7 +387,9 @@ function generatePassword(): string {
 }
 
 const listStudentsFn = createServerFn({ method: "GET" })
-  .handler(async () => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const listResult = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
@@ -436,7 +446,9 @@ const listStudentsFn = createServerFn({ method: "GET" })
   });
 
 const deleteStudentFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { userId } = (data as unknown) as { userId: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
@@ -445,7 +457,9 @@ const deleteStudentFn = createServerFn({ method: "POST" })
   });
 
 const updateRoleFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { userId, role, adminUserId, targetUsername } = (data as unknown) as { userId: string; role: "admin" | "moderator" | "user"; adminUserId: string; targetUsername: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -482,7 +496,9 @@ const updateRoleFn = createServerFn({ method: "POST" })
   });
 
 const updateTempPasswordFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { userId, tempPassword } = (data as unknown) as { userId: string; tempPassword: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -495,7 +511,9 @@ const updateTempPasswordFn = createServerFn({ method: "POST" })
   });
 
 const updateSoftwareAccessFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { userId, access } = (data as unknown) as { userId: string; access: boolean };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -508,7 +526,9 @@ const updateSoftwareAccessFn = createServerFn({ method: "POST" })
   });
 
 const listGroupMessagesFn = createServerFn({ method: "GET" })
-  .handler(async () => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sa = supabaseAdmin as any;
@@ -534,7 +554,9 @@ const listGroupMessagesFn = createServerFn({ method: "GET" })
   });
 
 const approveMessageFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { messageId } = (data as unknown) as { messageId: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -547,7 +569,9 @@ const approveMessageFn = createServerFn({ method: "POST" })
   });
 
 const listResultsFn = createServerFn({ method: "GET" })
-  .handler(async () => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sa = supabaseAdmin as any;
@@ -573,7 +597,9 @@ const listResultsFn = createServerFn({ method: "GET" })
   });
 
 const approveResultFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { resultId } = (data as unknown) as { resultId: string };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
