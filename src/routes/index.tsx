@@ -10,6 +10,7 @@ import { EspaceAssocies } from "@/components/dd/EspaceAssocies";
 import { NotificationBell } from "@/components/dd/NotificationBell";
 import { AvatarCropModal } from "@/components/dd/AvatarCropModal";
 import { toast } from "sonner";
+import { getDripBypassFn } from "@/lib/drip.functions";
 import "../styles/dropdigital.css";
 
 export const Route = createFileRoute("/")({
