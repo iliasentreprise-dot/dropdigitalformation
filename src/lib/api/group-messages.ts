@@ -1,56 +1,33 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertAdmin } from "@/lib/admin-guard";
 
 export const hideMessageFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
-    const { messageId, callerId } = (data as unknown) as { messageId: string; callerId: string };
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { messageId } = (data as unknown) as { messageId: string };
+    await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    // Verify caller is admin
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: roleData } = await (supabaseAdmin as any)
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", callerId)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    if (!roleData) throw new Error("Unauthorized: admin only");
-
-    // UPDATE with service role — bypasses RLS
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabaseAdmin as any)
       .from("group_messages")
       .update({ hidden_by_admin: true })
       .eq("id", messageId);
-
     if (error) throw new Error((error as { message: string }).message);
     return { success: true };
   });
 
 export const restoreMessageFn = createServerFn({ method: "POST" })
-  .handler(async ({ data }) => {
-    const { messageId, callerId } = (data as unknown) as { messageId: string; callerId: string };
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { messageId } = (data as unknown) as { messageId: string };
+    await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    // Verify caller is admin
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: roleData } = await (supabaseAdmin as any)
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", callerId)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    if (!roleData) throw new Error("Unauthorized: admin only");
-
-    // Restore visibility — bypasses RLS
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabaseAdmin as any)
       .from("group_messages")
       .update({ hidden_by_admin: false })
       .eq("id", messageId);
-
     if (error) throw new Error((error as { message: string }).message);
     return { success: true };
   });
-
