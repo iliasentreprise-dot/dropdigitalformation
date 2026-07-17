@@ -191,10 +191,7 @@ function PlayerPage() {
           setAllChapters(currentAllChapters);
         }
 
-        const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
-        const rolePriority: Record<string, number> = { admin: 3, moderator: 2, user: 1 };
-        const topRole = (roleRows ?? []).reduce<string>((best, r: { role: string }) => (rolePriority[r.role] ?? 0) > (rolePriority[best] ?? 0) ? r.role : best, "user");
-        setIsAdmin(topRole === "admin" || topRole === "moderator");
+        setIsAdmin(user.email === "ilias.entreprise@gmail.com");
 
         if (currentAllChapters.length > 0) {
           const ids = currentAllChapters.map((c) => c.id);
@@ -334,6 +331,13 @@ function PlayerPage() {
                   title={chapter?.title}
                 />
               )
+            ) : !isAdmin ? (
+              <div className="player-no-video">
+                <div className="dd-fake-loading">
+                  <div className="dd-fake-spinner" />
+                  <p className="dd-fake-loading-text">Chargement de la vidéo sur Supabase…</p>
+                </div>
+              </div>
             ) : (
               <div className="player-no-video">
                 <span>📹</span>

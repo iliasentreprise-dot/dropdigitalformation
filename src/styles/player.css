@@ -106,6 +106,35 @@
 .player-no-video span { font-size: 48px; }
 .player-no-video p { font-size: 14px; }
 
+.dd-fake-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.dd-fake-loading-lg { padding: 48px 24px; }
+.dd-fake-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(168, 85, 247, 0.2);
+  border-top-color: #a855f7;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.dd-fake-loading-text {
+  font-size: 14px;
+  color: #c4a3f0;
+  margin: 0;
+}
+.dd-fake-loading-sub {
+  font-size: 12px;
+  color: #6b4fa0;
+  margin: 0;
+}
+[data-theme="light"] .dd-fake-loading-text { color: var(--text-secondary, #5b3e8a); }
+[data-theme="light"] .dd-fake-loading-sub { color: var(--text-tertiary, #8a6bb0); }
+
 /* Info */
 .player-info { display: flex; flex-direction: column; gap: 16px; }
 
