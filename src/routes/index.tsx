@@ -165,6 +165,14 @@ function HomePage() {
       setProfile(pd);
       setHasSoftwareAccess(pd?.has_software_access ?? false);
     })();
+    (async () => {
+      try {
+        const res = await (getDripBypassFn as unknown as () => Promise<{ bypass: boolean }>)();
+        setDripBypass(!!res?.bypass);
+      } catch {
+        setDripBypass(false);
+      }
+    })();
   }, [user]);
 
   const moduleProgress = useMemo(() => {
