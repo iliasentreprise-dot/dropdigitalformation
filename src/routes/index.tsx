@@ -414,15 +414,7 @@ function HomePage() {
           </div>
         );
       }
-      return (
-        <div>
-          <div className="software-coming-soon">
-            <span className="hourglass-spin">⏳</span>
-            <span>Tu auras accès aux logiciels d'automatisation bientôt…</span>
-          </div>
-          <ModulesGrid mods={visibleModules} />
-        </div>
-      );
+      return <ModulesGrid mods={visibleModules} />;
     }
 
     return <ModulesGrid mods={visibleModules} />;
