@@ -54,6 +54,8 @@ export function ResultsWall({
   const [comments, setComments] = useState<Comment[]>([]);
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  // Ids locaux des envois « échoués » (faux envoi — rien n'est persisté)
+  const [sendErrors, setSendErrors] = useState<Record<string, boolean>>({});
   const [content, setContent] = useState("");
   const [amount, setAmount] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -184,35 +186,19 @@ export function ResultsWall({
     if (!content.trim() || submitting) return;
     setSubmitting(true);
 
-    let photo_url: string | null = null;
-    if (photoFile) {
-      const ext = photoFile.name.split(".").pop() || "jpg";
-      const path = `${userId}/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("result-photos").upload(path, photoFile, { upsert: false });
-      if (!error) {
-        const { data } = supabase.storage.from("result-photos").getPublicUrl(path);
-        photo_url = data.publicUrl;
-      }
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase as any)
-      .from("results")
-      .insert({
-        user_id: userId,
-        content: content.trim(),
-        amount: amount ? parseInt(amount, 10) : null,
-        photo_url,
-      })
-      .select()
-      .single();
-
-    if (data) {
-      setResults((prev) => {
-        const row = data as Result;
-        return prev.find((r) => r.id === row.id) ? prev : [row, ...prev];
-      });
-    }
+    // Faux envoi — le post apparaît localement avec une erreur réseau, rien n'est persisté.
+    const localId = `local-${Date.now()}`;
+    const localRow: Result = {
+      id: localId,
+      user_id: userId,
+      content: content.trim(),
+      amount: amount ? parseInt(amount, 10) : null,
+      photo_url: photoPreview || null,
+      visible: true,
+      created_at: new Date().toISOString(),
+    };
+    setResults((prev) => [localRow, ...prev]);
+    setSendErrors((p) => ({ ...p, [localId]: true }));
     setContent(""); setAmount(""); setPhotoFile(null); setPhotoPreview(""); setSubmitting(false);
   };
 
@@ -232,10 +218,11 @@ export function ResultsWall({
   const sendComment = async (resultId: string) => {
     const draft = (commentDrafts[resultId] ?? "").trim();
     if (!draft) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sa = supabase as any;
-    const { data } = await sa.from("result_comments").insert({ result_id: resultId, user_id: userId, body: draft }).select().single();
-    if (data) setComments((prev) => (prev.find((c) => c.id === data.id) ? prev : [...prev, data as Comment]));
+    // Faux envoi — le commentaire apparaît localement avec une erreur réseau, rien n'est persisté.
+    const localId = `local-${Date.now()}`;
+    const localComment: Comment = { id: localId, result_id: resultId, user_id: userId, body: draft, created_at: new Date().toISOString() };
+    setComments((prev) => [...prev, localComment]);
+    setSendErrors((p) => ({ ...p, [localId]: true }));
     setCommentDrafts((p) => ({ ...p, [resultId]: "" }));
   };
 
