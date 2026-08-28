@@ -403,9 +403,16 @@ function PlayerPage() {
           <div className="player-info">
             {chapter?.description && <p className="player-desc">{chapter.description}</p>}
             <div className="player-actions">
-              <button className={`player-validate${isDone ? " done" : ""}`} onClick={validateChapter} disabled={validating || isDone}>
-                {isDone ? "✓ Chapitre validé" : validating ? "Validation…" : "✓ Valider ce chapitre"}
-              </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <button className={`player-validate${isDone ? " done" : ""}`} onClick={validateChapter} disabled={validating || isDone || videoPending}>
+                  {isDone ? "✓ Chapitre validé" : validating ? "Validation…" : "✓ Valider ce chapitre"}
+                </button>
+                {videoPending && (
+                  <span style={{ fontSize: 12, color: "#9a7dbd" }}>
+                    Vidéo en cours de chargement, réessaie plus tard.
+                  </span>
+                )}
+              </div>
               <div className="player-nav">
                 {prevChapter && (
                   <button className="player-nav-btn" onClick={() => navigate({ to: "/player/$chapterId", params: { chapterId: prevChapter.id } })}>
