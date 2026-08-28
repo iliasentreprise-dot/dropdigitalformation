@@ -280,6 +280,7 @@ function PlayerPage() {
 
   const embedUrl = chapter ? toEmbedUrl(chapter.video_url) : "";
   const direct = embedUrl ? isDirectVideo(embedUrl) : false;
+  const videoPending = !embedUrl && !isAdmin;
 
   return (
     <div className="player-root">
