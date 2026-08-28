@@ -527,6 +527,7 @@ function ModulePage() {
   const hasChapters = chapters.length > 0;
   const videoUrl = selected ? toEmbedUrl(selected.video_url) : "";
   const direct = videoUrl ? isDirectVideo(videoUrl) : false;
+  const videoPending = !videoUrl && !isAdmin;
 
   return (
     <div className="player-root">
