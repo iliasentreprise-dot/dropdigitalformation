@@ -698,9 +698,16 @@ function ModulePage() {
                 {selectedId && <ResourcesSection chapterId={selectedId} />}
                 {selectedId && <ReactionsRow chapterId={selectedId} />}
                 <div className="player-actions">
-                  <button className={`player-validate${isDone ? " done" : ""}`} onClick={validateChapter} disabled={validating || isDone}>
-                    {isDone ? "✓ Chapitre validé" : validating ? "Validation…" : "✓ Valider ce chapitre"}
-                  </button>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <button className={`player-validate${isDone ? " done" : ""}`} onClick={validateChapter} disabled={validating || isDone || videoPending}>
+                      {isDone ? "✓ Chapitre validé" : validating ? "Validation…" : "✓ Valider ce chapitre"}
+                    </button>
+                    {videoPending && (
+                      <span style={{ fontSize: 12, color: "#9a7dbd" }}>
+                        Vidéo en cours de chargement, réessaie plus tard.
+                      </span>
+                    )}
+                  </div>
                   <div className="player-nav">
                     {prevChapter && (
                       <button className="player-nav-btn" onClick={() => setSelectedId(prevChapter.id)}>← Précédent</button>
