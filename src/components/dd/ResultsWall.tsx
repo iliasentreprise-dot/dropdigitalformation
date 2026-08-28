@@ -434,6 +434,11 @@ export function ResultsWall({
                 />
               )}
               <p style={{ color: "#c4a3f0", fontSize: 14, lineHeight: 1.6, margin: "8px 0 0" }}>{r.content}</p>
+              {sendErrors[r.id] && (
+                <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 600, marginTop: 4 }}>
+                  Problème de réseaux, réessaie plus tard
+                </div>
+              )}
 
               {/* Reactions */}
               <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
@@ -486,6 +491,11 @@ export function ResultsWall({
                         <div style={{ background: "rgba(124,58,237,0.12)", border: "1px solid rgba(168,85,247,0.18)", borderRadius: 10, padding: "6px 10px", flex: 1 }}>
                           <div style={{ fontSize: 11, fontWeight: 700, color: "#c4a3f0", marginBottom: 2 }}>{cname}</div>
                           <div style={{ fontSize: 13, color: "#f0e8ff", lineHeight: 1.4, wordBreak: "break-word" }}>{c.body}</div>
+                          {sendErrors[c.id] && (
+                            <div style={{ fontSize: 10, color: "#ef4444", fontWeight: 600, marginTop: 2 }}>
+                              Problème de réseaux, réessaie plus tard
+                            </div>
+                          )}
                           <div style={{ fontSize: 10, color: "#6b4fa0", marginTop: 2 }}>
                             {new Date(c.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                           </div>
