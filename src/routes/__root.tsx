@@ -1,6 +1,6 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AuthProvider } from "@/lib/auth-context";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { ThemeProvider, THEME_PRE_PAINT_SCRIPT } from "@/lib/theme-context";
 import { MAINTENANCE_MODE, MAINTENANCE_ALLOWLIST, hasMaintenanceBypass, setMaintenanceBypass } from "@/lib/maintenance-mode";
 import { MaintenanceScreen } from "@/components/dd/MaintenanceScreen";
@@ -79,26 +79,44 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <MaintenanceGate />
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
+
+function MaintenanceGate() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { user, loading } = useAuth();
   const allowed = MAINTENANCE_ALLOWLIST.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const [bypass, setBypass] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (hasMaintenanceBypass()) setBypass(true);
   }, [pathname]);
 
-  const showMaintenance = MAINTENANCE_MODE && !allowed && !bypass;
+  // Laisse l'interface de la formation se rendre derrière avant l'ouverture du pop-up.
+  useEffect(() => {
+    setReady(false);
+    if (loading || !user) return;
+    const id = setTimeout(() => setReady(true), 600);
+    return () => clearTimeout(id);
+  }, [loading, user, pathname]);
+
+  const showMaintenance = MAINTENANCE_MODE && !allowed && !bypass && !loading && !!user && ready;
 
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <div className={showMaintenance ? "fr-behind" : undefined} aria-hidden={showMaintenance || undefined}>
-          <Outlet />
-        </div>
-        {showMaintenance && (
-          <MaintenanceScreen onResume={() => { setMaintenanceBypass(); setBypass(true); }} />
-        )}
-      </AuthProvider>
-    </ThemeProvider>
+    <>
+      <div className={showMaintenance ? "fr-behind" : undefined} aria-hidden={showMaintenance || undefined}>
+        <Outlet />
+      </div>
+      {showMaintenance && (
+        <MaintenanceScreen onResume={() => { setMaintenanceBypass(); setBypass(true); }} />
+      )}
+    </>
   );
 }

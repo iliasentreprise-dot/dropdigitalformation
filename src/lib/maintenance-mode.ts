@@ -5,7 +5,13 @@
 export const MAINTENANCE_MODE = true;
 
 /** Chemins toujours accessibles même pendant la transformation. */
-export const MAINTENANCE_ALLOWLIST = ["/maintenance"];
+export const MAINTENANCE_ALLOWLIST = [
+  "/maintenance",
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+];
 
 /**
  * Date d'ouverture de Ferrucci Système (UTC).
