@@ -1,7 +1,8 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider, THEME_PRE_PAINT_SCRIPT } from "@/lib/theme-context";
-import { MAINTENANCE_MODE, MAINTENANCE_ALLOWLIST } from "@/lib/maintenance-mode";
+import { MAINTENANCE_MODE, MAINTENANCE_ALLOWLIST, hasMaintenanceBypass, setMaintenanceBypass } from "@/lib/maintenance-mode";
 import { MaintenanceScreen } from "@/components/dd/MaintenanceScreen";
 
 
@@ -80,9 +81,14 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const allowed = MAINTENANCE_ALLOWLIST.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const [bypass, setBypass] = useState(false);
 
-  if (MAINTENANCE_MODE && !allowed) {
-    return <MaintenanceScreen />;
+  useEffect(() => {
+    if (hasMaintenanceBypass()) setBypass(true);
+  }, [pathname]);
+
+  if (MAINTENANCE_MODE && !allowed && !bypass) {
+    return <MaintenanceScreen onResume={() => { setMaintenanceBypass(); setBypass(true); }} />;
   }
 
   return (

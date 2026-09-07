@@ -328,3 +328,55 @@
 @media (prefers-reduced-motion: reduce) {
   .fr-root *, .fr-root *::before, .fr-root *::after { animation: none !important; }
 }
+
+/* ── Bouton reprise du programme ─────────────────────────── */
+.fr-resume {
+  margin-top: 34px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 42px;
+  background: linear-gradient(160deg, #b91c1c 0%, #7f1d1d 55%, #450a0a 100%);
+  color: #fff5f5;
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 12px 40px -8px rgba(220, 38, 38, 0.55), inset 0 1px 0 rgba(255,255,255,0.18);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  animation: fr-resume-pulse 2.8s ease-in-out infinite;
+}
+.fr-resume:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 18px 55px -8px rgba(239, 68, 68, 0.75), inset 0 1px 0 rgba(255,255,255,0.22);
+}
+.fr-resume::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.22) 48%, transparent 62%);
+  transform: translateX(-120%);
+  animation: fr-resume-shine 3.6s ease-in-out infinite;
+}
+.fr-resume-sub {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: rgba(254, 202, 202, 0.85);
+}
+@keyframes fr-resume-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 12px 40px -8px rgba(220,38,38,0.55), inset 0 1px 0 rgba(255,255,255,0.18); }
+  50% { box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 12px 55px -4px rgba(239,68,68,0.8), inset 0 1px 0 rgba(255,255,255,0.18); }
+}
+@keyframes fr-resume-shine {
+  0%, 55% { transform: translateX(-120%); }
+  85%, 100% { transform: translateX(120%); }
+}

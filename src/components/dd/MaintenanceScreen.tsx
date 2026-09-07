@@ -7,7 +7,7 @@ const STEPS = [
   { n: "03", k: "Automatisation", t: "Des systèmes améliorés et peaufinés pour automatiser toujours plus de tâches." },
 ];
 
-export function MaintenanceScreen() {
+export function MaintenanceScreen({ onResume }: { onResume?: () => void }) {
   return (
     <div className="fr-root">
       <div className="fr-grid-lines" aria-hidden="true" />
@@ -96,6 +96,13 @@ export function MaintenanceScreen() {
             de simplement ajouter quelques mises à jour.
           </p>
           <p className="fr-sign">— Ferrucci Système</p>
+
+          {onResume && (
+            <button type="button" className="fr-resume" onClick={onResume}>
+              Reprendre le programme DropDigital
+              <span className="fr-resume-sub">Accéder à la version actuelle de la plateforme</span>
+            </button>
+          )}
         </section>
       </main>
     </div>
