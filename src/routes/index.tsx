@@ -8,6 +8,7 @@ import { GroupChat } from "@/components/dd/GroupChat";
 import { ResultsWall } from "@/components/dd/ResultsWall";
 import { EspaceAssocies } from "@/components/dd/EspaceAssocies";
 import { NotificationBell } from "@/components/dd/NotificationBell";
+import { FerrucciTeaser } from "@/components/dd/FerrucciTeaser";
 import { AvatarCropModal } from "@/components/dd/AvatarCropModal";
 import { toast } from "sonner";
 import { getDripBypassFn } from "@/lib/drip.functions";
