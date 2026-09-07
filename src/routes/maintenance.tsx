@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { MaintenanceScreen } from "@/components/dd/MaintenanceScreen";
+import { setMaintenanceBypass } from "@/lib/maintenance-mode";
 
 export const Route = createFileRoute("/maintenance")({
   head: () => ({
@@ -12,5 +13,17 @@ export const Route = createFileRoute("/maintenance")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: MaintenanceScreen,
+  component: MaintenancePage,
 });
+
+function MaintenancePage() {
+  const navigate = useNavigate();
+  return (
+    <MaintenanceScreen
+      onResume={() => {
+        setMaintenanceBypass();
+        navigate({ to: "/" });
+      }}
+    />
+  );
+}
