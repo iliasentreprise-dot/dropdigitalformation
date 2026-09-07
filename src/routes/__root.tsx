@@ -1,6 +1,8 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider, THEME_PRE_PAINT_SCRIPT } from "@/lib/theme-context";
+import { MAINTENANCE_MODE, MAINTENANCE_ALLOWLIST } from "@/lib/maintenance-mode";
+import { MaintenanceScreen } from "@/components/dd/MaintenanceScreen";
 
 
 import appCss from "../styles.css?url";
@@ -50,7 +52,7 @@ export const Route = createRootRoute({
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Cormorant+Garamond:wght@300;400;500;600;700&display=swap" },
     ],
     scripts: [
       { children: THEME_PRE_PAINT_SCRIPT },
@@ -76,10 +78,16 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const allowed = MAINTENANCE_ALLOWLIST.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+
+  if (MAINTENANCE_MODE && !allowed) {
+    return <MaintenanceScreen />;
+  }
+
   return (
     <ThemeProvider>
       <AuthProvider>
-        
         <Outlet />
       </AuthProvider>
     </ThemeProvider>
