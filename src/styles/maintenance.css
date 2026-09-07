@@ -674,3 +674,16 @@
   .fr-overlay { padding: 8px; }
   .fr-modal { max-height: 96vh; border-radius: 10px; }
 }
+
+/* ── Formation visible derrière le pop-up ────────────────── */
+.fr-behind {
+  filter: blur(7px) brightness(0.6) saturate(1.1);
+  pointer-events: none;
+  user-select: none;
+  max-height: 100vh;
+  overflow: hidden;
+}
+.fr-overlay {
+  background: rgba(2, 1, 1, 0.35);
+  backdrop-filter: none;
+}
