@@ -85,7 +85,7 @@ function RootComponent() {
 
   useEffect(() => {
     if (hasMaintenanceBypass()) setBypass(true);
-  }, []);
+  }, [pathname]);
 
   if (MAINTENANCE_MODE && !allowed && !bypass) {
     return <MaintenanceScreen onResume={() => { setMaintenanceBypass(); setBypass(true); }} />;
