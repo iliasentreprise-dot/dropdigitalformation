@@ -7,7 +7,7 @@ const STEPS = [
   { n: "03", k: "Automatisation", t: "Des systèmes améliorés et peaufinés pour automatiser toujours plus de tâches." },
 ];
 
-export function MaintenanceScreen() {
+export function MaintenanceScreen({ onResume }: { onResume?: () => void }) {
   return (
     <div className="fr-root">
       <div className="fr-grid-lines" aria-hidden="true" />

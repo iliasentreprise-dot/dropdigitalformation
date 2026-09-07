@@ -1,4 +1,5 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider, THEME_PRE_PAINT_SCRIPT } from "@/lib/theme-context";
 import { MAINTENANCE_MODE, MAINTENANCE_ALLOWLIST, hasMaintenanceBypass, setMaintenanceBypass } from "@/lib/maintenance-mode";
