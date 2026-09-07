@@ -190,7 +190,7 @@ export function MaintenanceScreen({ onResume }: { onResume?: () => void }) {
           {onResume && (
             <div className="fr-cta-wrap">
               <button type="button" className="fr-resume" onClick={onResume}>
-                ← Reprendre DigiDrop Academy
+                J'ai lu — Reprendre le programme
               </button>
               <span className="fr-cta-note">Disponible encore pendant 7 jours.</span>
             </div>
