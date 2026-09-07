@@ -281,6 +281,8 @@ export function MaintenanceScreen({ onResume }: { onResume?: () => void }) {
           <p className="fr-tagline">Des idées d’aujourd’hui.<br />Des revenus de demain.</p>
         </section>
       </main>
+        </div>
+      </div>
     </div>
   );
 }
