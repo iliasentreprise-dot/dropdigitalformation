@@ -480,6 +480,10 @@ function HomePage() {
               <span>Admin</span>
             </Link>
           )}
+          <Link to="/maintenance" className="sidebar-item frx-sidebar-link" style={{ textDecoration: "none" }} onClick={() => setSidebarOpen(false)}>
+            <span className="si-icon frx-sidebar-dot" aria-hidden="true" />
+            <span className="frx-sidebar-label">Ferrucci Système<em>arrive</em></span>
+          </Link>
           <div className="sidebar-item" onClick={handleSignOut}>
             <span className="si-icon">🚪</span>
             <span>Déconnexion</span>
@@ -488,6 +492,8 @@ function HomePage() {
 
         <main className="main">
           <div className="tab-content">
+            <FerrucciTeaser />
+
 
             {/* ── MODULES ── */}
             {tab === "modules" && (
