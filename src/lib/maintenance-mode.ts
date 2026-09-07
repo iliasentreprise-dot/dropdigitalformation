@@ -7,6 +7,13 @@ export const MAINTENANCE_MODE = true;
 /** Chemins toujours accessibles même pendant la transformation. */
 export const MAINTENANCE_ALLOWLIST = ["/maintenance"];
 
+/**
+ * Date d'ouverture de Ferrucci Système (UTC).
+ * Identique pour tous les utilisateurs : le compte à rebours ne se réinitialise
+ * jamais au rafraîchissement. Modifier uniquement cette ligne pour décaler le lancement.
+ */
+export const FERRUCCI_LAUNCH_DATE = new Date("2026-09-14T14:00:00Z");
+
 /** Clé localStorage : l'utilisateur a choisi de reprendre le programme DropDigital. */
 export const MAINTENANCE_BYPASS_KEY = "dd-bypass-maintenance";
 
