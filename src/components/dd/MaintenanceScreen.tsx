@@ -92,7 +92,14 @@ function Countdown() {
 
 export function MaintenanceScreen({ onResume }: { onResume?: () => void }) {
   return (
-    <div className="fr-root">
+    <div className="fr-overlay">
+      <div className="fr-modal">
+        {onResume && (
+          <button type="button" className="fr-close" onClick={onResume} aria-label="Fermer">
+            ×
+          </button>
+        )}
+        <div className="fr-root fr-root-modal">
       <div className="fr-grid-lines" aria-hidden="true" />
       <div className="fr-blueprint" aria-hidden="true" />
       <div className="fr-embers" aria-hidden="true">
