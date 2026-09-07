@@ -93,21 +93,15 @@ function MaintenanceGate() {
   const { user, loading } = useAuth();
   const allowed = MAINTENANCE_ALLOWLIST.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const [bypass, setBypass] = useState(true); // fermé tant qu'on n'a pas lu le localStorage
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     setBypass(hasMaintenanceBypass());
   }, []);
 
-  // Laisse l'interface de la formation se rendre derrière avant l'ouverture du pop-up.
-  // Ne se relance pas à chaque navigation : une seule ouverture par session.
-  useEffect(() => {
-    if (loading || !user || ready) return;
-    const id = setTimeout(() => setReady(true), 600);
-    return () => clearTimeout(id);
-  }, [loading, user, ready]);
-
-  const showMaintenance = MAINTENANCE_MODE && !allowed && !bypass && !loading && !!user && ready;
+  // La notification ne s'ouvre plus automatiquement au démarrage.
+  // L'utilisateur peut toujours l'ouvrir manuellement via les boutons
+  // "Ferrucci Système arrive" ou la bannière teaser.
+  const showMaintenance = false;
 
   const close = () => {
     setMaintenanceBypass();
