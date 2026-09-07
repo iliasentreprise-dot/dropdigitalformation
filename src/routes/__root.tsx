@@ -87,14 +87,17 @@ function RootComponent() {
     if (hasMaintenanceBypass()) setBypass(true);
   }, [pathname]);
 
-  if (MAINTENANCE_MODE && !allowed && !bypass) {
-    return <MaintenanceScreen onResume={() => { setMaintenanceBypass(); setBypass(true); }} />;
-  }
+  const showMaintenance = MAINTENANCE_MODE && !allowed && !bypass;
 
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Outlet />
+        <div className={showMaintenance ? "fr-behind" : undefined} aria-hidden={showMaintenance || undefined}>
+          <Outlet />
+        </div>
+        {showMaintenance && (
+          <MaintenanceScreen onResume={() => { setMaintenanceBypass(); setBypass(true); }} />
+        )}
       </AuthProvider>
     </ThemeProvider>
   );
