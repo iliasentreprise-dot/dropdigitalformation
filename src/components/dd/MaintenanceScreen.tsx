@@ -283,6 +283,7 @@ export function MaintenanceScreen({ onResume }: { onResume?: () => void }) {
         </section>
       </main>
         </div>
+        </div>
       </div>
     </div>
   );
