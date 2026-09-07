@@ -92,8 +92,13 @@ function Countdown() {
 
 export function MaintenanceScreen({ onResume }: { onResume?: () => void }) {
   return (
-    <div className="fr-overlay">
-      <div className="fr-modal" role="dialog" aria-modal="true">
+    <div
+      className="fr-overlay"
+      onClick={(e) => {
+        if (onResume && e.target === e.currentTarget) onResume();
+      }}
+    >
+      <div className="fr-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         {onResume && (
           <button type="button" className="fr-close" onClick={onResume} aria-label="Fermer">
             ×

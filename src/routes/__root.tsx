@@ -92,31 +92,49 @@ function MaintenanceGate() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { user, loading } = useAuth();
   const allowed = MAINTENANCE_ALLOWLIST.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  const [bypass, setBypass] = useState(false);
+  const [bypass, setBypass] = useState(true); // fermé tant qu'on n'a pas lu le localStorage
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (hasMaintenanceBypass()) setBypass(true);
-  }, [pathname]);
+    setBypass(hasMaintenanceBypass());
+  }, []);
 
   // Laisse l'interface de la formation se rendre derrière avant l'ouverture du pop-up.
+  // Ne se relance pas à chaque navigation : une seule ouverture par session.
   useEffect(() => {
-    setReady(false);
-    if (loading || !user) return;
+    if (loading || !user || ready) return;
     const id = setTimeout(() => setReady(true), 600);
     return () => clearTimeout(id);
-  }, [loading, user, pathname]);
+  }, [loading, user, ready]);
 
   const showMaintenance = MAINTENANCE_MODE && !allowed && !bypass && !loading && !!user && ready;
 
+  const close = () => {
+    setMaintenanceBypass();
+    setBypass(true);
+  };
+
+  // Bloque le défilement de la page derrière + fermeture au clavier (Échap).
+  useEffect(() => {
+    if (!showMaintenance) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [showMaintenance]);
+
   return (
     <>
-      <div className={showMaintenance ? "fr-behind" : undefined} aria-hidden={showMaintenance || undefined}>
+      <div className={showMaintenance ? "fr-behind" : undefined}>
         <Outlet />
       </div>
-      {showMaintenance && (
-        <MaintenanceScreen onResume={() => { setMaintenanceBypass(); setBypass(true); }} />
-      )}
+      {showMaintenance && <MaintenanceScreen onResume={close} />}
     </>
   );
 }
