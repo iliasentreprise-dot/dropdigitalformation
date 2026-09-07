@@ -96,6 +96,13 @@ export function MaintenanceScreen({ onResume }: { onResume?: () => void }) {
             de simplement ajouter quelques mises à jour.
           </p>
           <p className="fr-sign">— Ferrucci Système</p>
+
+          {onResume && (
+            <button type="button" className="fr-resume" onClick={onResume}>
+              Reprendre le programme DropDigital
+              <span className="fr-resume-sub">Accéder à la version actuelle de la plateforme</span>
+            </button>
+          )}
         </section>
       </main>
     </div>
